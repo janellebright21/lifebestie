@@ -129,8 +129,18 @@ export default function App() {
   }
 
   async function deleteEvent(id: string) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    await supabase.from('events').delete().eq('id', id);
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting event:', error);
+    return;
+  }
+
+  setEvents((prev) => prev.filter((e) => e.id !== id));
+}
   }
 
   async function addGrocery(name: string, category: GroceryCategory) {
