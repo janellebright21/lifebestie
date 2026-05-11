@@ -493,7 +493,14 @@ function AddEventForm({
   async function handleSave() {
     if (!title.trim()) return;
     setSaving(true);
-    await onAdd(title.trim(), date, time, category, location || undefined, notes || undefined);
+    await onAdd(
+  title.trim(),
+  date,
+  time || undefined,
+  category,
+  location || undefined,
+  notes || undefined
+);
     setSaving(false);
     onCancel();
   }
