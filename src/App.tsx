@@ -127,19 +127,10 @@ export default function App() {
       await userMemory.addHistoryAction(`Added event: ${title} on ${date}`);
     }
   }
+
   async function deleteEvent(id: string) {
-  const { error } = await supabase
-    .from('events')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    console.error('Error deleting event:', error);
-    return;
-  }
-
-  setEvents((prev) => prev.filter((e) => e.id !== id));
-}
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    await supabase.from('events').delete().eq('id', id);
   }
 
   async function addGrocery(name: string, category: GroceryCategory) {
