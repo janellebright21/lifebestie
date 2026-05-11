@@ -1756,6 +1756,7 @@ function TodayView({
   today,
   onToggleTask,
   onDeleteTask,
+  onDeleteEvent,
   onUpdateTask,
   onOpenPlanMyDay,
   onAddMeal,
@@ -1770,6 +1771,7 @@ function TodayView({
   today: string;
   onToggleTask: (id: string, completed: boolean) => void;
   onDeleteTask: (id: string) => void;
+  onDeleteEvent: (id: string) => void;
   onUpdateTask: PlannerPageProps['onUpdateTask'];
   onOpenPlanMyDay: () => void;
   onAddMeal: PlannerPageProps['onAddMeal'];
@@ -2297,10 +2299,10 @@ export default function PlannerPage({
           meals={meals}
           selectedDate={selectedDate}
           today={today}
-         onToggleTask={onToggleTask}
-onDeleteTask={onDeleteTask}
-onDeleteEvent={onDeleteEvent}
-onUpdateTask={onUpdateTask}
+          onToggleTask={onToggleTask}
+          onDeleteTask={onDeleteTask}
+          onDeleteEvent={onDeleteEvent}
+          onUpdateTask={onUpdateTask}
 onOpenPlanMyDay={() => setShowPlanMyDay(true)}
         />
       )}
