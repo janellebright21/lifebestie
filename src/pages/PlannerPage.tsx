@@ -2297,12 +2297,11 @@ export default function PlannerPage({
           meals={meals}
           selectedDate={selectedDate}
           today={today}
-          onToggleTask={onToggleTask}
-          onDeleteTask={onDeleteTask}
-          onUpdateTask={onUpdateTask}
-          onOpenPlanMyDay={() => setShowPlanMyDay(true)}
-          onAddMeal={onAddMeal}
-          onLinkMealToEvent={onLinkMealToEvent}
+         onToggleTask={onToggleTask}
+onDeleteTask={onDeleteTask}
+onDeleteEvent={onDeleteEvent}
+onUpdateTask={onUpdateTask}
+onOpenPlanMyDay={() => setShowPlanMyDay(true)}
         />
       )}
       {view === 'tasks' && (
