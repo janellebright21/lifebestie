@@ -127,7 +127,6 @@ export default function App() {
       await userMemory.addHistoryAction(`Added event: ${title} on ${date}`);
     }
   }
-
   async function deleteEvent(id: string) {
   const { error } = await supabase
     .from('events')
