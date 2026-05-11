@@ -1909,7 +1909,7 @@ function TodayView({
                     key={e.id}
                     event={e}
                     meals={meals}
-                    onDelete={() => {}}
+                   onDelete={() => onDeleteEvent(e.id)}
                     onAddMeal={onAddMeal}
                     onLinkMeal={(meal) => onLinkMealToEvent(e.id, meal)}
                   />
