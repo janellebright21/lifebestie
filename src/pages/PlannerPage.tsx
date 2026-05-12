@@ -1028,6 +1028,66 @@ const [editNotes, setEditNotes] = useState(event.notes ?? '');
         )}
       </div>
 
+     {showEdit && (
+  <div className="fixed inset-0 z-[70] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+    <div className="absolute inset-0" onClick={() => setShowEdit(false)} />
+    <div className="relative bg-white rounded-t-3xl shadow-2xl p-5 space-y-3">
+      <h3 className="text-sm font-bold text-gray-800">Edit Event</h3>
+
+      <input
+        type="text"
+        value={editTitle}
+        onChange={(e) => setEditTitle(e.target.value)}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none"
+      />
+
+      <input
+        type="date"
+        value={editDate}
+        onChange={(e) => setEditDate(e.target.value)}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none"
+      />
+
+      <input
+        type="time"
+        value={editTime || ''}
+        onChange={(e) => setEditTime(e.target.value)}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none"
+      />
+
+      <input
+        type="text"
+        placeholder="Location"
+        value={editLocation}
+        onChange={(e) => setEditLocation(e.target.value)}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none"
+      />
+
+      <textarea
+        placeholder="Notes"
+        value={editNotes}
+        onChange={(e) => setEditNotes(e.target.value)}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none resize-none"
+      />
+
+      <button
+        onClick={async () => {
+          await onUpdate({
+            title: editTitle,
+            event_date: editDate,
+            event_time: editTime || undefined,
+            location: editLocation || undefined,
+            notes: editNotes || undefined,
+          });
+          setShowEdit(false);
+        }}
+        className="w-full py-3 rounded-xl bg-sky-500 text-white text-sm font-semibold"
+      >
+        Save Changes
+      </button>
+    </div>
+  </div>
+)} 
       {showLinkMeal && (
         <LinkMealSheet
           event={event}
