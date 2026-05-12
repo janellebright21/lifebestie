@@ -29,6 +29,7 @@ interface PlannerPageProps {
   onUpdateTask: (id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) => Promise<void>;
   onDeleteTask: (id: string) => void;
   onDeleteEvent: (id: string) => void;
+  onUpdateEvent: (id: string, patch: Partial<Pick<Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>) => Promise<void>;
   onDeleteRoutine: (name: string) => void;
   onAddMeal: (name: string) => Promise<Meal | null>;
   onLinkMealToEvent: (eventId: string, meal: Meal) => Promise<void>;
