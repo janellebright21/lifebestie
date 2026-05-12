@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  Plus, CheckCircle2, Circle, Clock, Trash2, Repeat, Target,
+  Plus, CheckCircle2, Circle, Clock, Trash2,Pencil, Repeat, Target,
   Timer, ChevronDown, ChevronUp, Sparkles, Calendar, MapPin,
   Flag, Zap, AlarmClock, X, Pencil, Check,
   Lock, Unlock, ArrowUp, ArrowDown, RefreshCw, ListPlus, Palette,
   UtensilsCrossed, ShoppingCart,
 } from 'lucide-react';
-import {
   Task, Event, Routine, Goal, Meal,
   TASK_CATEGORIES, TaskCategory, TaskPriority,
   EVENT_CATEGORIES, EventCategory,
