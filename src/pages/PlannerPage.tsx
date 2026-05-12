@@ -973,6 +973,13 @@ function EventCard({
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
           )}
+          <button
+  onClick={() => setShowEdit(true)}
+  className="p-1.5 rounded-lg hover:bg-sky-50 active:scale-95 transition-all"
+>
+  <Pencil size={14} className="text-gray-300 hover:text-sky-400 transition-colors" />
+</button>
+          
           <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 active:scale-95 transition-all">
             <Trash2 size={14} className="text-gray-200 hover:text-rose-300 transition-colors" />
           </button>
