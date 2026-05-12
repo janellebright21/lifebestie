@@ -133,6 +133,11 @@ export default function App() {
     await supabase.from('events').delete().eq('id', id);
   }
 
+  async function updateEvent(id: string, patch: Partial<Pick<import('./lib/supabase').Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>) {
+    setEvents((prev) => prev.map((e) => e.id === id ? { ...e, ...patch } : e));
+    await supabase.from('events').update(patch).eq('id', id);
+  }
+
   async function addGrocery(name: string, category: GroceryCategory) {
     const { data } = await supabase
       .from('grocery_items')
@@ -321,6 +326,7 @@ export default function App() {
           onUpdateTask={updateTask}
           onDeleteTask={deleteTask}
           onDeleteEvent={deleteEvent}
+          onUpdateEvent={updateEvent}
           onDeleteRoutine={userMemory.removeRoutine}
           onAddMeal={mealPlanner.addMeal}
           onLinkMealToEvent={linkMealToEvent}

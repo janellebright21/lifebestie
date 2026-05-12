@@ -606,15 +606,19 @@ function AddEventForm({
 function TaskCard({
   task,
   goal,
+  goals,
   onToggle,
   onDelete,
+  onUpdate,
   onMoveToToday,
   onMoveToTomorrow,
 }: {
   task: Task;
   goal: Goal | undefined;
+  goals?: Goal[];
   onToggle: () => void;
   onDelete: () => void;
+  onUpdate?: (patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) => Promise<void>;
   onMoveToToday?: () => void;
   onMoveToTomorrow?: () => void;
 }) {
@@ -625,88 +629,222 @@ function TaskCard({
   const getCatColor = useCatColor();
   const catCfg = getCatColor(task.category ?? 'Other');
 
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editDueDate, setEditDueDate] = useState(task.due_date ?? '');
+  const [editCategory, setEditCategory] = useState<TaskCategory>(task.category ?? 'Other');
+  const [editPriority, setEditPriority] = useState<TaskPriority>(task.priority ?? 'medium');
+  const [editDuration, setEditDuration] = useState<string>(task.duration != null ? String(task.duration) : '');
+  const [editGoalId, setEditGoalId] = useState(task.linked_goal_id ?? '');
+
+  function openEdit() {
+    setEditTitle(task.title);
+    setEditDueDate(task.due_date ?? '');
+    setEditCategory(task.category ?? 'Other');
+    setEditPriority(task.priority ?? 'medium');
+    setEditDuration(task.duration != null ? String(task.duration) : '');
+    setEditGoalId(task.linked_goal_id ?? '');
+    setShowEdit(true);
+  }
+
+  async function saveEdit() {
+    if (!onUpdate) return;
+    await onUpdate({
+      title: editTitle.trim() || task.title,
+      due_date: editDueDate || null,
+      category: editCategory,
+      priority: editPriority,
+      duration: editDuration !== '' ? Number(editDuration) : null,
+      linked_goal_id: editGoalId || null,
+    });
+    setShowEdit(false);
+  }
+
   return (
-    <div className={`bg-white rounded-2xl px-4 py-3 shadow-sm border transition-all ${
-      task.completed ? 'border-gray-50 opacity-60' : isMissed ? 'border-rose-100' : 'border-gray-50'
-    }`}>
-      <div className="flex items-start gap-3">
-        <button onClick={onToggle} className="shrink-0 mt-0.5 transition-transform active:scale-90">
-          {task.completed
-            ? <CheckCircle2 size={20} className="text-sky-400" />
-            : <Circle size={20} className="text-gray-200 hover:text-sky-300 transition-colors" />}
-        </button>
+    <>
+      <div className={`bg-white rounded-2xl px-4 py-3 shadow-sm border transition-all ${
+        task.completed ? 'border-gray-50 opacity-60' : isMissed ? 'border-rose-100' : 'border-gray-50'
+      }`}>
+        <div className="flex items-start gap-3">
+          <button onClick={onToggle} className="shrink-0 mt-0.5 transition-transform active:scale-90">
+            {task.completed
+              ? <CheckCircle2 size={20} className="text-sky-400" />
+              : <Circle size={20} className="text-gray-200 hover:text-sky-300 transition-colors" />}
+          </button>
 
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium leading-snug ${task.completed ? 'line-through text-gray-300' : 'text-gray-700'}`}>
-            {task.title}
-          </p>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {/* Priority badge */}
-            <span className={`text-xs font-semibold flex items-center gap-0.5 ${priorityCfg.color}`}>
-              <Flag size={9} />
-              {priorityCfg.label}
-            </span>
-
-            {/* Category badge */}
-            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${catCfg.bg} ${catCfg.text}`}>
-              {task.category}
-            </span>
-
-            {/* Due date */}
-            {task.due_date && (
-              <span className={`text-xs font-medium flex items-center gap-1 ${isMissed ? 'text-rose-500' : 'text-gray-400'}`}>
-                <Clock size={10} />
-                {formatDate(task.due_date, today)}
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-medium leading-snug ${task.completed ? 'line-through text-gray-300' : 'text-gray-700'}`}>
+              {task.title}
+            </p>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className={`text-xs font-semibold flex items-center gap-0.5 ${priorityCfg.color}`}>
+                <Flag size={9} />
+                {priorityCfg.label}
               </span>
+              <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${catCfg.bg} ${catCfg.text}`}>
+                {task.category}
+              </span>
+              {task.due_date && (
+                <span className={`text-xs font-medium flex items-center gap-1 ${isMissed ? 'text-rose-500' : 'text-gray-400'}`}>
+                  <Clock size={10} />
+                  {formatDate(task.due_date, today)}
+                </span>
+              )}
+              {task.duration != null && (
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <Timer size={10} />
+                  {formatDuration(task.duration)}
+                </span>
+              )}
+              {goal && (
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 flex items-center gap-1">
+                  <Target size={9} />
+                  {goal.title.length > 18 ? goal.title.slice(0, 18) + '…' : goal.title}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {onUpdate && (
+            <button onClick={openEdit} className="p-1.5 rounded-lg hover:bg-sky-50 active:scale-95 transition-all shrink-0 mt-0.5">
+              <Pencil size={14} className="text-gray-200 hover:text-sky-400 transition-colors" />
+            </button>
+          )}
+          <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 active:scale-95 transition-all shrink-0 mt-0.5">
+            <Trash2 size={14} className="text-gray-200 hover:text-rose-300 transition-colors" />
+          </button>
+        </div>
+
+        {isMissed && (onMoveToToday || onMoveToTomorrow) && (
+          <div className="mt-2.5 pt-2.5 border-t border-rose-50 flex items-center gap-2">
+            <AlarmClock size={11} className="text-rose-400 shrink-0" />
+            <span className="text-xs text-rose-400 flex-1">Looks like this one got missed</span>
+            {onMoveToToday && (
+              <button onClick={onMoveToToday} className="text-xs font-semibold text-sky-500 hover:text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full transition-colors">
+                Move to Today
+              </button>
             )}
-
-            {/* Duration */}
-            {task.duration != null && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <Timer size={10} />
-                {formatDuration(task.duration)}
-              </span>
-            )}
-
-            {/* Goal link */}
-            {goal && (
-              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 flex items-center gap-1">
-                <Target size={9} />
-                {goal.title.length > 18 ? goal.title.slice(0, 18) + '…' : goal.title}
-              </span>
+            {onMoveToTomorrow && (
+              <button onClick={onMoveToTomorrow} className="text-xs font-semibold text-gray-400 hover:text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full transition-colors">
+                Tomorrow
+              </button>
             )}
           </div>
-        </div>
-
-        <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 active:scale-95 transition-all shrink-0 mt-0.5">
-          <Trash2 size={14} className="text-gray-200 hover:text-rose-300 transition-colors" />
-        </button>
+        )}
       </div>
 
-      {/* Missed task reschedule banner */}
-      {isMissed && (onMoveToToday || onMoveToTomorrow) && (
-        <div className="mt-2.5 pt-2.5 border-t border-rose-50 flex items-center gap-2">
-          <AlarmClock size={11} className="text-rose-400 shrink-0" />
-          <span className="text-xs text-rose-400 flex-1">Looks like this one got missed</span>
-          {onMoveToToday && (
-            <button
-              onClick={onMoveToToday}
-              className="text-xs font-semibold text-sky-500 hover:text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full transition-colors"
-            >
-              Move to Today
-            </button>
-          )}
-          {onMoveToTomorrow && (
-            <button
-              onClick={onMoveToTomorrow}
-              className="text-xs font-semibold text-gray-400 hover:text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full transition-colors"
-            >
-              Tomorrow
-            </button>
-          )}
+      {showEdit && (
+        <div className="fixed inset-0 z-[70] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="absolute inset-0" onClick={() => setShowEdit(false)} />
+          <div className="relative bg-white rounded-t-3xl shadow-2xl p-5 space-y-3 max-h-[88dvh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-bold text-gray-800">Edit Task</h3>
+              <button onClick={() => setShowEdit(false)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <X size={16} className="text-gray-400" />
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Task title"
+              className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-sky-200 border border-transparent focus:border-sky-200"
+            />
+
+            <div>
+              <p className="text-xs font-semibold text-gray-400 mb-1.5">Due date</p>
+              <input
+                type="date"
+                value={editDueDate}
+                onChange={(e) => setEditDueDate(e.target.value)}
+                className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-sky-200 border border-transparent focus:border-sky-200"
+              />
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-400 mb-1.5">Priority</p>
+              <div className="flex gap-2">
+                {(['high', 'medium', 'low'] as TaskPriority[]).map((p) => {
+                  const cfg = PRIORITY_CONFIG[p];
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setEditPriority(p)}
+                      className={`flex-1 text-xs font-semibold py-2 rounded-xl transition-all ${
+                        editPriority === p ? `${cfg.bg} ${cfg.color} ring-1 ring-current` : 'bg-gray-100 text-gray-400'
+                      }`}
+                    >
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-400 mb-1.5">Category</p>
+              <div className="flex flex-wrap gap-2">
+                {TASK_CATEGORIES.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setEditCategory(c)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
+                      editCategory === c ? 'bg-sky-100 text-sky-600 ring-1 ring-sky-300' : 'bg-gray-100 text-gray-400'
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-400 mb-1.5">Duration (minutes)</p>
+              <input
+                type="number"
+                min="1"
+                value={editDuration}
+                onChange={(e) => setEditDuration(e.target.value)}
+                placeholder="e.g. 30"
+                className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-sky-200 border border-transparent focus:border-sky-200"
+              />
+            </div>
+
+            {goals && goals.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 mb-1.5">Linked goal</p>
+                <select
+                  value={editGoalId}
+                  onChange={(e) => setEditGoalId(e.target.value)}
+                  className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-sky-200 border border-transparent focus:border-sky-200"
+                >
+                  <option value="">No goal</option>
+                  {goals.map((g) => (
+                    <option key={g.id} value={g.id}>{g.title}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setShowEdit(false)}
+                className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-500 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                className="flex-1 py-3 rounded-xl bg-sky-500 text-white text-sm font-semibold"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -2034,8 +2172,10 @@ function TodayView({
                     key={task.id}
                     task={task}
                     goal={task.linked_goal_id ? goalMap.get(task.linked_goal_id) : undefined}
+                    goals={goals}
                     onToggle={() => onToggleTask(task.id, !task.completed)}
                     onDelete={() => onDeleteTask(task.id)}
+                    onUpdate={(patch) => onUpdateTask(task.id, patch)}
                     onMoveToToday={!task.completed && task.due_date && task.due_date < today
                       ? () => onUpdateTask(task.id, { due_date: today }) : undefined}
                     onMoveToTomorrow={!task.completed && task.due_date && task.due_date < today
@@ -2133,8 +2273,10 @@ function AllTasksView({
               key={task.id}
               task={task}
               goal={task.linked_goal_id ? goalMap.get(task.linked_goal_id) : undefined}
+              goals={goals}
               onToggle={() => onToggleTask(task.id, !task.completed)}
               onDelete={() => onDeleteTask(task.id)}
+              onUpdate={(patch) => onUpdateTask(task.id, patch)}
               onMoveToToday={!task.completed && task.due_date && task.due_date < today ? () => onUpdateTask(task.id, { due_date: today }) : undefined}
               onMoveToTomorrow={!task.completed && task.due_date && task.due_date < today ? () => onUpdateTask(task.id, { due_date: getTomorrow() }) : undefined}
             />
@@ -2245,6 +2387,7 @@ function AllEventsView({
                     event={e}
                     meals={meals}
                     onDelete={() => onDeleteEvent(e.id)}
+                    onUpdate={(patch) => onUpdateEvent(e.id, patch)}
                     onAddMeal={onAddMeal}
                     onLinkMeal={(meal) => onLinkMealToEvent(e.id, meal)}
                   />
@@ -2424,7 +2567,9 @@ export default function PlannerPage({
           onDeleteEvent={onDeleteEvent}
           onUpdateEvent={onUpdateEvent}
           onUpdateTask={onUpdateTask}
-onOpenPlanMyDay={() => setShowPlanMyDay(true)}
+          onOpenPlanMyDay={() => setShowPlanMyDay(true)}
+          onAddMeal={onAddMeal}
+          onLinkMealToEvent={onLinkMealToEvent}
         />
       )}
       {view === 'tasks' && (
@@ -2444,6 +2589,7 @@ onOpenPlanMyDay={() => setShowPlanMyDay(true)}
           meals={meals}
           today={today}
           onDeleteEvent={onDeleteEvent}
+          onUpdateEvent={onUpdateEvent}
           onDeleteRoutine={onDeleteRoutine}
           onAddMeal={onAddMeal}
           onLinkMealToEvent={onLinkMealToEvent}
