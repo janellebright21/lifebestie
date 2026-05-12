@@ -67,8 +67,7 @@ export default function App() {
 useEffect(() => {
   fetchAll();
 }, [fetchAll]);
-if (!session) {
-  return <AuthPage />;
+
 }
   
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
