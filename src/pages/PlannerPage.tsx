@@ -2304,6 +2304,7 @@ export default function PlannerPage({
           onToggleTask={onToggleTask}
           onDeleteTask={onDeleteTask}
           onDeleteEvent={onDeleteEvent}
+          onUpdateEvent={onUpdateEvent}
           onUpdateTask={onUpdateTask}
 onOpenPlanMyDay={() => setShowPlanMyDay(true)}
         />
