@@ -2154,6 +2154,7 @@ export default function PlannerPage({
   onUpdateTask,
   onDeleteTask,
   onDeleteEvent,
+  onUpdateEvent,
   onDeleteRoutine,
   onAddMeal,
   onLinkMealToEvent,
