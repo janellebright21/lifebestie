@@ -909,12 +909,26 @@ function EventCard({
   event,
   meals,
   onDelete,
+  onUpdate,
   onAddMeal,
   onLinkMeal,
 }: {
   event: Event;
   meals: Meal[];
   onDelete: () => void;
+  onUpdate: (
+  patch: Partial<
+    Pick<
+      Event,
+      'title' |
+      'event_date' |
+      'event_time' |
+      'category' |
+      'location' |
+      'notes'
+    >
+  >
+) => Promise<void>;
   onAddMeal: (name: string) => Promise<Meal | null>;
   onLinkMeal: (meal: Meal) => Promise<void>;
 }) {
@@ -1758,6 +1772,7 @@ function TodayView({
   onToggleTask,
   onDeleteTask,
   onDeleteEvent,
+  onUpdateEvent,
   onUpdateTask,
   onOpenPlanMyDay,
   onAddMeal,
@@ -1773,6 +1788,20 @@ function TodayView({
   onToggleTask: (id: string, completed: boolean) => void;
   onDeleteTask: (id: string) => void;
   onDeleteEvent: (id: string) => void;
+  onUpdateEvent: (
+  id: string,
+  patch: Partial<
+    Pick<
+      Event,
+      'title' |
+      'event_date' |
+      'event_time' |
+      'category' |
+      'location' |
+      'notes'
+    >
+  >
+) => Promise<void>;
   onUpdateTask: PlannerPageProps['onUpdateTask'];
   onOpenPlanMyDay: () => void;
   onAddMeal: PlannerPageProps['onAddMeal'];
