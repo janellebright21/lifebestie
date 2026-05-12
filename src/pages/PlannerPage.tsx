@@ -937,6 +937,11 @@ function EventCard({
   const [expanded, setExpanded] = useState(false);
   const [showLinkMeal, setShowLinkMeal] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState(event.title);
+const [editDate, setEditDate] = useState(event.event_date);
+const [editTime, setEditTime] = useState(event.event_time);
+const [editLocation, setEditLocation] = useState(event.location ?? '');
+const [editNotes, setEditNotes] = useState(event.notes ?? '');
   const hasExtra = event.location || event.notes;
   const showMealButton = isMealEvent(event.title, event.category ?? 'Other');
   const linkedMeal = event.meal_id ? meals.find((m) => m.id === event.meal_id) : null;
