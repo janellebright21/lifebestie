@@ -936,6 +936,7 @@ function EventCard({
   const catCfg = getCatColor(event.category ?? 'Other');
   const [expanded, setExpanded] = useState(false);
   const [showLinkMeal, setShowLinkMeal] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const hasExtra = event.location || event.notes;
   const showMealButton = isMealEvent(event.title, event.category ?? 'Other');
   const linkedMeal = event.meal_id ? meals.find((m) => m.id === event.meal_id) : null;
