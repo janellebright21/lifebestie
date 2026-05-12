@@ -2015,6 +2015,7 @@ function TodayView({
                     event={e}
                     meals={meals}
                    onDelete={() => onDeleteEvent(e.id)}
+                    onUpdate={(patch) => onUpdateEvent(e.id, patch)}
                     onAddMeal={onAddMeal}
                     onLinkMeal={(meal) => onLinkMealToEvent(e.id, meal)}
                   />
@@ -2152,6 +2153,7 @@ function AllEventsView({
   meals,
   today,
   onDeleteEvent,
+  onUpdateEvent,
   onDeleteRoutine,
   onAddMeal,
   onLinkMealToEvent,
@@ -2161,6 +2163,20 @@ function AllEventsView({
   meals: Meal[];
   today: string;
   onDeleteEvent: (id: string) => void;
+ onUpdateEvent: (
+  id: string,
+  patch: Partial<
+    Pick<
+      Event,
+      'title' |
+      'event_date' |
+      'event_time' |
+      'category' |
+      'location' |
+      'notes'
+    >
+  >
+) => Promise<void>;
   onDeleteRoutine: (name: string) => void;
   onAddMeal: PlannerPageProps['onAddMeal'];
   onLinkMealToEvent: PlannerPageProps['onLinkMealToEvent'];
