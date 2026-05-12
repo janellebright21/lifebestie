@@ -1,3 +1,5 @@
+import { Session } from '@supabase/supabase-js';
+import AuthPage from './pages/AuthPage';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, Task, Event, GroceryItem, GroceryCategory, MealIngredient, TaskCategory, TaskPriority, EventCategory } from './lib/supabase';
 import { useUserMemory } from './hooks/useUserMemory';
@@ -24,6 +26,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [session, setSession] = useState<Session | null>(null);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
   const memoryId = localStorage.getItem(MEMORY_ID_KEY);
 
@@ -46,9 +49,28 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  supabase.auth.getSession().then(({ data }) => {
+    setSession(data.session);
+  });
 
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
+
+useEffect(() => {
+  fetchAll();
+}, [fetchAll]);
+if (!session) {
+  return <AuthPage />;
+}
+  
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
     const { data } = await supabase
       .from('tasks')
