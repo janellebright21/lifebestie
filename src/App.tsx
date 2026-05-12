@@ -142,7 +142,16 @@ if (!session) {
   async function addEvent(title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) {
     const { data } = await supabase
       .from('events')
-      .insert({ title, event_date: date, event_time: time, memory_id: memoryId, category: category ?? 'Other', location: location ?? null, notes: notes ?? null })
+  .insert({
+  title,
+  event_date: date,
+  event_time: time,
+  memory_id: memoryId,
+  user_id: session.user.id,
+  category: category ?? 'Other',
+  location: location ?? null,
+  notes: notes ?? null
+})
       .select()
       .single();
     if (data) {
