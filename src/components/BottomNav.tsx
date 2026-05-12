@@ -1,4 +1,5 @@
-import { Home, Calendar, Plus, ShoppingCart, MessageCircle } from 'lucide-react';
+import { Home, Calendar, Plus, ShoppingCart, MessageCircle, LogOut } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export type TabName = 'home' | 'planner' | 'add' | 'grocery' | 'goals' | 'chat';
 
@@ -15,6 +16,10 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     { id: 'grocery' as TabName, icon: ShoppingCart, label: 'Grocery' },
     { id: 'chat' as TabName, icon: MessageCircle, label: 'Chat' },
   ];
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-rose-100 safe-bottom">
@@ -57,6 +62,21 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             </button>
           );
         })}
+
+        <button
+          onClick={handleSignOut}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 min-w-[44px] group"
+          aria-label="Sign out"
+        >
+          <LogOut
+            size={22}
+            className="text-gray-300 group-hover:text-rose-300 transition-colors"
+            strokeWidth={1.8}
+          />
+          <span className="text-[10px] font-medium text-gray-300 group-hover:text-rose-300 transition-colors">
+            Out
+          </span>
+        </button>
       </div>
     </nav>
   );
