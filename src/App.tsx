@@ -80,6 +80,7 @@ if (!session) {
         linked_goal_id: linkedGoalId || null,
         duration: duration || null,
         memory_id: memoryId,
+        user_id: session.user.id,
         category: category ?? 'Other',
         priority: priority ?? 'medium',
       })
