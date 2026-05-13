@@ -139,8 +139,9 @@ const fetchAll = useCallback(async () => {
         title,
         due_date: dueDate || null,
         linked_goal_id: linkedGoalId || null,
-        duration: duration || null,
+        duration: duration ?? null,
         memory_id: memoryId,
+        user_id: session.user.id,
         category: category ?? 'Other',
         priority: priority ?? 'medium',
       })
