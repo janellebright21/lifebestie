@@ -222,7 +222,7 @@ const fetchAll = useCallback(async () => {
   async function addGrocery(name: string, category: GroceryCategory) {
     const { data } = await supabase
       .from('grocery_items')
-      .insert({ name, category, memory_id: memoryId })
+      .insert({ name, category, memory_id: memoryId, user_id: session.user.id })
       .select()
       .single();
     if (data) {
@@ -234,12 +234,12 @@ const fetchAll = useCallback(async () => {
 
   async function toggleGrocery(id: string, checked: boolean) {
     setGroceryItems((prev) => prev.map((g) => (g.id === id ? { ...g, checked } : g)));
-    await supabase.from('grocery_items').update({ checked }).eq('id', id);
+    await supabase.from('grocery_items').update({ checked }).eq('id', id).eq('user_id', session.user.id);
   }
 
   async function deleteGrocery(id: string) {
     setGroceryItems((prev) => prev.filter((g) => g.id !== id));
-    await supabase.from('grocery_items').delete().eq('id', id);
+    await supabase.from('grocery_items').delete().eq('id', id).eq('user_id', session.user.id);
   }
 
   async function addWeeklyItem(name: string, category: GroceryCategory, source: import('./lib/supabase').WeeklyGrocerySource) {
