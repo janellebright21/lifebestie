@@ -74,25 +74,36 @@ export default function App() {
   }, []);
 
   // ── Data fetch ─────────────────────────────────────────────────────────────
-  const fetchAll = useCallback(async () => {
-   const { data: tasksData } = await supabase
-  .from('tasks')
-  .select('*')
-  .eq('user_id', session.user.id);
-      supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-      supabase.from('events').select('*').order('event_date', { ascending: true }),
-      supabase.from('grocery_items').select('*').order('created_at', { ascending: true }),
-    ]);
-    if (t) setTasks(t);
-    if (e) setEvents(e);
-    if (g) setGroceryItems(g);
-  }, []);
+const fetchAll = useCallback(async () => {
+  if (!session) return;
 
-  useEffect(() => {
-    if (session) {
-      fetchAll();
-    }
-  }, [session, fetchAll]);
+  const [
+    { data: t },
+    { data: e },
+    { data: g }
+  ] = await Promise.all([
+    supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('events')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('event_date', { ascending: true }),
+
+    supabase
+      .from('grocery_items')
+      .select('*')
+      .order('created_at', { ascending: true }),
+  ]);
+
+  if (t) setTasks(t);
+  if (e) setEvents(e);
+  if (g) setGroceryItems(g);
+}, [session]);
 
   // ── Budget sync effect ─────────────────────────────────────────────────────
   const setEstimatedTotal = groceryBudget.setEstimatedTotal;
