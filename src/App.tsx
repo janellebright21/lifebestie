@@ -75,7 +75,10 @@ export default function App() {
 
   // ── Data fetch ─────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
-    const [{ data: t }, { data: e }, { data: g }] = await Promise.all([
+   const { data: tasksData } = await supabase
+  .from('tasks')
+  .select('*')
+  .eq('user_id', session.user.id);
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
       supabase.from('events').select('*').order('event_date', { ascending: true }),
       supabase.from('grocery_items').select('*').order('created_at', { ascending: true }),
