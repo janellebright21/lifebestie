@@ -97,6 +97,7 @@ const fetchAll = useCallback(async () => {
     supabase
       .from('grocery_items')
       .select('*')
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: true }),
   ]);
 
