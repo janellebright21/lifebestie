@@ -565,7 +565,8 @@ export function useWeeklyGroceryList(
   }, [weeklyList]);
 
   const load = useCallback(async () => {
-    if (!memoryId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setLoading(false);
       return;
     }
@@ -575,7 +576,7 @@ export function useWeeklyGroceryList(
     const { data } = await supabase
       .from('weekly_grocery_lists')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .eq('week_start_date', weekStart)
       .maybeSingle();
 
@@ -586,32 +587,28 @@ export function useWeeklyGroceryList(
     }
 
     // No list for this week — generate, fetch intro message, then persist
-  const items = generateWeeklyItems(habits, routines, recentHistory, events, meals, tasks);
+    const items = generateWeeklyItems(habits, routines, recentHistory, events, meals, tasks);
     const weekly_message = await fetchWeeklyIntroMessage(habits, routines, items, meals, events);
 
-const { data: { user } } = await supabase.auth.getUser();
-
-if (!user) return;
-
-const { data: created } = await supabase
-  .from('weekly_grocery_lists')
-  .insert({
-    memory_id: memoryId,
-    user_id: user.id,
-    week_start_date: weekStart,
-    items,
-    weekly_message
-  })
-  .select()
-  .single();
+    const { data: created } = await supabase
+      .from('weekly_grocery_lists')
+      .insert({
+        memory_id: memoryId,
+        user_id: user.id,
+        week_start_date: weekStart,
+        items,
+        weekly_message,
+      })
+      .select()
+      .single();
 
     if (created) setWeeklyList(created as WeeklyGroceryList);
     setLoading(false);
   }, [memoryId, habits, routines, recentHistory, events, meals, tasks]);
 
   useEffect(() => {
-    if (memoryId) load();
-  }, [load, memoryId]);
+    load();
+  }, [load]);
 
 
   // ─── Persistence helper ───────────────────────────────────────────────────

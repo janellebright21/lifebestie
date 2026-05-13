@@ -9,15 +9,16 @@ export function useGoals() {
   const memoryId = localStorage.getItem(MEMORY_ID_KEY);
 
   const load = useCallback(async () => {
-    if (!memoryId) { setLoading(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from('goals')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     if (data) setGoals(data as Goal[]);
     setLoading(false);
-  }, [memoryId]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -27,11 +28,13 @@ export function useGoals() {
     priority: GoalPriority;
     deadline?: string;
   }): Promise<Goal | null> {
-    if (!memoryId) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
     const { data } = await supabase
       .from('goals')
       .insert({
         memory_id: memoryId,
+        user_id: user.id,
         title: fields.title,
         category: fields.category,
         priority: fields.priority,
@@ -50,7 +53,9 @@ export function useGoals() {
 
   async function updateGoal(id: string, patch: Partial<Pick<Goal, 'title' | 'category' | 'priority' | 'deadline' | 'progress' | 'linked_tasks'>>) {
     setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)));
-    await supabase.from('goals').update(patch).eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('goals').update(patch).eq('id', id).eq('user_id', user.id);
   }
 
   async function setProgress(id: string, progress: number) {
@@ -77,9 +82,10 @@ export function useGoals() {
 
   async function deleteGoal(id: string) {
     setGoals((prev) => prev.filter((g) => g.id !== id));
-    // Unlink all tasks that pointed at this goal
-    await supabase.from('tasks').update({ linked_goal_id: null }).eq('linked_goal_id', id);
-    await supabase.from('goals').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('tasks').update({ linked_goal_id: null }).eq('linked_goal_id', id).eq('user_id', user.id);
+    await supabase.from('goals').delete().eq('id', id).eq('user_id', user.id);
   }
 
   /**
@@ -92,9 +98,11 @@ export function useGoals() {
     if (goal.linked_tasks.includes(taskId)) return;
 
     const updatedLinked = [...goal.linked_tasks, taskId];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     await Promise.all([
-      supabase.from('tasks').update({ linked_goal_id: goalId }).eq('id', taskId),
-      supabase.from('goals').update({ linked_tasks: updatedLinked }).eq('id', goalId),
+      supabase.from('tasks').update({ linked_goal_id: goalId }).eq('id', taskId).eq('user_id', user.id),
+      supabase.from('goals').update({ linked_tasks: updatedLinked }).eq('id', goalId).eq('user_id', user.id),
     ]);
     setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, linked_tasks: updatedLinked } : g));
   }
@@ -108,9 +116,11 @@ export function useGoals() {
     if (!goal) return;
 
     const updatedLinked = goal.linked_tasks.filter((id) => id !== taskId);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     await Promise.all([
-      supabase.from('tasks').update({ linked_goal_id: null }).eq('id', taskId),
-      supabase.from('goals').update({ linked_tasks: updatedLinked }).eq('id', goalId),
+      supabase.from('tasks').update({ linked_goal_id: null }).eq('id', taskId).eq('user_id', user.id),
+      supabase.from('goals').update({ linked_tasks: updatedLinked }).eq('id', goalId).eq('user_id', user.id),
     ]);
     setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, linked_tasks: updatedLinked } : g));
   }

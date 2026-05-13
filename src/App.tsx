@@ -161,7 +161,7 @@ const fetchAll = useCallback(async () => {
   async function toggleTask(id: string, completed: boolean) {
     const updatedTasks = tasks.map((t) => (t.id === id ? { ...t, completed } : t));
     setTasks(updatedTasks);
-    await supabase.from('tasks').update({ completed }).eq('id', id);
+    await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', session.user.id);
 
     const task = tasks.find((t) => t.id === id);
     if (task) {
@@ -175,7 +175,7 @@ const fetchAll = useCallback(async () => {
   async function deleteTask(id: string) {
     const task = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    await supabase.from('tasks').delete().eq('id', id);
+    await supabase.from('tasks').delete().eq('id', id).eq('user_id', session.user.id);
     if (task?.linked_goal_id) {
       await goalsHook.unlinkTaskFromGoal(id, task.linked_goal_id);
     }
@@ -184,7 +184,7 @@ const fetchAll = useCallback(async () => {
   async function updateTask(id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) {
     const task = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    await supabase.from('tasks').update(patch).eq('id', id);
+    await supabase.from('tasks').update(patch).eq('id', id).eq('user_id', session.user.id);
 
     const oldGoalId = task?.linked_goal_id ?? null;
     const newGoalId = patch.linked_goal_id !== undefined ? patch.linked_goal_id : oldGoalId;
@@ -200,7 +200,7 @@ const fetchAll = useCallback(async () => {
   async function addEvent(title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) {
     const { data } = await supabase
       .from('events')
-      .insert({ title, event_date: date, event_time: time, memory_id: memoryId, category: category ?? 'Other', location: location ?? null, notes: notes ?? null })
+      .insert({ title, event_date: date, event_time: time, memory_id: memoryId, user_id: session.user.id, category: category ?? 'Other', location: location ?? null, notes: notes ?? null })
       .select()
       .single();
     if (data) {
@@ -211,12 +211,12 @@ const fetchAll = useCallback(async () => {
 
   async function deleteEvent(id: string) {
     setEvents((prev) => prev.filter((e) => e.id !== id));
-    await supabase.from('events').delete().eq('id', id);
+    await supabase.from('events').delete().eq('id', id).eq('user_id', session.user.id);
   }
 
   async function updateEvent(id: string, patch: Partial<Pick<Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>) {
     setEvents((prev) => prev.map((e) => e.id === id ? { ...e, ...patch } : e));
-    await supabase.from('events').update(patch).eq('id', id);
+    await supabase.from('events').update(patch).eq('id', id).eq('user_id', session.user.id);
   }
 
   async function addGrocery(name: string, category: GroceryCategory) {
@@ -270,7 +270,7 @@ const fetchAll = useCallback(async () => {
 
   async function linkMealToEvent(eventId: string, meal: import('./lib/supabase').Meal) {
     setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, meal_id: meal.id } : e));
-    await supabase.from('events').update({ meal_id: meal.id }).eq('id', eventId);
+    await supabase.from('events').update({ meal_id: meal.id }).eq('id', eventId).eq('user_id', session.user.id);
     for (const ing of meal.ingredients) {
       await weeklyGrocery.addWeeklyItem(ing.name, ing.category, 'meal');
     }
