@@ -2241,7 +2241,6 @@ const dayMeals = useMemo(() => {
 }
 
 // ─── All Tasks View ───────────────────────────────────────────────────────────
-
 function AllTasksView({
   tasks,
   goals,
