@@ -2038,6 +2038,15 @@ const dayMeals = useMemo(() => {
   [events, selectedDate]
 );
 
+const dayEvents = useMemo(() =>
+  events
+    .filter((event) => event.event_date === selectedDate)
+    .sort((a, b) =>
+      (a.event_time || '99').localeCompare(b.event_time || '99')
+    ),
+  [events, selectedDate]
+);
+
 const dayMeals = useMemo(() => {
   return meals.filter((meal: any) => {
     const mealDate =
@@ -2046,6 +2055,9 @@ const dayMeals = useMemo(() => {
       meal.planned_date ||
       meal.event_date;
 
+    return mealDate === selectedDate;
+  });
+}, [meals, selectedDate]);
     return mealDate === selectedDate;
   });
 }, [meals, selectedDate]);
