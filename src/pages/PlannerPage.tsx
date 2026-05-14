@@ -2031,18 +2031,25 @@ const dayMeals = useMemo(() => {
     const mealDate =
       meal.meal_date ||
       meal.date ||
+     const dayEvents = useMemo(() =>
+  events
+    .filter((event) => event.event_date === selectedDate)
+    .sort((a, b) => (a.event_time || '99').localeCompare(b.event_time || '99')),
+  [events, selectedDate]
+);
+
+const dayMeals = useMemo(() => {
+  return meals.filter((meal: any) => {
+    const mealDate =
+      meal.meal_date ||
+      meal.date ||
       meal.planned_date ||
       meal.event_date;
 
     return mealDate === selectedDate;
   });
 }, [meals, selectedDate]);
-    events
-      .filter((e) => e.event_date === selectedDate)
-      .sort((a, b) => (a.event_time || '99').localeCompare(b.event_time || '99')),
-    [events, selectedDate]
-  );
-
+    
   const dayTasks = useMemo(() => {
     const byPriority = (a: Task, b: Task) => {
       const o = { high: 0, medium: 1, low: 2 };
