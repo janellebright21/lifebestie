@@ -2021,7 +2021,6 @@ function TodayView({
   const goalMap = new Map(goals.map((g) => [g.id, g]));
   const isToday = selectedDate === today;
   const nextDay = addDays(selectedDate, 1);
-
   const dayEvents = useMemo(() =>
     const dayMeals = useMemo(() => {
   return meals.filter((meal: any) => {
@@ -2152,9 +2151,8 @@ function TodayView({
               </div>
             </section>
           )}
-
-          {/* Day events */}
-          {/* Meals Today */}
+          
+{/* Meals Today */}
 <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
   <div className="flex items-center justify-between">
     <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
@@ -2201,7 +2199,9 @@ function TodayView({
     </div>
   )}
 </div>
-          {dayEvents.length > 0 && (
+          
+          {/* Day events */}
+         {dayEvents.length > 0 && (
             <section>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Events</p>
               <div className="space-y-2">
