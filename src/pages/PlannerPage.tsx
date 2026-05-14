@@ -2228,10 +2228,7 @@ const dayMeals = useMemo(() => {
               </div>
             </section>
           )}
-    </div>
-  );
-}
-
+  
           {/* Day tasks */}
           {dayTasks.length > 0 && (
             <section>
