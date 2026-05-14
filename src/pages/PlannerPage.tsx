@@ -2021,8 +2021,12 @@ function TodayView({
   const goalMap = new Map(goals.map((g) => [g.id, g]));
   const isToday = selectedDate === today;
   const nextDay = addDays(selectedDate, 1);
-  const dayEvents = useMemo(() =>
-    const dayMeals = useMemo(() => {
+ const dayEvents = useMemo(() =>
+  events.filter((event) => event.event_date === selectedDate),
+  [events, selectedDate]
+);
+
+const dayMeals = useMemo(() => {
   return meals.filter((meal: any) => {
     const mealDate =
       meal.meal_date ||
