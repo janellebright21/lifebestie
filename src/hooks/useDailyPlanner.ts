@@ -97,7 +97,7 @@ export function useDailyPlanner() {
   const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const memoryId = localStorage.getItem(MEMORY_ID_KEY);
+  const memoryId = localStorage.getItem(MEMORY_ID_KEY); // kept for upsert payload; ownership is user_id
   const today = new Date().toISOString().split('T')[0];
   // Ref so callbacks always see latest plan without stale closure
   const planRef = useRef<DailyPlan | null>(null);
@@ -105,29 +105,31 @@ export function useDailyPlanner() {
 
   // ── Load today's plan ──────────────────────────────────────────────────────
   const load = useCallback(async () => {
-    if (!memoryId) { setLoading(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from('daily_plans')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .eq('plan_date', today)
       .maybeSingle();
     if (data) setPlan(data as DailyPlan);
     setLoading(false);
-  }, [memoryId, today]);
+  }, [today]);
 
   useEffect(() => { load(); }, [load]);
 
   // ── Load yesterday's plan (for skipped tasks + rates) ────────────────────
   async function loadYesterday(): Promise<DailyPlan | null> {
-    if (!memoryId) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yDate = yesterday.toISOString().split('T')[0];
     const { data } = await supabase
       .from('daily_plans')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .eq('plan_date', yDate)
       .maybeSingle();
     return data as DailyPlan | null;
@@ -135,13 +137,14 @@ export function useDailyPlanner() {
 
   // Load last N days for completion rates
   async function loadRecentRates(days = 7): Promise<number[]> {
-    if (!memoryId) return [];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     const { data } = await supabase
       .from('daily_plans')
       .select('completion_rate, plan_date')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .gte('plan_date', cutoff.toISOString().split('T')[0])
       .order('plan_date', { ascending: true });
     if (!data) return [];
@@ -152,13 +155,14 @@ export function useDailyPlanner() {
 
   // Load all completion timestamps from recent plans for focus-hour analysis
   async function loadFocusHours(): Promise<number[]> {
-    if (!memoryId) return [];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 14);
     const { data } = await supabase
       .from('daily_plans')
       .select('completion_timestamps')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .gte('plan_date', cutoff.toISOString().split('T')[0]);
     if (!data) return [];
     return (data as { completion_timestamps: number[] }[]).flatMap((r) => r.completion_timestamps ?? []);
@@ -184,7 +188,7 @@ export function useDailyPlanner() {
 
   // ── Generate plan ─────────────────────────────────────────────────────────
   async function generate(opts: GenerateOptions, force = false) {
-    if (!memoryId || generating) return;
+    if (generating) return;
     if (plan && !force) return;
 
     setGenerating(true);
@@ -286,11 +290,15 @@ export function useDailyPlanner() {
         });
       }
 
+      const { data: { user: planUser } } = await supabase.auth.getUser();
+      if (!planUser) return;
+
       const { data } = await supabase
         .from('daily_plans')
         .upsert(
           {
             memory_id: memoryId,
+            user_id: planUser.id,
             plan_date: today,
             high_impact: aiPlan.high_impact,
             small_wins: aiPlan.small_wins,
@@ -301,7 +309,7 @@ export function useDailyPlanner() {
             focus_hours: focusHoursFromHistory,
             completion_timestamps: [],
           },
-          { onConflict: 'memory_id,plan_date' }
+          { onConflict: 'user_id,plan_date' }
         )
         .select()
         .single();

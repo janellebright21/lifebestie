@@ -34,25 +34,28 @@ export function useMealPlanner() {
   }, [meals]);
 
   const load = useCallback(async () => {
-    if (!memoryId) { setLoading(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from('meals')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     if (data) setMeals(data as Meal[]);
     setLoading(false);
-  }, [memoryId]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
+
   /** Add a new meal, fetching ingredients via AI. Returns the created meal. */
   async function addMeal(name: string): Promise<Meal | null> {
-    if (!memoryId) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
     const ingredients = await fetchIngredients(name);
     const { data } = await supabase
       .from('meals')
-      .insert({ memory_id: memoryId, name, ingredients })
+      .insert({ memory_id: memoryId, user_id: user.id, name, ingredients })
       .select()
       .single();
     if (!data) return null;
@@ -63,7 +66,9 @@ export function useMealPlanner() {
 
   async function deleteMeal(id: string) {
     setMeals((prev) => prev.filter((m) => m.id !== id));
-    await supabase.from('meals').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('meals').delete().eq('id', id).eq('user_id', user.id);
   }
 
   /**

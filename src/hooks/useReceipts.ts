@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase, Receipt, ReceiptItem, GroceryCategory } from '../lib/supabase';
 
-const MEMORY_ID_KEY = 'lifebestie_memory_id';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
@@ -18,18 +17,17 @@ export function useReceipts() {
   const [scanError, setScanError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const memoryId = localStorage.getItem(MEMORY_ID_KEY);
-    if (!memoryId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const { data } = await supabase
       .from('receipts')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(20);
     if (data) setReceipts(data as Receipt[]);
   }, []);
 
-  /** Converts an image File to base64 and calls the scan-receipt edge function. */
   async function scanImage(file: File): Promise<ScanResult | null> {
     setScanning(true);
     setScanError(null);
@@ -61,16 +59,15 @@ export function useReceipts() {
     }
   }
 
-  /** Saves a confirmed receipt to the database. */
   async function saveReceipt(
     result: ScanResult,
     items: ReceiptItem[]
   ): Promise<Receipt | null> {
-    const memoryId = localStorage.getItem(MEMORY_ID_KEY);
-    if (!memoryId) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
     const payload = {
-      memory_id: memoryId,
+      user_id: user.id,
       date: result.date ?? new Date().toISOString().split('T')[0],
       store_name: result.store_name ?? null,
       total: result.total ?? null,
@@ -90,10 +87,8 @@ export function useReceipts() {
     return null;
   }
 
-  /** Builds a price memory map from all saved receipts: item name (lowercase) → latest price. */
   function getPriceMemory(): Map<string, { price: number; category: GroceryCategory }> {
     const map = new Map<string, { price: number; category: GroceryCategory }>();
-    // Process oldest first so newer receipts win
     const sorted = [...receipts].reverse();
     for (const receipt of sorted) {
       for (const item of receipt.items) {
@@ -113,7 +108,6 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // Strip data URL prefix: "data:image/jpeg;base64,"
       const base64 = result.split(',')[1];
       resolve(base64);
     };

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, SpendingSnapshot, WeeklyGroceryItem, GroceryCategory } from '../lib/supabase';
 
-const MEMORY_ID_KEY = 'lifebestie_memory_id';
 const WEEKS_TO_KEEP = 12;
 
 export function useSpendingTrends() {
@@ -10,13 +9,13 @@ export function useSpendingTrends() {
   const snapshotsSavedThisSession = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
-    const memoryId = localStorage.getItem(MEMORY_ID_KEY);
-    if (!memoryId) { setLoading(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
 
     const { data } = await supabase
       .from('spending_snapshots')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .order('week_start_date', { ascending: false })
       .limit(WEEKS_TO_KEEP);
 
@@ -26,17 +25,15 @@ export function useSpendingTrends() {
 
   useEffect(() => { load(); }, [load]);
 
-  /** Upserts a snapshot for the given week. Safe to call multiple times — idempotent. */
   const saveSnapshot = useCallback(async (
     weekStartDate: string,
     items: WeeklyGroceryItem[],
     weeklyBudget: number
   ) => {
-    const memoryId = localStorage.getItem(MEMORY_ID_KEY);
-    if (!memoryId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    // Avoid hammering the DB on every render — skip if already saved this session
-    const key = `${memoryId}:${weekStartDate}`;
+    const key = `${user.id}:${weekStartDate}`;
     if (snapshotsSavedThisSession.current.has(key)) return;
     snapshotsSavedThisSession.current.add(key);
 
@@ -52,7 +49,7 @@ export function useSpendingTrends() {
     }
 
     const payload = {
-      memory_id: memoryId,
+      user_id: user.id,
       week_start_date: weekStartDate,
       total_spent,
       weekly_budget: weeklyBudget,
@@ -63,7 +60,7 @@ export function useSpendingTrends() {
 
     const { data } = await supabase
       .from('spending_snapshots')
-      .upsert(payload, { onConflict: 'memory_id,week_start_date' })
+      .upsert(payload, { onConflict: 'user_id,week_start_date' })
       .select('*')
       .maybeSingle();
 
@@ -77,14 +74,12 @@ export function useSpendingTrends() {
     }
   }, []);
 
-  /** Derive pattern insights from snapshot history. Returns up to 3 plain-language strings. */
   const getInsights = useCallback((): string[] => {
     if (snapshots.length < 2) return [];
 
     const insights: string[] = [];
     const recent = snapshots.slice(0, 8);
 
-    // Overspending streak
     const overCount = recent.filter((s) => !s.budget_met).length;
     if (overCount >= 3) {
       insights.push(`You've gone over budget ${overCount} of the last ${recent.length} weeks — adjusting your budget might make it feel more realistic.`);
@@ -92,7 +87,6 @@ export function useSpendingTrends() {
       insights.push(`You've stayed within budget every week recently — great consistency!`);
     }
 
-    // Top category by average spend
     const catTotals: Record<string, number[]> = {};
     for (const snap of recent) {
       for (const [cat, amount] of Object.entries(snap.category_breakdown)) {
@@ -109,7 +103,6 @@ export function useSpendingTrends() {
       insights.push(`${top.cat} is your biggest spend on average — about $${top.avg.toFixed(0)}/week.`);
     }
 
-    // Trend: is spending going up or down?
     if (recent.length >= 4) {
       const older = recent.slice(Math.floor(recent.length / 2));
       const newer = recent.slice(0, Math.floor(recent.length / 2));

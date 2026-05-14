@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, GroceryBudget } from '../lib/supabase';
 
-const MEMORY_ID_KEY = 'lifebestie_memory_id';
-
 export function useGroceryBudget() {
   const [budget, setBudget] = useState<GroceryBudget | null>(null);
   const [loading, setLoading] = useState(true);
@@ -13,23 +11,22 @@ export function useGroceryBudget() {
   }, [budget]);
 
   const load = useCallback(async () => {
-    const memoryId = localStorage.getItem(MEMORY_ID_KEY);
-    if (!memoryId) { setLoading(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
 
     const { data } = await supabase
       .from('grocery_budget')
       .select('*')
-      .eq('memory_id', memoryId)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     if (data) {
       setBudget(data as GroceryBudget);
     } else {
-      // Create default budget row
       const { data: created } = await supabase
         .from('grocery_budget')
         .insert({
-          memory_id: memoryId,
+          user_id: user.id,
           weekly_budget: 100,
           current_estimated_total: 0,
           last_updated: new Date().toISOString().split('T')[0],
@@ -51,10 +48,13 @@ export function useGroceryBudget() {
     const rounded = Math.round(amount * 100) / 100;
     const updated = { ...current, weekly_budget: rounded };
     setBudget(updated);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     await supabase
       .from('grocery_budget')
       .update({ weekly_budget: rounded, last_updated: new Date().toISOString().split('T')[0] })
-      .eq('id', current.id);
+      .eq('id', current.id)
+      .eq('user_id', user.id);
   }
 
   async function setEstimatedTotal(total: number) {
@@ -64,10 +64,13 @@ export function useGroceryBudget() {
     const today = new Date().toISOString().split('T')[0];
     const updated = { ...current, current_estimated_total: rounded, last_updated: today };
     setBudget(updated);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     await supabase
       .from('grocery_budget')
       .update({ current_estimated_total: rounded, last_updated: today })
-      .eq('id', current.id);
+      .eq('id', current.id)
+      .eq('user_id', user.id);
   }
 
   return { budget, loading, setWeeklyBudget, setEstimatedTotal };

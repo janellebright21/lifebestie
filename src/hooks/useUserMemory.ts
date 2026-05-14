@@ -87,32 +87,35 @@ export function useUserMemory() {
   }, [memory]);
 
   const load = useCallback(async () => {
-    const storedId = memoryIdRef.current;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
 
-    if (storedId) {
-      const { data } = await supabase
-        .from('user_memory')
-        .select('*')
-        .eq('id', storedId)
-        .maybeSingle();
+    // Try to find existing memory for this user
+    const { data: existing } = await supabase
+      .from('user_memory')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-      if (data) {
-        setMemory(data as UserMemory);
-        setLoading(false);
-        return;
-      }
+    if (existing) {
+      localStorage.setItem(MEMORY_ID_KEY, existing.id);
+      memoryIdRef.current = existing.id;
+      setMemory(existing as UserMemory);
+      setLoading(false);
+      return;
     }
 
-    const { data } = await supabase
+    // Create a new memory record for this user
+    const { data: created } = await supabase
       .from('user_memory')
-      .insert(EMPTY_MEMORY)
+      .insert({ ...EMPTY_MEMORY, user_id: user.id })
       .select()
       .single();
 
-    if (data) {
-      localStorage.setItem(MEMORY_ID_KEY, data.id);
-      memoryIdRef.current = data.id;
-      setMemory(data as UserMemory);
+    if (created) {
+      localStorage.setItem(MEMORY_ID_KEY, created.id);
+      memoryIdRef.current = created.id;
+      setMemory(created as UserMemory);
     }
     setLoading(false);
   }, []);
