@@ -34,6 +34,10 @@ export default function App() {
 
   // ── Custom hooks (all called unconditionally) ──────────────────────────────
   const userMemory = useUserMemory();
+  const memoryId = userMemory.memory?.id ?? null;
+
+  const showAuthDebug = new URLSearchParams(window.location.search).get('debugAuth') === '1';
+
   const goalsHook = useGoals();
   const dailyPlanner = useDailyPlanner();
   const spendingTrends = useSpendingTrends();
@@ -68,6 +72,13 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (!nextSession) {
+        setTasks([]);
+        setEvents([]);
+        setGroceryItems([]);
+      }
     });
 
     return () => { subscription.unsubscribe(); };
@@ -106,6 +117,11 @@ const fetchAll = useCallback(async () => {
   if (g) setGroceryItems(g);
 }, [session]);
 
+  useEffect(() => {
+    if (!session) return;
+    fetchAll();
+  }, [session, fetchAll]);
+
   // ── Budget sync effect ─────────────────────────────────────────────────────
   const setEstimatedTotal = groceryBudget.setEstimatedTotal;
   const budgetTotal = groceryBudget.budget?.current_estimated_total;
@@ -131,160 +147,7 @@ const fetchAll = useCallback(async () => {
   if (!session) {
     return <AuthPage />;
   }
-
-  // ── Action handlers ────────────────────────────────────────────────────────
-  async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
-    const { data } = await supabase
-      .from('tasks')
-      .insert({
-        title,
-        due_date: dueDate || null,
-        linked_goal_id: linkedGoalId || null,
-        duration: duration ?? null,
-        memory_id: memoryId,
-        user_id: session.user.id,
-        category: category ?? 'Other',
-        priority: priority ?? 'medium',
-      })
-      .select()
-      .single();
-    if (data) {
-      const task = data as Task;
-      setTasks((prev) => [task, ...prev]);
-      await userMemory.addHistoryAction(`Added task: ${title}`);
-      if (linkedGoalId) {
-        await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
-      }
-    }
-  }
-
-  async function toggleTask(id: string, completed: boolean) {
-    const updatedTasks = tasks.map((t) => (t.id === id ? { ...t, completed } : t));
-    setTasks(updatedTasks);
-    await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', session.user.id);
-
-    const task = tasks.find((t) => t.id === id);
-    if (task) {
-      if (completed) await userMemory.addHistoryAction(`Completed task: ${task.title}`);
-      if (task.linked_goal_id) {
-        await goalsHook.recalculateGoalProgress(task.linked_goal_id, updatedTasks);
-      }
-    }
-  }
-
-  async function deleteTask(id: string) {
-    const task = tasks.find((t) => t.id === id);
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    await supabase.from('tasks').delete().eq('id', id).eq('user_id', session.user.id);
-    if (task?.linked_goal_id) {
-      await goalsHook.unlinkTaskFromGoal(id, task.linked_goal_id);
-    }
-  }
-
-  async function updateTask(id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) {
-    const task = tasks.find((t) => t.id === id);
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    await supabase.from('tasks').update(patch).eq('id', id).eq('user_id', session.user.id);
-
-    const oldGoalId = task?.linked_goal_id ?? null;
-    const newGoalId = patch.linked_goal_id !== undefined ? patch.linked_goal_id : oldGoalId;
-
-    if (oldGoalId && oldGoalId !== newGoalId) {
-      await goalsHook.unlinkTaskFromGoal(id, oldGoalId);
-    }
-    if (newGoalId && newGoalId !== oldGoalId) {
-      await goalsHook.linkTaskToGoal(id, newGoalId);
-    }
-  }
-
-  async function addEvent(title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) {
-    const { data } = await supabase
-      .from('events')
-      .insert({ title, event_date: date, event_time: time, memory_id: memoryId, user_id: session.user.id, category: category ?? 'Other', location: location ?? null, notes: notes ?? null })
-      .select()
-      .single();
-    if (data) {
-      setEvents((prev) => [...prev, data].sort((a, b) => a.event_date.localeCompare(b.event_date)));
-      await userMemory.addHistoryAction(`Added event: ${title} on ${date}`);
-    }
-  }
-
-  async function deleteEvent(id: string) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    await supabase.from('events').delete().eq('id', id).eq('user_id', session.user.id);
-  }
-
-  async function updateEvent(id: string, patch: Partial<Pick<Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>) {
-    setEvents((prev) => prev.map((e) => e.id === id ? { ...e, ...patch } : e));
-    await supabase.from('events').update(patch).eq('id', id).eq('user_id', session.user.id);
-  }
-
-  async function addGrocery(name: string, category: GroceryCategory) {
-    const { data } = await supabase
-      .from('grocery_items')
-      .insert({ name, category, memory_id: memoryId, user_id: session.user.id })
-      .select()
-      .single();
-    if (data) {
-      setGroceryItems((prev) => [...prev, data]);
-      await userMemory.addHistoryAction(`Added grocery: ${name}`);
-      await userMemory.upsertGroceryHabit(name, category);
-    }
-  }
-
-  async function toggleGrocery(id: string, checked: boolean) {
-    setGroceryItems((prev) => prev.map((g) => (g.id === id ? { ...g, checked } : g)));
-    await supabase.from('grocery_items').update({ checked }).eq('id', id).eq('user_id', session.user.id);
-  }
-
-  async function deleteGrocery(id: string) {
-    setGroceryItems((prev) => prev.filter((g) => g.id !== id));
-    await supabase.from('grocery_items').delete().eq('id', id).eq('user_id', session.user.id);
-  }
-
-  async function addWeeklyItem(name: string, category: GroceryCategory, source: import('./lib/supabase').WeeklyGrocerySource) {
-    await weeklyGrocery.addWeeklyItem(name, category, source);
-    await userMemory.upsertGroceryHabit(name, category);
-  }
-
-  async function skipWeeklyItem(name: string) {
-    const item = weeklyGrocery.weeklyList?.items.find(
-      (i) => i.name.toLowerCase() === name.toLowerCase()
-    );
-    await weeklyGrocery.skipWeeklyItem(name);
-    if (!item?.skipped) {
-      await userMemory.decreaseGroceryHabit(name);
-    }
-  }
-
-  async function removeWeeklyItem(name: string) {
-    await weeklyGrocery.removeWeeklyItem(name);
-    await userMemory.decreaseGroceryHabit(name);
-  }
-
-  async function planMeals(_mealIds: string[], ingredients: MealIngredient[]) {
-    for (const ing of ingredients) {
-      await weeklyGrocery.addWeeklyItem(ing.name, ing.category, 'meal');
-    }
-  }
-
-  async function linkMealToEvent(eventId: string, meal: import('./lib/supabase').Meal) {
-    setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, meal_id: meal.id } : e));
-    await supabase.from('events').update({ meal_id: meal.id }).eq('id', eventId).eq('user_id', session.user.id);
-    for (const ing of meal.ingredients) {
-      await weeklyGrocery.addWeeklyItem(ing.name, ing.category, 'meal');
-    }
-  }
-
-  async function updateWeeklyItemPrice(name: string, price: number) {
-    await weeklyGrocery.updateWeeklyItemPrice(name, price);
-  }
-
-  async function handleReceiptSave(
-    result: import('./hooks/useReceipts').ScanResult,
-    items: import('./lib/supabase').ReceiptItem[]
-  ) {
-    await receipts.saveReceipt(result, items);
+@@ -288,50 +300,58 @@ const fetchAll = useCallback(async () => {
 
     const weekItems = weeklyGrocery.weeklyList?.items ?? [];
     for (const receiptItem of items) {
@@ -310,6 +173,14 @@ const fetchAll = useCallback(async () => {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-[100dvh] bg-gray-50 font-sans">
+      {showAuthDebug && session && (
+        <div className="fixed top-2 right-2 z-50 rounded-lg border border-gray-200 bg-white/95 px-3 py-2 text-[11px] text-gray-700 shadow-sm">
+          <div><span className="font-semibold">User:</span> {session.user.email ?? session.user.id}</div>
+          <div><span className="font-semibold">User ID:</span> {session.user.id}</div>
+          <div><span className="font-semibold">Memory ID:</span> {memoryId ?? 'none'}</div>
+          <div><span className="font-semibold">Counts:</span> T {tasks.length} · E {events.length} · G {groceryItems.length}</div>
+        </div>
+      )}
       {activeTab === 'home' && (
         <HomePage
           tasks={tasks}
@@ -335,117 +206,3 @@ const fetchAll = useCallback(async () => {
                 events,
                 routines: userMemory.memory?.routines ?? [],
                 memory: userMemory.memory,
-                recentHistory: userMemory.getRecentHistory(7).flatMap((h) => h.actions),
-              },
-              true
-            )
-          }
-          onTogglePlanTask={dailyPlanner.togglePlanTask}
-          onDismissPlanAdaptation={dailyPlanner.dismissAdaptation}
-          tomorrowReminders={prepareForTomorrow.reminders}
-          tomorrowRemindersLoading={prepareForTomorrow.loading}
-          onDismissTomorrowReminder={prepareForTomorrow.dismiss}
-          onRefreshTomorrowReminders={prepareForTomorrow.refresh}
-        />
-      )}
-      {activeTab === 'planner' && (
-        <PlannerPage
-          tasks={tasks}
-          events={events}
-          routines={routines}
-          goals={goalsHook.goals}
-          meals={mealPlanner.meals}
-          onAddEvent={addEvent}
-          onAddTask={addTask}
-          onToggleTask={toggleTask}
-          onUpdateTask={updateTask}
-          onDeleteTask={deleteTask}
-          onDeleteEvent={deleteEvent}
-          onUpdateEvent={updateEvent}
-          onDeleteRoutine={userMemory.removeRoutine}
-          onAddMeal={mealPlanner.addMeal}
-          onLinkMealToEvent={linkMealToEvent}
-          tomorrowReminders={prepareForTomorrow.reminders}
-          tomorrowRemindersLoading={prepareForTomorrow.loading}
-          onDismissTomorrowReminder={prepareForTomorrow.dismiss}
-          onRefreshTomorrowReminders={prepareForTomorrow.refresh}
-        />
-      )}
-      {activeTab === 'add' && (
-        <AddPage
-          onAddTask={addTask}
-          onAddEvent={addEvent}
-          onAddGrocery={addGrocery}
-        />
-      )}
-      {activeTab === 'grocery' && (
-        <GroceryPage
-          items={groceryItems}
-          habits={userMemory.memory?.common_groceries ?? []}
-          routines={routines}
-          recentHistory={userMemory.getRecentHistory(7)}
-          weeklyList={weeklyGrocery.weeklyList}
-          weeklyLoading={weeklyGrocery.loading}
-          meals={mealPlanner.meals}
-          mealsLoading={mealPlanner.loading}
-          weeklyBudget={groceryBudget.budget?.weekly_budget ?? 100}
-          estimatedTotal={groceryBudget.budget?.current_estimated_total ?? 0}
-          onToggle={toggleGrocery}
-          onAdd={addGrocery}
-          onDelete={deleteGrocery}
-          onToggleWeekly={weeklyGrocery.toggleWeeklyItem}
-          onAddWeekly={addWeeklyItem}
-          onSkipWeekly={skipWeeklyItem}
-          onRemoveWeekly={removeWeeklyItem}
-          onRegenerateWeekly={weeklyGrocery.regenerate}
-          onUpdateWeeklyItemPrice={updateWeeklyItemPrice}
-          onSetWeeklyBudget={groceryBudget.setWeeklyBudget}
-          onAddMeal={mealPlanner.addMeal}
-          onDeleteMeal={mealPlanner.deleteMeal}
-          onPlanMeals={planMeals}
-          spendingSnapshots={spendingTrends.snapshots}
-          spendingInsights={spendingTrends.getInsights()}
-          onScanReceipt={receipts.scanImage}
-          onSaveReceipt={handleReceiptSave}
-          receiptScanning={receipts.scanning}
-          receiptScanError={receipts.scanError}
-        />
-      )}
-      {activeTab === 'goals' && (
-        <GoalsPage
-          goals={goalsHook.goals}
-          tasks={tasks}
-          loading={goalsHook.loading}
-          onAdd={goalsHook.addGoal}
-          onUpdate={goalsHook.updateGoal}
-          onSetProgress={goalsHook.setProgress}
-          onDelete={goalsHook.deleteGoal}
-          onAddTask={addTask}
-          onToggleTask={toggleTask}
-          onDeleteTask={deleteTask}
-        />
-      )}
-      {activeTab === 'chat' && (
-        <ChatPage
-          tasks={tasks}
-          events={events}
-          groceryItems={groceryItems}
-          memory={userMemory.memory}
-          onAddTask={addTask}
-          onAddGrocery={addGrocery}
-          onUpdatePreferences={userMemory.updatePreferences}
-          getProactiveSuggestions={userMemory.getProactiveSuggestions}
-        />
-      )}
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
-
-      {userMemory.confirmingCandidate && (
-        <RoutineConfirmSheet
-          candidate={userMemory.confirmingCandidate}
-          onConfirm={userMemory.acceptRoutineSuggestion}
-          onDismiss={userMemory.closeRoutineSheet}
-        />
-      )}
-    </div>
-  );
-}
