@@ -2162,53 +2162,35 @@ const dayMeals = useMemo(() => {
           )}
           
 {/* Meals Today */}
-<div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
-  <div className="flex items-center justify-between">
-    <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-      <UtensilsCrossed size={16} className="text-amber-400" />
-      Meals Today
-    </h3>
-    <span className="text-xs text-gray-400">
-      {dayMeals.length} planned
-    </span>
-  </div>
-
-  {dayMeals.length === 0 ? (
-    <p className="text-sm text-gray-400">
-      No meals planned for this day yet.
-    </p>
-  ) : (
-    <div className="space-y-2">
-      {dayMeals.map((meal: any) => (
-        <div
-          key={meal.id}
-          className="rounded-xl bg-amber-50 border border-amber-100 p-3"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold text-gray-800">
-                {meal.name || meal.title || 'Meal'}
-              </p>
-
-              {meal.meal_type && (
-                <p className="text-xs text-amber-600 capitalize">
-                  {meal.meal_type}
-                </p>
-              )}
-            </div>
-
-            {meal.ingredients?.length > 0 && (
-              <span className="text-xs text-gray-400">
-                {meal.ingredients.length} ingredients
-              </span>
-            )}
-          </div>
-        </div>
-      ))}
+<section>
+  <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
+    <div className="flex items-center justify-between">
+      <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+        <UtensilsCrossed size={16} className="text-amber-400" />
+        Meals Today
+      </h3>
+      <span className="text-xs text-gray-400">
+        {dayMeals.length} planned
+      </span>
     </div>
-  )}
-</div>
-          
+
+    {dayMeals.length === 0 ? (
+      <p className="text-sm text-gray-400">
+        No meals planned for this day yet.
+      </p>
+    ) : (
+      <div className="space-y-2">
+        {dayMeals.map((meal: any) => (
+          <div key={meal.id} className="rounded-xl bg-amber-50 border border-amber-100 p-3">
+            <p className="text-sm font-semibold text-gray-800">
+              {meal.name || meal.title || 'Meal'}
+            </p>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</section>
           {/* Day events */}
          {dayEvents.length > 0 && (
             <section>
