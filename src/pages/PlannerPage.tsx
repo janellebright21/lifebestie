@@ -2023,6 +2023,17 @@ function TodayView({
   const nextDay = addDays(selectedDate, 1);
 
   const dayEvents = useMemo(() =>
+    const dayMeals = useMemo(() => {
+  return meals.filter((meal: any) => {
+    const mealDate =
+      meal.meal_date ||
+      meal.date ||
+      meal.planned_date ||
+      meal.event_date;
+
+    return mealDate === selectedDate;
+  });
+}, [meals, selectedDate]);
     events
       .filter((e) => e.event_date === selectedDate)
       .sort((a, b) => (a.event_time || '99').localeCompare(b.event_time || '99')),
@@ -2143,6 +2154,53 @@ function TodayView({
           )}
 
           {/* Day events */}
+          {/* Meals Today */}
+<div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
+  <div className="flex items-center justify-between">
+    <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+      <UtensilsCrossed size={16} className="text-amber-400" />
+      Meals Today
+    </h3>
+    <span className="text-xs text-gray-400">
+      {dayMeals.length} planned
+    </span>
+  </div>
+
+  {dayMeals.length === 0 ? (
+    <p className="text-sm text-gray-400">
+      No meals planned for this day yet.
+    </p>
+  ) : (
+    <div className="space-y-2">
+      {dayMeals.map((meal: any) => (
+        <div
+          key={meal.id}
+          className="rounded-xl bg-amber-50 border border-amber-100 p-3"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">
+                {meal.name || meal.title || 'Meal'}
+              </p>
+
+              {meal.meal_type && (
+                <p className="text-xs text-amber-600 capitalize">
+                  {meal.meal_type}
+                </p>
+              )}
+            </div>
+
+            {meal.ingredients?.length > 0 && (
+              <span className="text-xs text-gray-400">
+                {meal.ingredients.length} ingredients
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
           {dayEvents.length > 0 && (
             <section>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Events</p>
