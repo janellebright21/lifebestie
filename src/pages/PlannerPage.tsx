@@ -2058,9 +2058,7 @@ const dayMeals = useMemo(() => {
     return mealDate === selectedDate;
   });
 }, [meals, selectedDate]);
-    return mealDate === selectedDate;
-  });
-}, [meals, selectedDate]);
+  
   const dayTasks = useMemo(() => {
     const byPriority = (a: Task, b: Task) => {
       const o = { high: 0, medium: 1, low: 2 };
