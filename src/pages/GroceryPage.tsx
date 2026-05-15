@@ -1218,7 +1218,7 @@ export default function GroceryPage({
   }
 
   const grouped: Record<string, GroceryItem[]> = {};
-  items.forEach((item) => {
+  (items ?? []).forEach((item) => {
     if (!grouped[item.category]) grouped[item.category] = [];
     grouped[item.category].push(item);
   });
