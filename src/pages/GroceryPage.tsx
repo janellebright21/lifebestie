@@ -1223,8 +1223,11 @@ export default function GroceryPage({
     grouped[item.category].push(item);
   });
 
-  const totalUnchecked = items.filter((i) => !i.checked).length;
-  const existingNames = new Set(items.map((i) => i.name.toLowerCase()));
+const totalUnchecked = (items ?? []).filter((i) => !i.checked).length;
+
+const existingNames = new Set(
+  (items ?? []).map((i) => i.name.toLowerCase())
+);
 
   const aiItems = (aiResult?.items ?? []).filter(
     (s) => !existingNames.has(s.name.toLowerCase()) && !dismissed.has(s.name.toLowerCase())
