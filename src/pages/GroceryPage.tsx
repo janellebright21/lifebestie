@@ -1523,7 +1523,7 @@ const existingNames = new Set(
           })}
 
           {/* Empty state */}
-          {items.length === 0 && !showSuggestions && (
+          {(items ?? []).length === 0 && !showSuggestions && (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
                 <ShoppingCart size={24} className="text-gray-300" />
