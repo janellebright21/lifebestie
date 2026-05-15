@@ -1234,7 +1234,7 @@ const existingNames = new Set(
   );
 
   const aiGrouped: Record<string, AISuggestion[]> = {};
-  for (const s of aiItems) {
+  for (const s of (aiItems ?? [])) {
     if (!aiGrouped[s.category]) aiGrouped[s.category] = [];
     aiGrouped[s.category].push(s);
   }
