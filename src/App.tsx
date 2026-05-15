@@ -287,6 +287,10 @@ export default function App() {
     }
   }
 
+  async function addMealFull(opts: { name: string; meal_type: import('./lib/supabase').MealType; meal_date: string; ingredients: MealIngredient[] }) {
+    return await mealPlanner.addMealFull(opts);
+  }
+
   async function linkMealToEvent(eventId: string, meal: import('./lib/supabase').Meal) {
     setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, meal_id: meal.id } : e));
     await supabase.from('events').update({ meal_id: meal.id }).eq('id', eventId).eq('user_id', session.user.id);
@@ -424,6 +428,7 @@ export default function App() {
           onSetWeeklyBudget={groceryBudget.setWeeklyBudget}
           onPlanMeals={planMeals}
           onAddMeal={mealPlanner.addMeal}
+          onAddMealFull={addMealFull}
           onDeleteMeal={mealPlanner.deleteMeal}
           onScanReceipt={receipts.scanImage}
           onSaveReceipt={handleReceiptSave}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, Meal, MealIngredient, GroceryCategory } from '../lib/supabase';
+import { supabase, Meal, MealIngredient, MealType, GroceryCategory } from '../lib/supabase';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -70,6 +70,36 @@ export function useMealPlanner() {
     return meal;
   }
 
+  /**
+   * Add a meal with full details: meal_type, meal_date, and explicit ingredients.
+   * Does NOT call the AI ingredients fetch — ingredients are provided by the caller.
+   */
+  async function addMealFull(opts: {
+    name: string;
+    meal_type: MealType;
+    meal_date: string;
+    ingredients: MealIngredient[];
+  }): Promise<Meal | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data } = await supabase
+      .from('meals')
+      .insert({
+        memory_id: memoryId,
+        user_id: user.id,
+        name: opts.name,
+        meal_type: opts.meal_type,
+        meal_date: opts.meal_date,
+        ingredients: opts.ingredients,
+      })
+      .select()
+      .single();
+    if (!data) return null;
+    const meal = data as Meal;
+    setMeals((prev) => [meal, ...prev]);
+    return meal;
+  }
+
   async function deleteMeal(id: string) {
     setMeals((prev) => prev.filter((m) => m.id !== id));
     const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +135,7 @@ export function useMealPlanner() {
     meals,
     loading,
     addMeal,
+    addMealFull,
     deleteMeal,
     extractMergedIngredients,
   };

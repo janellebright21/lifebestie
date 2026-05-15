@@ -186,10 +186,16 @@ export const EMPTY_MEMORY: Omit<UserMemory, 'id' | 'updated_at'> = {
 
 export type WeeklyGrocerySource = 'habit' | 'routine' | 'recent' | 'manual' | 'meal' | 'planner';
 
+export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+export const MEAL_TYPES: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+
 export interface Meal {
   id: string;
   memory_id: string;
+  user_id?: string;
   name: string;
+  meal_type?: MealType | null;
+  meal_date?: string | null;
   ingredients: MealIngredient[];
   created_at: string;
 }

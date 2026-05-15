@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Sparkles, ShoppingCart, Check, RefreshCw, Calendar, UtensilsCrossed, Play, Pencil, DollarSign, Lightbulb, EyeOff, Eye, Trash2 } from 'lucide-react';
+import { Plus, Sparkles, ShoppingCart, Check, RefreshCw, Calendar, UtensilsCrossed, Play, Pencil, DollarSign, Lightbulb, EyeOff, Eye, Trash2, ChevronRight, X } from 'lucide-react';
 import {
   GroceryItem,
   GroceryHabit,
@@ -12,6 +12,8 @@ import {
   GroceryCategory,
   Meal,
   MealIngredient,
+  MealType,
+  MEAL_TYPES,
   SpendingSnapshot,
   ReceiptItem,
   getWeekStart,
@@ -49,6 +51,7 @@ interface GroceryPageProps {
   onUpdateWeeklyItemPrice: (name: string, price: number) => Promise<void>;
   onSetWeeklyBudget: (amount: number) => Promise<void>;
   onAddMeal: (name: string) => Promise<Meal | null>;
+  onAddMealFull: (opts: { name: string; meal_type: MealType; meal_date: string; ingredients: MealIngredient[] }) => Promise<Meal | null>;
   onDeleteMeal: (id: string) => void;
   onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
   spendingSnapshots: SpendingSnapshot[];
@@ -1145,6 +1148,200 @@ function WeeklyTab({
   );
 }
 
+// ─── Meal Planner Modal ───────────────────────────────────────────────────────
+
+const INGREDIENT_CATEGORY_DEFAULTS: Record<string, GroceryCategory> = {
+  milk: 'Dairy', cheese: 'Dairy', eggs: 'Dairy', butter: 'Dairy', yogurt: 'Dairy',
+  bread: 'Pantry', pasta: 'Pantry', rice: 'Pantry', flour: 'Pantry', sugar: 'Pantry', oil: 'Pantry',
+  chicken: 'Meat', beef: 'Meat', pork: 'Meat', turkey: 'Meat', bacon: 'Meat',
+  salmon: 'Seafood', shrimp: 'Seafood', tuna: 'Seafood',
+  apple: 'Produce', banana: 'Produce', tomato: 'Produce', lettuce: 'Produce',
+  spinach: 'Produce', broccoli: 'Produce', onion: 'Produce', garlic: 'Produce',
+  chips: 'Snacks', crackers: 'Snacks', granola: 'Snacks',
+  juice: 'Beverages', coffee: 'Beverages', tea: 'Beverages', water: 'Beverages',
+};
+
+function guessCategory(name: string): GroceryCategory {
+  const lower = name.toLowerCase();
+  for (const [keyword, cat] of Object.entries(INGREDIENT_CATEGORY_DEFAULTS)) {
+    if (lower.includes(keyword)) return cat;
+  }
+  return 'Pantry';
+}
+
+function parseIngredients(raw: string): MealIngredient[] {
+  return raw
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((name) => ({ name, category: guessCategory(name) }));
+}
+
+const MEAL_TYPE_COLORS: Record<MealType, { bg: string; text: string; dot: string }> = {
+  Breakfast: { bg: 'bg-amber-50',   text: 'text-amber-600',   dot: 'bg-amber-400'   },
+  Lunch:     { bg: 'bg-sky-50',     text: 'text-sky-600',     dot: 'bg-sky-400'     },
+  Dinner:    { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-400' },
+  Snack:     { bg: 'bg-rose-50',    text: 'text-rose-600',    dot: 'bg-rose-400'    },
+};
+
+function MealPlannerModal({
+  onAddMealFull,
+  onAddWeekly,
+  onClose,
+}: {
+  onAddMealFull: (opts: { name: string; meal_type: MealType; meal_date: string; ingredients: MealIngredient[] }) => Promise<Meal | null>;
+  onAddWeekly: (name: string, category: GroceryCategory, source: WeeklyGrocerySource) => Promise<void>;
+  onClose: () => void;
+}) {
+  const today = new Date().toISOString().split('T')[0];
+  const [name, setName] = useState('');
+  const [mealType, setMealType] = useState<MealType>('Dinner');
+  const [mealDate, setMealDate] = useState(today);
+  const [ingredientsRaw, setIngredientsRaw] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSave() {
+    if (!name.trim()) { setError('Please enter a meal name.'); return; }
+    setError('');
+    setSaving(true);
+    const ingredients = parseIngredients(ingredientsRaw);
+    const meal = await onAddMealFull({ name: name.trim(), meal_type: mealType, meal_date: mealDate, ingredients });
+    if (meal && ingredients.length > 0) {
+      for (const ing of ingredients) {
+        await onAddWeekly(ing.name, ing.category, 'meal');
+      }
+    }
+    setSaving(false);
+    setDone(true);
+    setTimeout(onClose, 900);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-8 space-y-5 animate-slide-up">
+        {/* Handle */}
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto -mt-1 mb-1" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-50 flex items-center justify-center">
+              <UtensilsCrossed size={18} className="text-emerald-500" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-800">Plan a Meal</h2>
+              <p className="text-xs text-gray-400">Ingredients go straight to your grocery list</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 transition-colors">
+            <X size={15} />
+          </button>
+        </div>
+
+        {done ? (
+          <div className="flex flex-col items-center gap-2 py-6">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+              <Check size={22} className="text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-gray-700">Meal saved!</p>
+            <p className="text-xs text-gray-400">Ingredients added to your grocery list</p>
+          </div>
+        ) : (
+          <>
+            {/* Meal name */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meal Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Pasta Bolognese"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
+                autoFocus
+              />
+              {error && <p className="text-xs text-rose-500">{error}</p>}
+            </div>
+
+            {/* Meal type */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meal Type</label>
+              <div className="flex gap-2 flex-wrap">
+                {MEAL_TYPES.map((type) => {
+                  const colors = MEAL_TYPE_COLORS[type];
+                  const active = mealType === type;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setMealType(type)}
+                      className={`text-xs font-semibold px-3.5 py-2 rounded-full transition-all ${
+                        active
+                          ? `${colors.bg} ${colors.text} ring-1 ring-current`
+                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Date */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</label>
+              <input
+                type="date"
+                value={mealDate}
+                onChange={(e) => setMealDate(e.target.value)}
+                className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
+              />
+            </div>
+
+            {/* Ingredients */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Ingredients
+                <span className="ml-1 font-normal text-gray-300 normal-case">(one per line or comma-separated)</span>
+              </label>
+              <textarea
+                rows={4}
+                placeholder={"Pasta\nGround beef\nTomato sauce\nOnion, Garlic"}
+                value={ingredientsRaw}
+                onChange={(e) => setIngredientsRaw(e.target.value)}
+                className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all resize-none"
+              />
+              {ingredientsRaw.trim() && (
+                <p className="text-xs text-gray-400">
+                  {parseIngredients(ingredientsRaw).length} ingredient{parseIngredients(ingredientsRaw).length !== 1 ? 's' : ''} will be added to your grocery list
+                </p>
+              )}
+            </div>
+
+            {/* Save */}
+            <button
+              onClick={handleSave}
+              disabled={saving || !name.trim()}
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-semibold text-sm shadow-sm shadow-emerald-200 hover:bg-emerald-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Check size={15} />
+                  Save Meal & Add to Grocery List
+                </>
+              )}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 type PageTab = 'today' | 'weekly';
@@ -1171,6 +1368,7 @@ export default function GroceryPage({
   onUpdateWeeklyItemPrice,
   onSetWeeklyBudget,
   onAddMeal,
+  onAddMealFull,
   onDeleteMeal,
   onPlanMeals,
   spendingSnapshots,
@@ -1181,6 +1379,7 @@ export default function GroceryPage({
   receiptScanError,
 }: GroceryPageProps) {
   const [pageTab, setPageTab] = useState<PageTab>('today');
+  const [showMealModal, setShowMealModal] = useState(false);
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [shoppingMode, setShoppingMode] = useState<'today' | 'weekly' | null>(null);
   const [newItem, setNewItem] = useState('');
@@ -1272,6 +1471,15 @@ const existingNames = new Set(
         />
       )}
 
+      {/* Meal Planner Modal */}
+      {showMealModal && (
+        <MealPlannerModal
+          onAddMealFull={onAddMealFull}
+          onAddWeekly={onAddWeekly}
+          onClose={() => setShowMealModal(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -1323,6 +1531,23 @@ const existingNames = new Set(
           </button>
         ))}
       </div>
+
+      {/* Meal Planner entry card */}
+      <button
+        onClick={() => setShowMealModal(true)}
+        className="w-full flex items-center gap-3.5 bg-white rounded-2xl px-4 py-3.5 shadow-sm border border-emerald-100 active:scale-[0.98] transition-all text-left"
+      >
+        <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
+          <UtensilsCrossed size={20} className="text-emerald-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800">Meal Planner</p>
+          <p className="text-xs text-gray-400 leading-snug mt-0.5">
+            Plan breakfast, lunch & dinner — ingredients go straight to your list
+          </p>
+        </div>
+        <ChevronRight size={16} className="text-gray-300 shrink-0" />
+      </button>
 
       {/* Low stock strip — only on Today tab */}
       {pageTab === 'today' && lowStockSuggestions.length > 0 && (
