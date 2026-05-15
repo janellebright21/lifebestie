@@ -1279,7 +1279,7 @@ const existingNames = new Set(
               : `${weeklyUnchecked} item${weeklyUnchecked !== 1 ? 's' : ''} remaining this week`}
           </p>
         </div>
-        {pageTab === 'today' && (aiItems ?? []).length
+       {pageTab === 'today' && (aiItems ?? []).length > 0 && (
           <button
             onClick={() => setShoppingMode('today')}
             className="flex items-center gap-1.5 bg-rose-400 text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-sm active:scale-95 transition-transform"
