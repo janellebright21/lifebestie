@@ -1193,7 +1193,7 @@ export default function GroceryPage({
   const lastFetchSnapshotRef = useRef<string>('');
 
   useEffect(() => {
-    const snapshot = items.map((i) => i.name.toLowerCase()).sort().join(',');
+    const snapshot = (items ?? []).map(...)((i) => i.name.toLowerCase()).sort().join(',');
     if (snapshot === lastFetchSnapshotRef.current) return;
     lastFetchSnapshotRef.current = snapshot;
     setDismissed(new Set());
