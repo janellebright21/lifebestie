@@ -55,7 +55,13 @@ export function useMealPlanner() {
     const ingredients = await fetchIngredients(name);
     const { data } = await supabase
       .from('meals')
-      .insert({ memory_id: memoryId, user_id: user.id, name, ingredients })
+    .insert({
+  memory_id: memoryId,
+  user_id: user.id,
+  name,
+  meal_date: new Date().toISOString().split('T')[0],
+  ingredients
+})
       .select()
       .single();
     if (!data) return null;
