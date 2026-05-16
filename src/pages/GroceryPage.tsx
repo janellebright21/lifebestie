@@ -1219,7 +1219,7 @@ function MealPlannerModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto pb-32 ...">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-8 space-y-5 animate-slide-up">
         {/* Handle */}
