@@ -62,6 +62,7 @@ interface GroceryPageProps {
   receiptScanError: string | null;
 }
 
+
 const SOURCE_LABELS: Record<WeeklyGrocerySource, string> = {
   habit:   'habit',
   routine: 'routine',

@@ -403,28 +403,29 @@ export default function App() {
       )}
       {activeTab === 'grocery' && (
         <GroceryPage
-          groceryItems={groceryItems}
+          items={groceryItems}
           weeklyList={weeklyGrocery.weeklyList}
-          weeklyListLoading={weeklyGrocery.loading}
+          weeklyLoading={weeklyGrocery.loading}
           habits={userMemory.memory?.common_groceries ?? []}
           routines={userMemory.memory?.routines ?? []}
           recentHistory={userMemory.getRecentHistory(14)}
-          budget={groceryBudget.budget}
-          snapshots={spendingTrends.snapshots}
+          weeklyBudget={groceryBudget.budget?.weekly_budget ?? 100}
+          estimatedTotal={groceryBudget.budget?.current_estimated_total ?? 0}
+          spendingSnapshots={spendingTrends.snapshots}
           spendingInsights={spendingTrends.getInsights()}
           meals={mealPlanner.meals}
-          receipts={receipts.receipts}
-          scanning={receipts.scanning}
-          scanError={receipts.scanError}
-          onAddGrocery={addGrocery}
-          onToggleGrocery={toggleGrocery}
-          onDeleteGrocery={deleteGrocery}
-          onToggleWeeklyItem={weeklyGrocery.toggleWeeklyItem}
-          onAddWeeklyItem={addWeeklyItem}
-          onSkipWeeklyItem={skipWeeklyItem}
-          onRemoveWeeklyItem={removeWeeklyItem}
+          mealsLoading={mealPlanner.loading}
+          receiptScanning={receipts.scanning}
+          receiptScanError={receipts.scanError}
+          onAdd={addGrocery}
+          onToggle={toggleGrocery}
+          onDelete={deleteGrocery}
+          onToggleWeekly={weeklyGrocery.toggleWeeklyItem}
+          onAddWeekly={addWeeklyItem}
+          onSkipWeekly={skipWeeklyItem}
+          onRemoveWeekly={removeWeeklyItem}
           onUpdateWeeklyItemPrice={updateWeeklyItemPrice}
-          onRegenerateWeeklyList={weeklyGrocery.regenerate}
+          onRegenerateWeekly={weeklyGrocery.regenerate}
           onSetWeeklyBudget={groceryBudget.setWeeklyBudget}
           onPlanMeals={planMeals}
           onAddMeal={mealPlanner.addMeal}
@@ -432,9 +433,6 @@ export default function App() {
           onDeleteMeal={mealPlanner.deleteMeal}
           onScanReceipt={receipts.scanImage}
           onSaveReceipt={handleReceiptSave}
-          getPriceMemory={receipts.getPriceMemory}
-          onLoadReceipts={receipts.load}
-          extractMergedIngredients={mealPlanner.extractMergedIngredients}
         />
       )}
       {activeTab === 'goals' && (
