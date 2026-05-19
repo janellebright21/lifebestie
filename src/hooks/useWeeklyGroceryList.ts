@@ -557,6 +557,7 @@ export function useWeeklyGroceryList(
   const [weeklyList, setWeeklyList] = useState<WeeklyGroceryList | null>(null);
   const [loading, setLoading] = useState(true);
   const listRef = useRef<WeeklyGroceryList | null>(null);
+  const userIdRef = useRef<string | null>(null);
   const memoryId = localStorage.getItem(MEMORY_ID_KEY);
 
   // Keep ref in sync for use inside async callbacks
@@ -570,6 +571,7 @@ export function useWeeklyGroceryList(
       setLoading(false);
       return;
     }
+    userIdRef.current = user.id;
 
     const weekStart = getWeekStart();
 
@@ -615,12 +617,14 @@ export function useWeeklyGroceryList(
 
   async function persist(items: WeeklyGroceryItem[]) {
     const list = listRef.current;
-    if (!list) return;
+    const userId = userIdRef.current;
+    if (!list || !userId) return;
     setWeeklyList({ ...list, items });
     await supabase
       .from('weekly_grocery_lists')
       .update({ items })
-      .eq('id', list.id);
+      .eq('id', list.id)
+      .eq('user_id', userId);
   }
 
   // ─── Public actions ───────────────────────────────────────────────────────
@@ -688,11 +692,14 @@ export function useWeeklyGroceryList(
     const items = [...manualItems, ...generated];
 
     const weekly_message = await fetchWeeklyIntroMessage(habits, routines, items, meals, events);
+    const userId = userIdRef.current;
+    if (!userId) return;
     setWeeklyList({ ...list, items, weekly_message });
     await supabase
       .from('weekly_grocery_lists')
       .update({ items, weekly_message })
-      .eq('id', list.id);
+      .eq('id', list.id)
+      .eq('user_id', userId);
   }
 
   return {
