@@ -1,13 +1,13 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Plus, CheckCircle2, Circle, Clock, Trash2, Pencil, Repeat, Target,
   Timer, ChevronDown, ChevronUp, Sparkles, Calendar, MapPin,
   Flag, Zap, AlarmClock, X, Check,
   Lock, Unlock, ArrowUp, ArrowDown, RefreshCw, ListPlus, Palette,
-  UtensilsCrossed, ShoppingCart,
+  UtensilsCrossed, ShoppingCart, MoreVertical, Copy, CalendarClock,
 } from 'lucide-react';
 import {
-  Task, Event, Routine, Goal, Meal,
+  Task, Event, Routine, Goal, Meal, MealType, MEAL_TYPES, MealIngredient,
   TASK_CATEGORIES, TaskCategory, TaskPriority,
   EVENT_CATEGORIES, EventCategory,
   PASTEL_COLORS, PastelColorKey, PastelColor, PASTEL_COLOR_MAP,
@@ -32,6 +32,9 @@ interface PlannerPageProps {
   onUpdateEvent: (id: string, patch: Partial<Pick<Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>) => Promise<void>;
   onDeleteRoutine: (name: string) => void;
   onAddMeal: (name: string) => Promise<Meal | null>;
+  onDeleteMeal: (id: string) => void;
+  onUpdateMeal: (id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
+  onDuplicateMeal: (id: string, newDate: string) => Promise<Meal | null>;
   onLinkMealToEvent: (eventId: string, meal: Meal) => Promise<void>;
   tomorrowReminders: string[];
   tomorrowRemindersLoading: boolean;
@@ -1970,6 +1973,294 @@ function PlanMyDaySheet({
   );
 }
 
+// ─── Meal Card ────────────────────────────────────────────────────────────────
+
+const MEAL_TYPE_COLORS: Record<MealType, { bg: string; text: string; dot: string }> = {
+  Breakfast: { bg: 'bg-amber-50',   text: 'text-amber-600',   dot: 'bg-amber-400' },
+  Lunch:     { bg: 'bg-sky-50',     text: 'text-sky-600',     dot: 'bg-sky-400'   },
+  Dinner:    { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-400' },
+  Snack:     { bg: 'bg-rose-50',    text: 'text-rose-500',    dot: 'bg-rose-400'  },
+};
+
+function MealCard({
+  meal,
+  onDelete,
+  onUpdate,
+  onDuplicate,
+}: {
+  meal: Meal;
+  onDelete: () => void;
+  onUpdate: (patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
+  onDuplicate: (newDate: string) => Promise<Meal | null>;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [mode, setMode] = useState<'view' | 'edit' | 'move' | 'duplicate'>('view');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handle(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [menuOpen]);
+
+  const typeStyle = meal.meal_type ? MEAL_TYPE_COLORS[meal.meal_type] : MEAL_TYPE_COLORS.Dinner;
+
+  if (mode === 'edit') {
+    return <MealEditForm meal={meal} onSave={async (patch) => { await onUpdate(patch); setMode('view'); }} onCancel={() => setMode('view')} />;
+  }
+
+  if (mode === 'move') {
+    return <MealMoveDateForm meal={meal} onSave={async (date) => { await onUpdate({ meal_date: date }); setMode('view'); }} onCancel={() => setMode('view')} />;
+  }
+
+  if (mode === 'duplicate') {
+    return <MealDuplicateForm meal={meal} onSave={async (date) => { await onDuplicate(date); setMode('view'); }} onCancel={() => setMode('view')} />;
+  }
+
+  return (
+    <div className={`rounded-xl border border-amber-100 p-3 ${typeStyle.bg} relative`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-gray-800">{meal.name}</p>
+            {meal.meal_type && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full bg-white/70 ${typeStyle.text}`}>
+                {meal.meal_type}
+              </span>
+            )}
+          </div>
+          {meal.ingredients.length > 0 && (
+            <p className="text-xs text-gray-400 mt-1 truncate">
+              {meal.ingredients.slice(0, 4).map((i) => i.name).join(', ')}
+              {meal.ingredients.length > 4 && ` +${meal.ingredients.length - 4} more`}
+            </p>
+          )}
+        </div>
+
+        {/* 3-dot menu */}
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/5 active:bg-black/10 transition-colors"
+          >
+            <MoreVertical size={15} className="text-gray-400" />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-8 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden w-44 py-1">
+              <button
+                onClick={() => { setMenuOpen(false); setMode('edit'); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Pencil size={14} className="text-sky-400 shrink-0" />
+                Edit meal
+              </button>
+              <button
+                onClick={() => { setMenuOpen(false); setMode('move'); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <CalendarClock size={14} className="text-amber-400 shrink-0" />
+                Move date
+              </button>
+              <button
+                onClick={() => { setMenuOpen(false); setMode('duplicate'); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Copy size={14} className="text-emerald-400 shrink-0" />
+                Duplicate
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <button
+                onClick={() => { setMenuOpen(false); onDelete(); }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-rose-500 hover:bg-rose-50 transition-colors"
+              >
+                <Trash2 size={14} className="shrink-0" />
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MealEditForm({
+  meal,
+  onSave,
+  onCancel,
+}: {
+  meal: Meal;
+  onSave: (patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'ingredients'>>) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(meal.name);
+  const [mealType, setMealType] = useState<MealType>(meal.meal_type ?? 'Dinner');
+  const [ingredientsRaw, setIngredientsRaw] = useState(
+    meal.ingredients.map((i) => i.name).join(', ')
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!name.trim()) return;
+    setSaving(true);
+    const ingredients: MealIngredient[] = ingredientsRaw
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((n) => {
+        const existing = meal.ingredients.find((i) => i.name.toLowerCase() === n.toLowerCase());
+        return existing ?? { name: n, category: 'Produce' as const };
+      });
+    await onSave({ name: name.trim(), meal_type: mealType, ingredients });
+    setSaving(false);
+  }
+
+  return (
+    <div className="rounded-xl bg-white border border-sky-100 p-3 space-y-3">
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Edit Meal</p>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Meal name"
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-sky-200 transition-all"
+      />
+      <div className="flex gap-1.5 flex-wrap">
+        {MEAL_TYPES.map((t) => (
+          <button
+            key={t}
+            onClick={() => setMealType(t)}
+            className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+              mealType === t ? 'bg-sky-100 text-sky-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={ingredientsRaw}
+        onChange={(e) => setIngredientsRaw(e.target.value)}
+        placeholder="Ingredients (comma or newline separated)"
+        rows={2}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-sky-200 transition-all resize-none"
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving || !name.trim()}
+          className="flex-1 py-2 rounded-xl bg-sky-500 text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition-all"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold active:scale-95 transition-all"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MealMoveDateForm({
+  meal,
+  onSave,
+  onCancel,
+}: {
+  meal: Meal;
+  onSave: (date: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [date, setDate] = useState(meal.meal_date ?? new Date().toISOString().split('T')[0]);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave(date);
+    setSaving(false);
+  }
+
+  return (
+    <div className="rounded-xl bg-white border border-amber-100 p-3 space-y-3">
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Move to Date</p>
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-amber-200 transition-all"
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 py-2 rounded-xl bg-amber-400 text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition-all"
+        >
+          {saving ? 'Moving…' : 'Move'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold active:scale-95 transition-all"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MealDuplicateForm({
+  meal,
+  onSave,
+  onCancel,
+}: {
+  meal: Meal;
+  onSave: (date: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })();
+  const [date, setDate] = useState(tomorrow);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave(date);
+    setSaving(false);
+  }
+
+  return (
+    <div className="rounded-xl bg-white border border-emerald-100 p-3 space-y-3">
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Duplicate "{meal.name}"</p>
+      <p className="text-xs text-gray-400">Choose a date for the copy:</p>
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-200 transition-all"
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 py-2 rounded-xl bg-emerald-500 text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition-all"
+        >
+          {saving ? 'Copying…' : 'Duplicate'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 text-sm font-semibold active:scale-95 transition-all"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Today View ───────────────────────────────────────────────────────────────
 
 function TodayView({
@@ -1987,6 +2278,9 @@ function TodayView({
   onUpdateTask,
   onOpenPlanMyDay,
   onAddMeal,
+  onDeleteMeal,
+  onUpdateMeal,
+  onDuplicateMeal,
   onLinkMealToEvent,
 }: {
   tasks: Task[];
@@ -2016,6 +2310,9 @@ function TodayView({
   onUpdateTask: PlannerPageProps['onUpdateTask'];
   onOpenPlanMyDay: () => void;
   onAddMeal: PlannerPageProps['onAddMeal'];
+  onDeleteMeal: PlannerPageProps['onDeleteMeal'];
+  onUpdateMeal: PlannerPageProps['onUpdateMeal'];
+  onDuplicateMeal: PlannerPageProps['onDuplicateMeal'];
   onLinkMealToEvent: PlannerPageProps['onLinkMealToEvent'];
 }) {
   const goalMap = new Map(goals.map((g) => [g.id, g]));
@@ -2168,12 +2465,14 @@ function TodayView({
       </p>
     ) : (
       <div className="space-y-2">
-        {dayMeals.map((meal: any) => (
-          <div key={meal.id} className="rounded-xl bg-amber-50 border border-amber-100 p-3">
-            <p className="text-sm font-semibold text-gray-800">
-              {meal.name || meal.title || 'Meal'}
-            </p>
-          </div>
+        {dayMeals.map((meal: Meal) => (
+          <MealCard
+            key={meal.id}
+            meal={meal}
+            onDelete={() => onDeleteMeal(meal.id)}
+            onUpdate={(patch) => onUpdateMeal(meal.id, patch)}
+            onDuplicate={(newDate) => onDuplicateMeal(meal.id, newDate)}
+          />
         ))}
       </div>
     )}
@@ -2454,6 +2753,9 @@ export default function PlannerPage({
   onUpdateEvent,
   onDeleteRoutine,
   onAddMeal,
+  onDeleteMeal,
+  onUpdateMeal,
+  onDuplicateMeal,
   onLinkMealToEvent,
   tomorrowReminders,
   tomorrowRemindersLoading,
@@ -2605,6 +2907,9 @@ export default function PlannerPage({
           onUpdateTask={onUpdateTask}
           onOpenPlanMyDay={() => setShowPlanMyDay(true)}
           onAddMeal={onAddMeal}
+          onDeleteMeal={onDeleteMeal}
+          onUpdateMeal={onUpdateMeal}
+          onDuplicateMeal={onDuplicateMeal}
           onLinkMealToEvent={onLinkMealToEvent}
         />
       )}

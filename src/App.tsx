@@ -386,6 +386,9 @@ export default function App() {
           onUpdateEvent={updateEvent}
           onDeleteRoutine={userMemory.removeRoutine}
           onAddMeal={mealPlanner.addMeal}
+          onDeleteMeal={mealPlanner.deleteMeal}
+          onUpdateMeal={mealPlanner.updateMeal}
+          onDuplicateMeal={mealPlanner.duplicateMeal}
           onLinkMealToEvent={linkMealToEvent}
           tomorrowReminders={prepareForTomorrow.reminders}
           tomorrowRemindersLoading={prepareForTomorrow.loading}

@@ -107,6 +107,36 @@ export function useMealPlanner() {
     await supabase.from('meals').delete().eq('id', id).eq('user_id', user.id);
   }
 
+  async function updateMeal(id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setMeals((prev) => prev.map((m) => m.id === id ? { ...m, ...patch } : m));
+    await supabase.from('meals').update(patch).eq('id', id).eq('user_id', user.id);
+  }
+
+  async function duplicateMeal(id: string, newDate: string): Promise<Meal | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const source = mealsRef.current.find((m) => m.id === id);
+    if (!source) return null;
+    const { data } = await supabase
+      .from('meals')
+      .insert({
+        user_id: user.id,
+        memory_id: memoryId,
+        name: source.name,
+        meal_type: source.meal_type,
+        meal_date: newDate,
+        ingredients: source.ingredients,
+      })
+      .select()
+      .single();
+    if (!data) return null;
+    const meal = data as Meal;
+    setMeals((prev) => [meal, ...prev]);
+    return meal;
+  }
+
   /**
    * Merge all ingredients from the given meal IDs into a deduplicated list.
    * When the same ingredient appears in multiple meals, keep only one entry,
@@ -137,6 +167,8 @@ export function useMealPlanner() {
     addMeal,
     addMealFull,
     deleteMeal,
+    updateMeal,
+    duplicateMeal,
     extractMergedIngredients,
   };
 }
