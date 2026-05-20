@@ -114,12 +114,14 @@ function MiniCalendar({
   selectedDate,
   today,
   dateColorDots,
+  meals,
   onSelect,
   onCustomizeColors,
 }: {
   selectedDate: string;
   today: string;
   dateColorDots: Map<string, string[]>;
+  meals: Meal[];
   onSelect: (date: string) => void;
   onCustomizeColors: () => void;
 }) {
@@ -128,6 +130,17 @@ function MiniCalendar({
 
   const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const dateMealsMap = useMemo(() => {
+    const map = new Map<string, Meal[]>();
+    for (const meal of meals) {
+      const d = meal.meal_date;
+      if (!d) continue;
+      const existing = map.get(d) ?? [];
+      map.set(d, [...existing, meal]);
+    }
+    return map;
+  }, [meals]);
 
   function prevMonth() {
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
@@ -191,20 +204,30 @@ function MiniCalendar({
       </div>
 
       {/* Day cells */}
-      <div className="grid grid-cols-7 px-2 pb-3 gap-y-1">
+      <div className="grid grid-cols-7 px-2 pb-3 gap-y-0.5">
         {cells.map((day, idx) => {
           if (!day) return <div key={`e-${idx}`} />;
           const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const isToday = dateStr === today;
           const isSelected = dateStr === selectedDate;
           const dots = dateColorDots.get(dateStr) ?? [];
-          const visibleDots = dots.slice(0, 4);
+          const visibleDots = dots.slice(0, 3);
+          const dayMeals = dateMealsMap.get(dateStr) ?? [];
+          const hasMeals = dayMeals.length > 0;
+
+          // B/L/D/S type labels
+          const typeLetters: string[] = [];
+          if (dayMeals.some((m) => m.meal_type === 'Breakfast')) typeLetters.push('B');
+          if (dayMeals.some((m) => m.meal_type === 'Lunch'))     typeLetters.push('L');
+          if (dayMeals.some((m) => m.meal_type === 'Dinner'))    typeLetters.push('D');
+          if (dayMeals.some((m) => m.meal_type === 'Snack'))     typeLetters.push('S');
+          const untyped = dayMeals.filter((m) => !m.meal_type);
 
           return (
             <button
               key={dateStr}
               onClick={() => onSelect(dateStr)}
-              className={`relative flex flex-col items-center justify-center h-9 rounded-xl text-sm font-medium transition-all active:scale-95 ${
+              className={`relative flex flex-col items-center pt-1.5 pb-1.5 px-0.5 min-h-[44px] rounded-xl text-sm font-medium transition-all active:scale-95 ${
                 isSelected
                   ? 'bg-sky-500 text-white shadow-sm shadow-sky-200'
                   : isToday
@@ -212,13 +235,68 @@ function MiniCalendar({
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              {day}
+              <span className="leading-none">{day}</span>
+
+              {/* Meal indicator */}
+              {hasMeals && (
+                <div className="flex flex-col items-center gap-[2px] mt-[3px] w-full px-[2px]">
+                  {/* B/L/D/S type badges */}
+                  {typeLetters.length > 0 && (
+                    <div className="flex gap-[2px] justify-center flex-wrap">
+                      {typeLetters.map((ltr) => (
+                        <span
+                          key={ltr}
+                          className={`text-[7px] font-bold leading-none px-[3px] py-[1.5px] rounded-full ${
+                            isSelected
+                              ? 'bg-white/25 text-white'
+                              : ltr === 'B' ? 'bg-amber-100 text-amber-600'
+                              : ltr === 'L' ? 'bg-sky-100 text-sky-600'
+                              : ltr === 'D' ? 'bg-emerald-100 text-emerald-600'
+                              : 'bg-rose-100 text-rose-500'
+                          }`}
+                        >
+                          {ltr}
+                        </span>
+                      ))}
+                      {untyped.length > 0 && (
+                        <span className={`text-[7px] font-bold leading-none px-[3px] py-[1.5px] rounded-full ${
+                          isSelected ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          +{untyped.length}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* First meal name chip */}
+                  <div className={`w-full text-center rounded-[4px] px-[2px] py-[1px] leading-none ${
+                    isSelected ? 'bg-white/20' : 'bg-amber-50'
+                  }`}>
+                    <span className={`text-[8px] font-semibold truncate block max-w-full ${
+                      isSelected ? 'text-white' : 'text-amber-700'
+                    }`}>
+                      {dayMeals[0].name.length > 7 ? dayMeals[0].name.slice(0, 6) + '…' : dayMeals[0].name}
+                    </span>
+                  </div>
+
+                  {/* Overflow count */}
+                  {dayMeals.length > 1 && (
+                    <span className={`text-[7px] font-medium leading-none ${
+                      isSelected ? 'text-white/70' : 'text-amber-500'
+                    }`}>
+                      +{dayMeals.length - 1} more
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Category dots (event/task) */}
               {visibleDots.length > 0 && (
-                <div className="flex gap-[2px] absolute bottom-[3px]">
+                <div className={`flex gap-[2px] ${hasMeals ? 'mt-[2px]' : 'absolute bottom-[3px]'}`}>
                   {visibleDots.map((hex, i) => (
                     <span
                       key={i}
-                      className="w-[5px] h-[5px] rounded-full"
+                      className="w-[4px] h-[4px] rounded-full"
                       style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.75)' : hex }}
                     />
                   ))}
@@ -2858,6 +2936,7 @@ export default function PlannerPage({
         selectedDate={selectedDate}
         today={today}
         dateColorDots={dateColorDots}
+        meals={meals}
         onSelect={handleSelectDate}
         onCustomizeColors={() => setShowCustomizeColors(true)}
       />
