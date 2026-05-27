@@ -2404,10 +2404,7 @@ function TodayView({
   );
 
   const dayMeals = useMemo(() =>
-    meals.filter((meal: any) => {
-      const mealDate = meal.meal_date || meal.date || meal.planned_date || meal.event_date;
-      return mealDate === selectedDate;
-    }),
+    meals.filter((meal: Meal) => meal.meal_date === selectedDate),
     [meals, selectedDate]
   );
   
@@ -2445,7 +2442,7 @@ function TodayView({
   const dayName = new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
   const dayRoutines = routines.filter((r) => r.days.includes(dayName));
 
-  const isEmpty = dayEvents.length === 0 && dayTasks.length === 0 && dayRoutines.length === 0;
+  const isEmpty = dayEvents.length === 0 && dayTasks.length === 0 && dayRoutines.length === 0 && dayMeals.length === 0;
 
   return (
     <div className="space-y-5">
