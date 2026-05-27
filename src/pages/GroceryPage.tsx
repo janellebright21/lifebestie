@@ -1343,6 +1343,164 @@ function MealPlannerModal({
   );
 }
 
+// ─── Weekly Meal Overview ─────────────────────────────────────────────────────
+
+const MEAL_TYPE_CHIP: Record<MealType, { bg: string; text: string }> = {
+  Breakfast: { bg: 'bg-amber-100',   text: 'text-amber-700'   },
+  Lunch:     { bg: 'bg-sky-100',     text: 'text-sky-700'     },
+  Dinner:    { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  Snack:     { bg: 'bg-rose-100',    text: 'text-rose-600'    },
+};
+
+const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function WeeklyMealOverview({
+  meals,
+  onOpenMealPlanner,
+  onPlanMeals,
+}: {
+  meals: Meal[];
+  onOpenMealPlanner: () => void;
+  onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
+}) {
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  const weekStart = getWeekStart();
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart + 'T12:00:00');
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+
+  const mealsByDate = new Map<string, Meal[]>();
+  for (const meal of meals) {
+    if (!meal.meal_date) continue;
+    const existing = mealsByDate.get(meal.meal_date) ?? [];
+    mealsByDate.set(meal.meal_date, [...existing, meal]);
+  }
+
+  const weekMeals = weekDates.flatMap((d) => mealsByDate.get(d) ?? []);
+  const hasAnyMeals = weekMeals.length > 0;
+
+  async function handleGenerate() {
+    if (generating || !hasAnyMeals) return;
+    setGenerating(true);
+    const seen = new Map<string, MealIngredient>();
+    for (const meal of weekMeals) {
+      for (const ing of meal.ingredients) {
+        const key = ing.name.toLowerCase();
+        if (!seen.has(key)) seen.set(key, ing);
+      }
+    }
+    const ingredients = Array.from(seen.values());
+    await onPlanMeals(weekMeals.map((m) => m.id), ingredients);
+    setGenerating(false);
+    setGenerated(true);
+    setTimeout(() => setGenerated(false), 3000);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
+        <div>
+          <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+            <UtensilsCrossed size={14} className="text-emerald-500 shrink-0" />
+            This Week's Meals
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">Planned meals for the week</p>
+        </div>
+        <button
+          onClick={handleGenerate}
+          disabled={generating || !hasAnyMeals}
+          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all active:scale-95 disabled:opacity-40 ${
+            generated
+              ? 'bg-emerald-100 text-emerald-600'
+              : 'bg-emerald-500 text-white hover:bg-emerald-600'
+          }`}
+        >
+          {generating ? (
+            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : generated ? (
+            <><Check size={11} /> Added!</>
+          ) : (
+            <>Generate Grocery List</>
+          )}
+        </button>
+      </div>
+
+      {/* Day rows */}
+      <div className="divide-y divide-gray-50">
+        {weekDates.map((dateStr, i) => {
+          const dayMeals = mealsByDate.get(dateStr) ?? [];
+          const today = new Date().toISOString().split('T')[0];
+          const isToday = dateStr === today;
+
+          return (
+            <div
+              key={dateStr}
+              className={`flex items-start gap-3 px-4 py-2.5 ${isToday ? 'bg-emerald-50/50' : ''}`}
+            >
+              {/* Day label */}
+              <div className="w-8 shrink-0 pt-0.5">
+                <p className={`text-xs font-bold ${isToday ? 'text-emerald-600' : 'text-gray-400'}`}>
+                  {SHORT_DAYS[i]}
+                </p>
+                {isToday && (
+                  <div className="w-1 h-1 rounded-full bg-emerald-400 mt-0.5" />
+                )}
+              </div>
+
+              {/* Meals or empty state */}
+              <div className="flex-1 min-w-0">
+                {dayMeals.length === 0 ? (
+                  <button
+                    onClick={onOpenMealPlanner}
+                    className="flex items-center gap-1 text-xs text-gray-300 hover:text-emerald-500 transition-colors py-0.5"
+                  >
+                    <Plus size={11} />
+                    Plan meal
+                  </button>
+                ) : (
+                  <div className="space-y-1.5">
+                    {dayMeals.map((meal) => (
+                      <div key={meal.id} className="flex items-center gap-1.5 flex-wrap">
+                        {meal.meal_type && (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${MEAL_TYPE_CHIP[meal.meal_type].bg} ${MEAL_TYPE_CHIP[meal.meal_type].text}`}>
+                            {meal.meal_type}
+                          </span>
+                        )}
+                        <span className="text-xs font-medium text-gray-700 truncate max-w-[140px]">
+                          {meal.name}
+                        </span>
+                        {meal.ingredients.length > 0 && (
+                          <span className="text-[10px] text-gray-400 shrink-0">
+                            {meal.ingredients.length} ingredient{meal.ingredients.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Empty state footer */}
+      {!hasAnyMeals && (
+        <div className="px-4 py-3 border-t border-gray-50 text-center">
+          <p className="text-xs text-gray-400">
+            No meals planned yet. Add one to build your grocery list.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 type PageTab = 'today' | 'weekly';
@@ -1549,6 +1707,13 @@ const existingNames = new Set(
         </div>
         <ChevronRight size={16} className="text-gray-300 shrink-0" />
       </button>
+
+      {/* Weekly Meal Overview */}
+      <WeeklyMealOverview
+        meals={meals}
+        onOpenMealPlanner={() => setShowMealModal(true)}
+        onPlanMeals={onPlanMeals}
+      />
 
       {/* Low stock strip — only on Today tab */}
       {pageTab === 'today' && lowStockSuggestions.length > 0 && (
