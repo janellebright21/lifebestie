@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Sparkles, ShoppingCart, Check, RefreshCw, Calendar, UtensilsCrossed, Play, Pencil, DollarSign, Lightbulb, EyeOff, Eye, Trash2, ChevronRight, X } from 'lucide-react';
+import { Plus, Sparkles, ShoppingCart, Check, RefreshCw, Calendar, UtensilsCrossed, Play, Pencil, DollarSign, Lightbulb, EyeOff, Eye, Trash2, ChevronRight, X, Package } from 'lucide-react';
 import {
   GroceryItem,
   GroceryHabit,
@@ -47,6 +47,7 @@ interface GroceryPageProps {
   onAddWeekly: (name: string, category: GroceryCategory, source: WeeklyGrocerySource) => Promise<void>;
   onSkipWeekly: (name: string) => Promise<void>;
   onRemoveWeekly: (name: string) => Promise<void>;
+  onTogglePantryItem: (name: string) => Promise<void>;
   onRegenerateWeekly: () => Promise<void>;
   onUpdateWeeklyItemPrice: (name: string, price: number) => Promise<void>;
   onSetWeeklyBudget: (amount: number) => Promise<void>;
@@ -769,6 +770,7 @@ function WeeklyItemRow({
   onSkip,
   onRemove,
   onUpdatePrice,
+  onTogglePantry,
 }: {
   item: WeeklyGroceryItem;
   colors: ReturnType<typeof getCategoryColors>;
@@ -777,6 +779,7 @@ function WeeklyItemRow({
   onSkip: () => void;
   onRemove: () => void;
   onUpdatePrice: (price: number) => Promise<void>;
+  onTogglePantry: () => void;
 }) {
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceDraft, setPriceDraft] = useState('');
@@ -901,6 +904,19 @@ function WeeklyItemRow({
         </button>
       )}
 
+      {/* Already have / Move back */}
+      <button
+        onClick={onTogglePantry}
+        title={item.in_pantry ? 'Move back to Need to Buy' : 'Already have this'}
+        className={`shrink-0 p-1 rounded-lg transition-colors active:scale-95 ${
+          item.in_pantry
+            ? 'text-emerald-500 hover:text-emerald-600 bg-emerald-50'
+            : 'text-gray-300 hover:text-emerald-500'
+        }`}
+      >
+        <Package size={13} />
+      </button>
+
       {/* Skip toggle */}
       <button
         onClick={onSkip}
@@ -941,6 +957,7 @@ function WeeklyTab({
   onAddToMainList,
   onUpdateItemPrice,
   onSetWeeklyBudget,
+  onTogglePantryItem,
   meals,
   mealsLoading,
   onAddMeal,
@@ -963,6 +980,7 @@ function WeeklyTab({
   onAddToMainList: (name: string, category: GroceryCategory) => Promise<void>;
   onUpdateItemPrice: (name: string, price: number) => Promise<void>;
   onSetWeeklyBudget: (amount: number) => Promise<void>;
+  onTogglePantryItem: (name: string) => Promise<void>;
   meals: Meal[];
   mealsLoading: boolean;
   onAddMeal: (name: string) => Promise<Meal | null>;
@@ -1065,8 +1083,11 @@ function WeeklyTab({
   const totalItems = weeklyList.items.length;
   const checkedCount = weeklyList.items.filter((i) => i.checked).length;
 
+  const needToBuy = weeklyList.items.filter((i) => !i.in_pantry);
+  const inPantry = weeklyList.items.filter((i) => !!i.in_pantry);
+
   const grouped: Record<string, WeeklyGroceryItem[]> = {};
-  for (const item of weeklyList.items) {
+  for (const item of needToBuy) {
     if (!grouped[item.category]) grouped[item.category] = [];
     grouped[item.category].push(item);
   }
@@ -1159,7 +1180,7 @@ function WeeklyTab({
         weeklyBudget={weeklyBudget}
       />
 
-      {/* Items by category */}
+      {/* Need to Buy — items by category */}
       {Object.keys(grouped).map((cat) => {
           const group = grouped[cat];
           const colors = getCategoryColors(cat);
@@ -1182,12 +1203,44 @@ function WeeklyTab({
                     onSkip={() => onSkipWeekly(item.name)}
                     onRemove={() => onRemoveWeekly(item.name)}
                     onUpdatePrice={(price) => onUpdateItemPrice(item.name, price)}
+                    onTogglePantry={() => onTogglePantryItem(item.name)}
                   />
                 ))}
               </div>
             </div>
           );
         })}
+
+      {/* Already in Pantry section */}
+      {inPantry.length > 0 && (
+        <div className="bg-emerald-50 rounded-2xl px-4 py-3 border border-emerald-100">
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <Package size={12} className="text-emerald-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+              Already in Pantry
+            </span>
+            <span className="ml-auto text-xs text-emerald-400">{inPantry.length} item{inPantry.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="space-y-1.5">
+            {inPantry.map((item) => {
+              const colors = getCategoryColors(item.category);
+              return (
+                <WeeklyItemRow
+                  key={item.name}
+                  item={item}
+                  colors={colors}
+                  onToggle={() => onToggleWeekly(item.name, !item.checked)}
+                  onAddToList={() => onAddToMainList(item.name, item.category)}
+                  onSkip={() => onSkipWeekly(item.name)}
+                  onRemove={() => onRemoveWeekly(item.name)}
+                  onUpdatePrice={(price) => onUpdateItemPrice(item.name, price)}
+                  onTogglePantry={() => onTogglePantryItem(item.name)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Plan Meals → Auto Grocery List button (bottom of list) */}
       <button
@@ -1585,6 +1638,7 @@ export default function GroceryPage({
   onAddWeekly,
   onSkipWeekly,
   onRemoveWeekly,
+  onTogglePantryItem,
   onRegenerateWeekly,
   onUpdateWeeklyItemPrice,
   onSetWeeklyBudget,
@@ -1802,6 +1856,7 @@ const existingNames = new Set(
             onAddToMainList={onAdd}
             onUpdateItemPrice={onUpdateWeeklyItemPrice}
             onSetWeeklyBudget={onSetWeeklyBudget}
+            onTogglePantryItem={onTogglePantryItem}
             meals={meals}
             mealsLoading={mealsLoading}
             onAddMeal={onAddMeal}

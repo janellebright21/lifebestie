@@ -219,6 +219,7 @@ export interface WeeklyGroceryItem {
   source: WeeklyGrocerySource;
   checked: boolean;
   skipped?: boolean;       // true when user marks "not needed this week"
+  in_pantry?: boolean;     // true when user marks "Already have"
   price?: number;          // actual or estimated price per item
   estimated?: boolean;     // true when price is AI/default-estimated, false when user-entered
   quantity?: string;       // numeric quantity, e.g. "3", "1.5"

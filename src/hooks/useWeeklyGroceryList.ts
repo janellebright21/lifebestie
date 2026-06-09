@@ -794,6 +794,15 @@ export function useWeeklyGroceryList(
     await persist(updated);
   }
 
+  async function togglePantryItem(name: string) {
+    const list = listRef.current;
+    if (!list) return;
+    const updated = list.items.map((i) =>
+      i.name.toLowerCase() === name.toLowerCase() ? { ...i, in_pantry: !i.in_pantry } : i
+    );
+    await persist(updated);
+  }
+
   async function removeWeeklyItem(name: string) {
     const list = listRef.current;
     if (!list) return;
@@ -832,6 +841,7 @@ export function useWeeklyGroceryList(
     toggleWeeklyItem,
     addWeeklyItem,
     skipWeeklyItem,
+    togglePantryItem,
     removeWeeklyItem,
     updateWeeklyItemPrice,
     regenerate,

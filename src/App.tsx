@@ -438,6 +438,7 @@ export default function App() {
           onToggleWeekly={weeklyGrocery.toggleWeeklyItem}
           onAddWeekly={addWeeklyItem}
           onSkipWeekly={skipWeeklyItem}
+          onTogglePantryItem={weeklyGrocery.togglePantryItem}
           onRemoveWeekly={removeWeeklyItem}
           onUpdateWeeklyItemPrice={updateWeeklyItemPrice}
           onRegenerateWeekly={weeklyGrocery.regenerate}
