@@ -90,19 +90,19 @@ export default function App() {
       supabase
         .from('tasks')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false }),
 
       supabase
         .from('events')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .order('event_date', { ascending: true }),
 
       supabase
         .from('grocery_items')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: true }),
     ]);
 
@@ -142,6 +142,8 @@ export default function App() {
     return <AuthPage />;
   }
 
+  const userId = session.user.id;
+
   // ── Action handlers ────────────────────────────────────────────────────────
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
     const { data, error } = await supabase
@@ -152,7 +154,7 @@ export default function App() {
         linked_goal_id: linkedGoalId || null,
         duration: duration ?? null,
         memory_id: memoryId,
-        user_id: session.user.id,
+        user_id: userId,
         category: category ?? 'Other',
         priority: priority ?? 'medium',
       })
@@ -172,7 +174,7 @@ export default function App() {
   async function toggleTask(id: string, completed: boolean) {
     const updatedTasks = tasks.map((t) => (t.id === id ? { ...t, completed } : t));
     setTasks(updatedTasks);
-    await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', session.user.id);
+    await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', userId);
 
     const task = tasks.find((t) => t.id === id);
     if (task) {
@@ -186,7 +188,7 @@ export default function App() {
   async function deleteTask(id: string) {
     const task = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    await supabase.from('tasks').delete().eq('id', id).eq('user_id', session.user.id);
+    await supabase.from('tasks').delete().eq('id', id).eq('user_id', userId);
     if (task?.linked_goal_id) {
       await goalsHook.unlinkTaskFromGoal(id, task.linked_goal_id);
     }
@@ -195,7 +197,7 @@ export default function App() {
   async function updateTask(id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) {
     const task = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    await supabase.from('tasks').update(patch).eq('id', id).eq('user_id', session.user.id);
+    await supabase.from('tasks').update(patch).eq('id', id).eq('user_id', userId);
 
     const oldGoalId = task?.linked_goal_id ?? null;
     const newGoalId = patch.linked_goal_id !== undefined ? patch.linked_goal_id : oldGoalId;
@@ -216,7 +218,7 @@ export default function App() {
         event_date: date,
         event_time: time,
         memory_id: memoryId,
-        user_id: session.user.id,
+        user_id: userId,
         category: category ?? 'Other',
         location: location ?? null,
         notes: notes ?? null,
@@ -232,18 +234,18 @@ export default function App() {
 
   async function deleteEvent(id: string) {
     setEvents((prev) => prev.filter((e) => e.id !== id));
-    await supabase.from('events').delete().eq('id', id).eq('user_id', session.user.id);
+    await supabase.from('events').delete().eq('id', id).eq('user_id', userId);
   }
 
   async function updateEvent(id: string, patch: Partial<Pick<Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>) {
     setEvents((prev) => prev.map((e) => e.id === id ? { ...e, ...patch } : e));
-    await supabase.from('events').update(patch).eq('id', id).eq('user_id', session.user.id);
+    await supabase.from('events').update(patch).eq('id', id).eq('user_id', userId);
   }
 
   async function addGrocery(name: string, category: GroceryCategory) {
     const { data, error } = await supabase
       .from('grocery_items')
-      .insert({ name, category, memory_id: memoryId, user_id: session.user.id })
+      .insert({ name, category, memory_id: memoryId, user_id: userId })
       .select()
       .single();
     dbError('grocery_items (insert)', error);
@@ -256,12 +258,12 @@ export default function App() {
 
   async function toggleGrocery(id: string, checked: boolean) {
     setGroceryItems((prev) => prev.map((g) => (g.id === id ? { ...g, checked } : g)));
-    await supabase.from('grocery_items').update({ checked }).eq('id', id).eq('user_id', session.user.id);
+    await supabase.from('grocery_items').update({ checked }).eq('id', id).eq('user_id', userId);
   }
 
   async function deleteGrocery(id: string) {
     setGroceryItems((prev) => prev.filter((g) => g.id !== id));
-    await supabase.from('grocery_items').delete().eq('id', id).eq('user_id', session.user.id);
+    await supabase.from('grocery_items').delete().eq('id', id).eq('user_id', userId);
   }
 
   async function addWeeklyItem(name: string, category: GroceryCategory, source: import('./lib/supabase').WeeklyGrocerySource) {
@@ -303,7 +305,7 @@ export default function App() {
 
   async function linkMealToEvent(eventId: string, meal: import('./lib/supabase').Meal) {
     setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, meal_id: meal.id } : e));
-    await supabase.from('events').update({ meal_id: meal.id }).eq('id', eventId).eq('user_id', session.user.id);
+    await supabase.from('events').update({ meal_id: meal.id }).eq('id', eventId).eq('user_id', userId);
     for (const ing of meal.ingredients) {
       await weeklyGrocery.addWeeklyItem(ing.name, ing.category, 'meal');
     }

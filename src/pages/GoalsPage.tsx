@@ -11,14 +11,14 @@ import {
 interface GoalsPageProps {
   goals: Goal[];
   tasks: Task[];
-  loading: boolean;
-  onAdd: (fields: { title: string; category: GoalCategory; priority: GoalPriority; deadline?: string }) => Promise<Goal | null>;
-  onUpdate: (id: string, patch: Partial<Pick<Goal, 'title' | 'category' | 'priority' | 'deadline' | 'progress' | 'linked_tasks'>>) => Promise<void>;
+  loading?: boolean;
+  onAddGoal: (fields: { title: string; category: GoalCategory; priority: GoalPriority; deadline?: string }) => Promise<Goal | null>;
+  onUpdateGoal: (id: string, patch: Partial<Pick<Goal, 'title' | 'category' | 'priority' | 'deadline' | 'progress' | 'linked_tasks'>>) => Promise<void>;
   onSetProgress: (id: string, progress: number) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number) => Promise<void>;
-  onToggleTask: (id: string, completed: boolean) => void;
-  onDeleteTask: (id: string) => void;
+  onDeleteGoal: (id: string) => Promise<void>;
+  onAddTask?: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number) => Promise<void>;
+  onToggleTask?: (id: string, completed: boolean) => void;
+  onDeleteTask?: (id: string) => void;
 }
 
 // ─── Style constants ──────────────────────────────────────────────────────────
@@ -477,9 +477,11 @@ function GoalCard({
 type FilterCategory = GoalCategory | 'all';
 
 export default function GoalsPage({
-  goals, tasks, loading,
-  onAdd, onUpdate, onSetProgress, onDelete,
-  onAddTask, onToggleTask, onDeleteTask,
+  goals, tasks, loading = false,
+  onAddGoal, onUpdateGoal, onSetProgress, onDeleteGoal,
+  onAddTask = async () => {},
+  onToggleTask = () => {},
+  onDeleteTask = () => {},
 }: GoalsPageProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
@@ -488,13 +490,13 @@ export default function GoalsPage({
   const [filter, setFilter] = useState<FilterCategory>('all');
 
   async function handleAdd(fields: { title: string; category: GoalCategory; priority: GoalPriority; deadline?: string }) {
-    await onAdd(fields);
+    await onAddGoal(fields);
     setShowAdd(false);
   }
 
   async function handleEdit(fields: { title: string; category: GoalCategory; priority: GoalPriority; deadline?: string }) {
     if (!editingGoal) return;
-    await onUpdate(editingGoal.id, { ...fields, deadline: fields.deadline ?? null });
+    await onUpdateGoal(editingGoal.id, { ...fields, deadline: fields.deadline ?? null });
     setEditingGoal(null);
   }
 
@@ -606,7 +608,7 @@ export default function GoalsPage({
               linkedTasks={getLinkedTasks(goal)}
               onEdit={() => setEditingGoal(goal)}
               onProgress={() => setProgressGoal(goal)}
-              onDelete={() => onDelete(goal.id)}
+              onDelete={() => onDeleteGoal(goal.id)}
               onAddTask={() => setAddingTaskFor(goal)}
               onToggleTask={onToggleTask}
               onDeleteTask={onDeleteTask}
@@ -629,7 +631,7 @@ export default function GoalsPage({
               linkedTasks={getLinkedTasks(goal)}
               onEdit={() => setEditingGoal(goal)}
               onProgress={() => setProgressGoal(goal)}
-              onDelete={() => onDelete(goal.id)}
+              onDelete={() => onDeleteGoal(goal.id)}
               onAddTask={() => setAddingTaskFor(goal)}
               onToggleTask={onToggleTask}
               onDeleteTask={onDeleteTask}

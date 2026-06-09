@@ -16,15 +16,16 @@ const TIME_PRESETS: Record<'morning' | 'afternoon' | 'evening', string> = {
 
 interface Props {
   candidate: PatternCandidate;
-  onConfirm: (routine: Routine) => Promise<void>;
+  onAccept: (routine: Routine) => Promise<void>;
   onDismiss: () => void;
+  onClose: () => void;
 }
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export default function RoutineConfirmSheet({ candidate, onConfirm, onDismiss }: Props) {
+export default function RoutineConfirmSheet({ candidate, onAccept, onDismiss, onClose }: Props) {
   const [name, setName] = useState(capitalize(candidate.taskTitle));
   const [time, setTime] = useState(TIME_PRESETS[candidate.timeOfDay]);
   const [selectedDays, setSelectedDays] = useState<string[]>(candidate.days.slice(0, 5));
@@ -39,7 +40,7 @@ export default function RoutineConfirmSheet({ candidate, onConfirm, onDismiss }:
   async function handleConfirm() {
     if (!name.trim() || selectedDays.length === 0) return;
     setSaving(true);
-    await onConfirm({
+    await onAccept({
       name: name.trim().toLowerCase(),
       time,
       days: selectedDays,
@@ -52,9 +53,9 @@ export default function RoutineConfirmSheet({ candidate, onConfirm, onDismiss }:
     // Backdrop
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      onClick={(e) => e.target === e.currentTarget && onDismiss()}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onDismiss} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
 
       {/* Sheet */}
       <div className="relative w-full max-w-md bg-white rounded-t-3xl px-5 pt-5 pb-10 shadow-2xl animate-slide-up">
@@ -72,7 +73,7 @@ export default function RoutineConfirmSheet({ candidate, onConfirm, onDismiss }:
             </h2>
           </div>
           <button
-            onClick={onDismiss}
+            onClick={onClose}
             className="p-2 rounded-xl hover:bg-gray-100 active:scale-95 transition-all -mt-1 -mr-1"
           >
             <X size={18} className="text-gray-400" />

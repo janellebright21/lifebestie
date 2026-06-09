@@ -61,7 +61,7 @@ export interface UsePrepareForTomorrowReturn {
   reminders: string[];
   loading: boolean;
   refresh: () => void;
-  dismiss: (reminder: string) => void;
+  dismissReminder: (reminder: string) => void;
 }
 
 export function usePrepareForTomorrow(
@@ -163,6 +163,6 @@ export function usePrepareForTomorrow(
     reminders: visible,
     loading,
     refresh: () => fetchReminders(true),
-    dismiss,
+    dismissReminder: dismiss,
   };
 }

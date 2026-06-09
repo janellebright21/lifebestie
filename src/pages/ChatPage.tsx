@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles } from 'lucide-react';
-import { Task, Event, GroceryItem, UserMemory, Preferences } from '../lib/supabase';
+import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory } from '../lib/supabase';
 
 interface Message {
   id: string;
@@ -14,10 +14,14 @@ interface ChatPageProps {
   events: Event[];
   groceryItems: GroceryItem[];
   memory: UserMemory | null;
+  goals?: Goal[];
+  weeklyList?: WeeklyGroceryList | null;
   onAddTask: (title: string) => Promise<void>;
-  onAddGrocery: (name: string, category: 'Produce' | 'Dairy' | 'Pantry' | 'Snacks') => Promise<void>;
-  onUpdatePreferences: (prefs: Preferences) => Promise<void>;
-  getProactiveSuggestions: () => string[];
+  onAddEvent?: (title: string, date: string, time: string) => Promise<void>;
+  onAddGrocery: (name: string, category: GroceryCategory) => Promise<void>;
+  onAddWeeklyItem?: (name: string, category: GroceryCategory, source: import('../lib/supabase').WeeklyGrocerySource) => Promise<void>;
+  onUpdateMemory: (prefs: Preferences) => Promise<void>;
+  getProactiveSuggestions?: () => string[];
 }
 
 const DEFAULT_MESSAGE: Message = {
@@ -99,7 +103,7 @@ export default function ChatPage({
   memory,
   onAddTask,
   onAddGrocery,
-  onUpdatePreferences,
+  onUpdateMemory,
   getProactiveSuggestions,
 }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([DEFAULT_MESSAGE]);
@@ -127,7 +131,7 @@ export default function ChatPage({
     setIsTyping(true);
 
     try {
-      const replyText = await callChatFunction(updatedMessages, tasks, events, groceryItems, memory, getProactiveSuggestions());
+      const replyText = await callChatFunction(updatedMessages, tasks, events, groceryItems, memory, getProactiveSuggestions?.() ?? []);
 
       // Parse for implicit action intents based on user input + reply
       const lowerInput = text.toLowerCase();
@@ -150,7 +154,7 @@ export default function ChatPage({
       // Detect wake time preference mentions
       const wakeMatch = lowerInput.match(/(?:wake up|get up|start my day) (?:at )?([\d:]+\s*(?:am|pm)?)/i);
       if (wakeMatch && memory) {
-        await onUpdatePreferences({
+        await onUpdateMemory({
           ...memory.preferences,
           preferredWakeTime: wakeMatch[1],
         });
