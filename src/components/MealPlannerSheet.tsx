@@ -62,6 +62,24 @@ function mergeIngredient(
 
 // ─── Inline ingredient editor for a single meal ───────────────────────────────
 
+const CATEGORY_HINTS: [RegExp, GroceryCategory][] = [
+  [/cheese|milk|yogurt|cream|butter|egg/i, 'Dairy'],
+  [/beef|chicken|turkey|pork|lamb|bacon|sausage|steak|mince|ground/i, 'Meat'],
+  [/fish|salmon|tuna|shrimp|prawn|cod|tilapia/i, 'Seafood'],
+  [/tortilla|bread|rice|pasta|noodle|flour|oat|cereal/i, 'Pantry'],
+  [/lettuce|tomato|onion|pepper|garlic|potato|carrot|cucumber|spinach|kale|broccoli|zucchini|mushroom/i, 'Produce'],
+  [/frozen/i, 'Frozen'],
+  [/juice|soda|water|coffee|tea|beer|wine/i, 'Beverages'],
+  [/chip|cookie|cracker|snack|popcorn/i, 'Snacks'],
+];
+
+function guessCategory(ingredientName: string): GroceryCategory {
+  for (const [pattern, cat] of CATEGORY_HINTS) {
+    if (pattern.test(ingredientName)) return cat;
+  }
+  return 'Pantry';
+}
+
 interface IngredientEditorProps {
   meal: Meal;
   onSave: (ingredients: MealIngredient[]) => Promise<void>;
@@ -75,8 +93,13 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
   const [unit, setUnit] = useState('');
-  const [category, setCategory] = useState<GroceryCategory>('Produce');
+  const [category, setCategory] = useState<GroceryCategory>('Pantry');
   const [saving, setSaving] = useState(false);
+
+  function handleNameChange(val: string) {
+    setName(val);
+    setCategory(guessCategory(val));
+  }
 
   function addRow() {
     const trimmed = name.trim();
@@ -138,7 +161,7 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
             type="text"
             placeholder="Ingredient name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => handleNameChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addRow()}
             className="flex-1 text-xs bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
           />

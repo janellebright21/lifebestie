@@ -172,11 +172,16 @@ export function useMealPlanner() {
         const existing = consolidated.get(key);
         if (!existing) {
           const qty = parseIngQty(ing.quantity);
-          consolidated.set(key, { ...ing, _totalQty: qty });
+          consolidated.set(key, { ...ing, _totalQty: qty, mealSources: [meal.name] });
         } else {
           const incoming = parseIngQty(ing.quantity);
           if (existing._totalQty !== null && incoming !== null) {
             existing._totalQty += incoming;
+          }
+          if (!existing.mealSources) {
+            existing.mealSources = [meal.name];
+          } else if (!existing.mealSources.includes(meal.name)) {
+            existing.mealSources.push(meal.name);
           }
         }
       }
