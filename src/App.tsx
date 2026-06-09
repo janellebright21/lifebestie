@@ -289,7 +289,7 @@ export default function App() {
         'meal',
         ing.quantity,
         ing.unit,
-        (ing as any).mealSources
+        ing.mealSources
       );
     }
   }

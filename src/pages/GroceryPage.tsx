@@ -81,6 +81,53 @@ const SOURCE_COLORS: Record<WeeklyGrocerySource, string> = {
   planner: 'bg-teal-100 text-teal-600',
 };
 
+// ── Ingredient consolidation helpers (shared with MealPlannerSheet logic) ──────
+
+function parseIngQtyLocal(q?: string): number | null {
+  if (!q) return null;
+  const t = q.trim();
+  const frac = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return parseInt(frac[1]!) / parseInt(frac[2]!);
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+
+function formatIngQtyLocal(n: number): string {
+  const fracs: [number, string][] = [[1/4,'1/4'],[1/3,'1/3'],[1/2,'1/2'],[2/3,'2/3'],[3/4,'3/4']];
+  for (const [val, str] of fracs) {
+    if (Math.abs(n - val) < 0.005) return str;
+  }
+  return parseFloat(n.toFixed(2)).toString();
+}
+
+function mergeIngredientLocal(
+  map: Map<string, MealIngredient>,
+  ing: MealIngredient,
+  mealName: string
+) {
+  const normName = ing.name.toLowerCase().trim().replace(/\s+/g, ' ');
+  const normUnit = (ing.unit ?? '').toLowerCase().trim();
+  const key = `${normName}|${normUnit}`;
+  const existing = map.get(key);
+  if (!existing) {
+    map.set(key, { ...ing, mealSources: [mealName] });
+    return;
+  }
+  if (!existing.mealSources) {
+    existing.mealSources = [mealName];
+  } else if (!existing.mealSources.includes(mealName)) {
+    existing.mealSources.push(mealName);
+  }
+  const existingQty = parseIngQtyLocal(existing.quantity);
+  const incomingQty = parseIngQtyLocal(ing.quantity);
+  if (existingQty !== null && incomingQty !== null) {
+    existing.quantity = formatIngQtyLocal(existingQty + incomingQty);
+  } else if (incomingQty !== null && existingQty === null && !existing.quantity) {
+    existing.quantity = ing.quantity;
+    existing.unit = ing.unit;
+  }
+}
+
 const FALLBACK_SUGGESTIONS: { name: string; category: GroceryCategory }[] = [
   { name: 'Milk',         category: 'Dairy'   },
   { name: 'Eggs',         category: 'Dairy'   },
@@ -1398,15 +1445,13 @@ function WeeklyMealOverview({
   async function handleGenerate() {
     if (generating || !hasAnyMeals) return;
     setGenerating(true);
-    const seen = new Map<string, MealIngredient>();
+    const consolidated = new Map<string, MealIngredient>();
     for (const meal of weekMeals) {
       for (const ing of meal.ingredients) {
-        const key = ing.name.toLowerCase();
-        if (!seen.has(key)) seen.set(key, ing);
+        mergeIngredientLocal(consolidated, ing, meal.name);
       }
     }
-    const ingredients = Array.from(seen.values());
-    await onPlanMeals(weekMeals.map((m) => m.id), ingredients);
+    await onPlanMeals(weekMeals.map((m) => m.id), Array.from(consolidated.values()));
     setGenerating(false);
     setGenerated(true);
     setTimeout(() => setGenerated(false), 3000);

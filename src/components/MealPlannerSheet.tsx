@@ -2,16 +2,12 @@ import { useState } from 'react';
 import { Plus, Trash2, ChevronRight, Sparkles, UtensilsCrossed, Check } from 'lucide-react';
 import { Meal, MealIngredient, getCategoryColors } from '../lib/supabase';
 
-interface ConsolidatedIngredient extends MealIngredient {
-  mealSources: string[];
-}
-
 interface Props {
   meals: Meal[];
   loadingMeals: boolean;
   onAddMeal: (name: string) => Promise<Meal | null>;
   onDeleteMeal: (id: string) => void;
-  onPlanMeals: (mealIds: string[], ingredients: ConsolidatedIngredient[]) => Promise<void>;
+  onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
   onClose: () => void;
 }
 
@@ -40,7 +36,7 @@ function formatQty(n: number): string {
 
 /** Merge a new ingredient into the consolidated map. */
 function mergeIngredient(
-  map: Map<string, ConsolidatedIngredient>,
+  map: Map<string, MealIngredient>,
   ing: MealIngredient,
   mealName: string
 ) {
@@ -56,7 +52,9 @@ function mergeIngredient(
   }
 
   // Append source if not already listed
-  if (!existing.mealSources.includes(mealName)) {
+  if (!existing.mealSources) {
+    existing.mealSources = [mealName];
+  } else if (!existing.mealSources.includes(mealName)) {
     existing.mealSources.push(mealName);
   }
 
@@ -83,7 +81,7 @@ export default function MealPlannerSheet({
   const [newMealName, setNewMealName] = useState('');
   const [addingMeal, setAddingMeal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [previewIngredients, setPreviewIngredients] = useState<ConsolidatedIngredient[]>([]);
+  const [previewIngredients, setPreviewIngredients] = useState<MealIngredient[]>([]);
   const [planning, setPlanning] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -108,7 +106,7 @@ export default function MealPlannerSheet({
   }
 
   function buildPreview() {
-    const consolidated = new Map<string, ConsolidatedIngredient>();
+    const consolidated = new Map<string, MealIngredient>();
     for (const meal of meals) {
       if (!selectedIds.has(meal.id)) continue;
       for (const ing of meal.ingredients) {
@@ -128,7 +126,7 @@ export default function MealPlannerSheet({
   }
 
   // Group preview ingredients by category
-  const grouped: Record<string, ConsolidatedIngredient[]> = {};
+  const grouped: Record<string, MealIngredient[]> = {};
   for (const ing of previewIngredients) {
     if (!grouped[ing.category]) grouped[ing.category] = [];
     grouped[ing.category]!.push(ing);
@@ -363,7 +361,7 @@ export default function MealPlannerSheet({
                                 </span>
                               )}
                             </div>
-                            {ing.mealSources.length > 0 && (
+                            {ing.mealSources && ing.mealSources.length > 0 && (
                               <p className="text-[10px] text-gray-400 mt-1 pl-3.5">
                                 Used in: {ing.mealSources.join(', ')}
                               </p>

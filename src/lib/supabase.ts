@@ -203,8 +203,9 @@ export interface Meal {
 export interface MealIngredient {
   name: string;
   category: GroceryCategory;
-  quantity?: string; // e.g. "2", "1/2"
-  unit?: string;     // e.g. "cups", "tbsp", "oz"
+  quantity?: string;     // e.g. "2", "1/2"
+  unit?: string;         // e.g. "cups", "tbsp", "oz"
+  mealSources?: string[]; // meal names this ingredient came from
 }
 
 export interface WeeklyGroceryItem {
