@@ -848,11 +848,19 @@ function WeeklyItemRow({
           )}
         </div>
 
-        {/* Used in — shown for any meal-sourced item */}
-        {item.mealSources && item.mealSources.length > 0 && !isSkipped && (
-          <p className="text-[10px] text-gray-400 mt-0.5 truncate">
-            Used in: {item.mealSources.join(', ')}
-          </p>
+        {/* Used in — shown for all states when meal sources exist */}
+        {item.mealSources && item.mealSources.length > 0 && (
+          <div className="mt-1">
+            <p className="text-[10px] font-medium text-gray-400 leading-none mb-0.5">Used in:</p>
+            <ul className="space-y-0">
+              {item.mealSources.map((meal) => (
+                <li key={meal} className="flex items-center gap-1 text-[10px] text-gray-400 leading-tight">
+                  <span className="w-1 h-1 rounded-full bg-gray-300 shrink-0" />
+                  {meal}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {/* Price row — hidden when skipped */}
