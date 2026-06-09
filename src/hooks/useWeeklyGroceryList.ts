@@ -425,6 +425,36 @@ function matchTaskItems(title: string, category: string, notes?: string | null):
 
 // ─── Generation logic ─────────────────────────────────────────────────────────
 
+/** Normalise an ingredient/item name: lowercase, trim, collapse internal spaces. */
+function normaliseName(s: string): string {
+  return s.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+/** Normalise a unit string for comparison. Empty string = unitless. */
+function normaliseUnit(u?: string): string {
+  return (u ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+/** Parse a quantity string ("2", "1/2", "1.5") to a float. Returns null if not parseable. */
+function parseQtyNum(q?: string): number | null {
+  if (!q) return null;
+  const t = q.trim();
+  const frac = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return parseInt(frac[1]!) / parseInt(frac[2]!);
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+
+/** Format a quantity float back to a clean string. */
+function formatQtyNum(n: number): string {
+  // Common fractions
+  const fracs: [number, string][] = [[1/4,'1/4'],[1/3,'1/3'],[1/2,'1/2'],[2/3,'2/3'],[3/4,'3/4']];
+  for (const [val, str] of fracs) {
+    if (Math.abs(n - val) < 0.005) return str;
+  }
+  return parseFloat(n.toFixed(2)).toString();
+}
+
 function generateWeeklyItems(
   habits: GroceryHabit[],
   routines: Routine[],
@@ -433,15 +463,15 @@ function generateWeeklyItems(
   meals: Meal[] = [],
   tasks: Task[] = []
 ): WeeklyGroceryItem[] {
-  // Global dedup registry — name.toLowerCase() → item.
-  // First writer wins, preserving original casing and source.
+  // Global dedup registry — normaliseName(name) → item.
+  // For meal ingredients keyed by name+"|"+unit so different units stay separate.
   const registry = new Map<string, WeeklyGroceryItem>();
 
   // Per-source counters enforce slot budgets independently.
   const counts: Record<string, number> = {};
 
   function add(name: string, category: GroceryCategory, source: WeeklyGrocerySource) {
-    const key = name.toLowerCase().trim();
+    const key = normaliseName(name);
     if (!key || registry.has(key)) return;
     const budget = SLOT_BUDGETS[source as keyof typeof SLOT_BUDGETS] ?? Infinity;
     const used = counts[source] ?? 0;
@@ -451,19 +481,61 @@ function generateWeeklyItems(
   }
 
   // ── 1. MEALS (highest priority) ───────────────────────────────────────────
-  // Use the most recently created meals first; ingredients are already AI-categorized.
-  // Deduplicate across meals by iterating in order and relying on the registry check.
+  // Consolidate meal ingredients: same name+unit → sum quantities.
+  // Different units → separate rows. All ingredients tagged with mealSources.
   const sortedMeals = [...meals].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
+
+  // Intermediate consolidation map keyed by "normalizedName|normalizedUnit"
+  const mealConsolidated = new Map<string, WeeklyGroceryItem>();
+
   for (const meal of sortedMeals) {
     for (const ing of meal.ingredients) {
-      add(ing.name, ing.category, 'meal');
+      const normName = normaliseName(ing.name);
+      const normUnit = normaliseUnit(ing.unit);
+      const key = `${normName}|${normUnit}`;
+
+      const existing = mealConsolidated.get(key);
+      if (!existing) {
+        mealConsolidated.set(key, {
+          name: ing.name.trim(),
+          category: ing.category,
+          source: 'meal',
+          checked: false,
+          price: estimatePrice(ing.name, ing.category),
+          estimated: true,
+          quantity: ing.quantity?.trim() || undefined,
+          unit: ing.unit?.trim() || undefined,
+          mealSources: [meal.name],
+        });
+      } else {
+        // Accumulate quantity if both are numeric
+        const existingQty = parseQtyNum(existing.quantity);
+        const incomingQty = parseQtyNum(ing.quantity);
+        if (existingQty !== null && incomingQty !== null) {
+          existing.quantity = formatQtyNum(existingQty + incomingQty);
+        }
+        // Add source if not already listed
+        if (existing.mealSources && !existing.mealSources.includes(meal.name)) {
+          existing.mealSources.push(meal.name);
+        }
+      }
+    }
+  }
+
+  // Commit consolidated meal items to the global registry.
+  // Use the normalised name as key so non-meal sources still deduplicate against them.
+  for (const [key, item] of mealConsolidated) {
+    const normName = key.split('|')[0]!;
+    // If same ingredient already in registry under a different unit, use a unique key
+    const registryKey = registry.has(normName) ? key : normName;
+    if (!registry.has(registryKey)) {
+      registry.set(registryKey, item);
     }
   }
 
   // ── 2. HIGH-FREQUENCY HABITS ──────────────────────────────────────────────
-  // Score = frequency × staleness boost. Items not bought recently rank higher.
   const today = new Date().toISOString().split('T')[0];
   const scoredHabits = habits
     .filter((h) => h.frequency >= HABIT_MIN_FREQUENCY)
@@ -493,7 +565,6 @@ function generateWeeklyItems(
     }
   }
 
-  // Tasks due within 14 days (or no due date — treat as active)
   for (const task of tasks) {
     if (task.completed) continue;
     if (task.due_date && task.due_date > weekAheadStr) continue;
@@ -521,7 +592,7 @@ function generateWeeklyItems(
   const cutoffStr = cutoff.toISOString().split('T')[0];
 
   const habitCategoryMap = new Map<string, GroceryCategory>(
-    habits.map((h) => [h.name.toLowerCase(), h.category])
+    habits.map((h) => [normaliseName(h.name), h.category])
   );
 
   const recentNames = recentHistory
@@ -537,7 +608,7 @@ function generateWeeklyItems(
 
   for (const name of recentNames) {
     if (registry.size >= MAX_ITEMS) break;
-    const category = habitCategoryMap.get(name.toLowerCase()) ?? 'Pantry';
+    const category = habitCategoryMap.get(normaliseName(name)) ?? 'Pantry';
     add(name, category, 'recent');
   }
 
@@ -643,46 +714,59 @@ export function useWeeklyGroceryList(
     category: GroceryCategory,
     source: WeeklyGrocerySource = 'habit',
     quantity?: string,
+    unit?: string,
     mealSources?: string[]
   ) {
     const list = listRef.current;
     if (!list) return;
-    const existingIdx = list.items.findIndex((i) => i.name.toLowerCase() === name.toLowerCase());
+
+    const normName = normaliseName(name);
+    const normUnit = normaliseUnit(unit);
+
+    // Find an existing item with the same normalised name AND same unit.
+    // This preserves separate rows when the same ingredient appears in different units.
+    const existingIdx = list.items.findIndex((i) => {
+      const iNormName = normaliseName(i.name);
+      const iNormUnit = normaliseUnit(i.unit);
+      return iNormName === normName && iNormUnit === normUnit;
+    });
+
     if (existingIdx !== -1) {
-      // Merge quantities and sources into the existing item
       const existing = list.items[existingIdx];
       const updated = [...list.items];
-      let mergedQty = existing.quantity;
 
-      if (quantity && existing.quantity) {
-        // Both have quantities — try to add them (they share the same unit since they came from the same consolidation)
-        const a = parseFloat(existing.quantity);
-        const b = parseFloat(quantity);
-        if (!isNaN(a) && !isNaN(b)) {
-          mergedQty = String(parseFloat((a + b).toFixed(2)));
-        }
-      } else if (quantity && !existing.quantity) {
+      // Sum numeric quantities
+      const existingQty = parseQtyNum(existing.quantity);
+      const incomingQty = parseQtyNum(quantity);
+      let mergedQty = existing.quantity;
+      if (existingQty !== null && incomingQty !== null) {
+        mergedQty = formatQtyNum(existingQty + incomingQty);
+      } else if (incomingQty !== null && existingQty === null) {
         mergedQty = quantity;
       }
 
+      // Merge mealSources, avoiding duplicates
       const existingSources = existing.mealSources ?? [];
-      const newSources = (mealSources ?? []).filter((s) => !existingSources.includes(s));
+      const addedSources = (mealSources ?? []).filter((s) => !existingSources.includes(s));
+
       updated[existingIdx] = {
         ...existing,
         quantity: mergedQty,
-        mealSources: newSources.length > 0 ? [...existingSources, ...newSources] : existingSources,
+        mealSources: addedSources.length > 0 ? [...existingSources, ...addedSources] : existingSources,
       };
       await persist(updated);
       return;
     }
+
     await persist([...list.items, {
-      name,
+      name: name.trim(),
       category,
       source,
       checked: false,
       price: estimatePrice(name, category),
       estimated: true,
-      quantity,
+      quantity: quantity?.trim() || undefined,
+      unit: unit?.trim() || undefined,
       mealSources,
     }]);
   }

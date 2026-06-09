@@ -368,7 +368,7 @@ export default function MealPlannerSheet({
                                 </span>
                               )}
                             </div>
-                            {ing.mealSources.length > 1 && (
+                            {ing.mealSources.length > 0 && (
                               <p className="text-[10px] text-gray-400 mt-1 pl-3.5">
                                 Used in: {ing.mealSources.join(', ')}
                               </p>

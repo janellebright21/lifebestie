@@ -215,7 +215,8 @@ export interface WeeklyGroceryItem {
   skipped?: boolean;       // true when user marks "not needed this week"
   price?: number;          // actual or estimated price per item
   estimated?: boolean;     // true when price is AI/default-estimated, false when user-entered
-  quantity?: string;       // consolidated quantity, e.g. "3 cups"
+  quantity?: string;       // numeric quantity, e.g. "3", "1.5"
+  unit?: string;           // unit of measurement, e.g. "cups", "tbsp", "oz"
   mealSources?: string[];  // meal names this ingredient came from
 }
 

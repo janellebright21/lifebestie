@@ -283,10 +283,14 @@ export default function App() {
 
   async function planMeals(_mealIds: string[], ingredients: MealIngredient[]) {
     for (const ing of ingredients) {
-      const qtyStr = ing.quantity
-        ? ing.unit ? `${ing.quantity} ${ing.unit}` : ing.quantity
-        : undefined;
-      await weeklyGrocery.addWeeklyItem(ing.name, ing.category, 'meal', qtyStr, (ing as any).mealSources);
+      await weeklyGrocery.addWeeklyItem(
+        ing.name,
+        ing.category,
+        'meal',
+        ing.quantity,
+        ing.unit,
+        (ing as any).mealSources
+      );
     }
   }
 
