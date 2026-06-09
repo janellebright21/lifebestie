@@ -441,6 +441,7 @@ export default function App() {
           onAddMeal={mealPlanner.addMeal}
           onAddMealFull={addMealFull}
           onDeleteMeal={mealPlanner.deleteMeal}
+          onUpdateMeal={mealPlanner.updateMeal}
           onScanReceipt={receipts.scanImage}
           onSaveReceipt={handleReceiptSave}
         />

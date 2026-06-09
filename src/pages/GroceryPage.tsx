@@ -53,6 +53,7 @@ interface GroceryPageProps {
   onAddMeal: (name: string) => Promise<Meal | null>;
   onAddMealFull: (opts: { name: string; meal_type: MealType; meal_date: string; ingredients: MealIngredient[] }) => Promise<Meal | null>;
   onDeleteMeal: (id: string) => void;
+  onUpdateMeal: (id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
   onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
   spendingSnapshots: SpendingSnapshot[];
   spendingInsights: string[];
@@ -944,6 +945,7 @@ function WeeklyTab({
   mealsLoading,
   onAddMeal,
   onDeleteMeal,
+  onUpdateMeal,
   onPlanMeals,
   spendingSnapshots,
   spendingInsights,
@@ -965,6 +967,7 @@ function WeeklyTab({
   mealsLoading: boolean;
   onAddMeal: (name: string) => Promise<Meal | null>;
   onDeleteMeal: (id: string) => void;
+  onUpdateMeal: (id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
   onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
   spendingSnapshots: SpendingSnapshot[];
   spendingInsights: string[];
@@ -1050,6 +1053,7 @@ function WeeklyTab({
             loadingMeals={mealsLoading}
             onAddMeal={onAddMeal}
             onDeleteMeal={onDeleteMeal}
+            onUpdateMeal={onUpdateMeal}
             onPlanMeals={onPlanMeals}
             onClose={() => setShowMealPlanner(false)}
           />
@@ -1200,6 +1204,7 @@ function WeeklyTab({
           loadingMeals={mealsLoading}
           onAddMeal={onAddMeal}
           onDeleteMeal={onDeleteMeal}
+          onUpdateMeal={onUpdateMeal}
           onPlanMeals={onPlanMeals}
           onClose={() => setShowMealPlanner(false)}
         />
@@ -1586,6 +1591,7 @@ export default function GroceryPage({
   onAddMeal,
   onAddMealFull,
   onDeleteMeal,
+  onUpdateMeal,
   onPlanMeals,
   spendingSnapshots,
   spendingInsights,
@@ -1800,6 +1806,7 @@ const existingNames = new Set(
             mealsLoading={mealsLoading}
             onAddMeal={onAddMeal}
             onDeleteMeal={onDeleteMeal}
+            onUpdateMeal={onUpdateMeal}
             onPlanMeals={onPlanMeals}
             spendingSnapshots={spendingSnapshots}
             spendingInsights={spendingInsights}
