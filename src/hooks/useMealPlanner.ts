@@ -1,9 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, Meal, MealIngredient, MealType, GroceryCategory } from '../lib/supabase';
+import { supabase, Meal, MealIngredient, MealType } from '../lib/supabase';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+function parseIngQty(q?: string): number | null {
+  if (!q) return null;
+  const t = q.trim();
+  const frac = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return parseInt(frac[1]!) / parseInt(frac[2]!);
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+
+function formatIngQty(n: number): string {
+  const fracs: [number, string][] = [[1/4,'1/4'],[1/3,'1/3'],[1/2,'1/2'],[2/3,'2/3'],[3/4,'3/4']];
+  for (const [val, str] of fracs) {
+    if (Math.abs(n - val) < 0.005) return str;
+  }
+  return parseFloat(n.toFixed(2)).toString();
+}
 
 async function fetchIngredients(mealName: string): Promise<MealIngredient[]> {
   try {
@@ -139,25 +156,35 @@ export function useMealPlanner() {
 
   /**
    * Merge all ingredients from the given meal IDs into a deduplicated list.
-   * When the same ingredient appears in multiple meals, keep only one entry,
-   * preserving the first category seen.
+   * Same ingredient + same unit → sum quantities. Different units → separate rows.
    */
   function extractMergedIngredients(mealIds: string[]): MealIngredient[] {
-    const seen = new Map<string, GroceryCategory>();
+    // key: "normalizedName|normalizedUnit"
+    const consolidated = new Map<string, MealIngredient & { _totalQty: number | null }>();
+
     for (const id of mealIds) {
       const meal = mealsRef.current.find((m) => m.id === id);
       if (!meal) continue;
       for (const ing of meal.ingredients) {
-        const key = ing.name.toLowerCase();
-        if (!seen.has(key)) seen.set(key, ing.category);
+        const normName = ing.name.toLowerCase().trim().replace(/\s+/g, ' ');
+        const normUnit = (ing.unit ?? '').toLowerCase().trim();
+        const key = `${normName}|${normUnit}`;
+        const existing = consolidated.get(key);
+        if (!existing) {
+          const qty = parseIngQty(ing.quantity);
+          consolidated.set(key, { ...ing, _totalQty: qty });
+        } else {
+          const incoming = parseIngQty(ing.quantity);
+          if (existing._totalQty !== null && incoming !== null) {
+            existing._totalQty += incoming;
+          }
+        }
       }
     }
-    return Array.from(seen.entries()).map(([name, category]) => ({
-      // Restore original casing from first occurrence
-      name: mealsRef.current
-        .flatMap((m) => m.ingredients)
-        .find((i) => i.name.toLowerCase() === name)?.name ?? name,
-      category,
+
+    return Array.from(consolidated.values()).map(({ _totalQty, ...ing }) => ({
+      ...ing,
+      quantity: _totalQty !== null ? formatIngQty(_totalQty) : ing.quantity,
     }));
   }
 

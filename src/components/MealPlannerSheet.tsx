@@ -44,13 +44,14 @@ function mergeIngredient(
   ing: MealIngredient,
   mealName: string
 ) {
-  const key = ing.name.toLowerCase().trim();
+  // Key by name+unit so "1 cup cheese" and "1 oz cheese" stay as separate rows
+  const normName = ing.name.toLowerCase().trim().replace(/\s+/g, ' ');
+  const normUnit = (ing.unit ?? '').toLowerCase().trim();
+  const key = `${normName}|${normUnit}`;
+
   const existing = map.get(key);
   if (!existing) {
-    map.set(key, {
-      ...ing,
-      mealSources: [mealName],
-    });
+    map.set(key, { ...ing, mealSources: [mealName] });
     return;
   }
 
@@ -59,21 +60,15 @@ function mergeIngredient(
     existing.mealSources.push(mealName);
   }
 
-  // Merge quantities if both have compatible unit
-  const existingUnit = (existing.unit ?? '').toLowerCase().trim();
-  const incomingUnit = (ing.unit ?? '').toLowerCase().trim();
+  // Sum quantities (units already match since they share the same key)
   const existingQty = parseQty(existing.quantity);
   const incomingQty = parseQty(ing.quantity);
-
-  if (existingQty !== null && incomingQty !== null && existingUnit === incomingUnit) {
-    const total = existingQty + incomingQty;
-    existing.quantity = formatQty(total);
+  if (existingQty !== null && incomingQty !== null) {
+    existing.quantity = formatQty(existingQty + incomingQty);
   } else if (incomingQty !== null && existingQty === null && !existing.quantity) {
-    // Existing had no quantity — adopt the incoming one
     existing.quantity = ing.quantity;
     existing.unit = ing.unit;
   }
-  // If units differ or quantities are unparseable, keep existing as-is
 }
 
 export default function MealPlannerSheet({
