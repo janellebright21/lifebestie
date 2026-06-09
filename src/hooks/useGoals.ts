@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, Goal, GoalCategory, GoalPriority, Task } from '../lib/supabase';
+import { supabase, dbError, Goal, GoalCategory, GoalPriority, Task } from '../lib/supabase';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
 
@@ -30,7 +30,7 @@ export function useGoals() {
   }): Promise<Goal | null> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('goals')
       .insert({
         memory_id: memoryId,
@@ -44,6 +44,7 @@ export function useGoals() {
       })
       .select()
       .single();
+    dbError('goals (insert)', error);
     if (data) {
       setGoals((prev) => [data as Goal, ...prev]);
       return data as Goal;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   supabase,
+  dbError,
   UserMemory,
   Routine,
   Preferences,
@@ -91,11 +92,12 @@ export function useUserMemory() {
     if (!user) { setLoading(false); return; }
 
     // Try to find existing memory for this user
-    const { data: existing } = await supabase
+    const { data: existing, error: selectErr } = await supabase
       .from('user_memory')
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
+    dbError('user_memory (select)', selectErr);
 
     if (existing) {
       localStorage.setItem(MEMORY_ID_KEY, existing.id);
@@ -106,11 +108,12 @@ export function useUserMemory() {
     }
 
     // Create a new memory record for this user
-    const { data: created } = await supabase
+    const { data: created, error: insertErr } = await supabase
       .from('user_memory')
       .insert({ ...EMPTY_MEMORY, user_id: user.id })
       .select()
       .single();
+    dbError('user_memory (insert)', insertErr);
 
     if (created) {
       localStorage.setItem(MEMORY_ID_KEY, created.id);

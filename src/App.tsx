@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { supabase, Task, Event, GroceryItem, GroceryCategory, MealIngredient, TaskCategory, TaskPriority, EventCategory } from './lib/supabase';
+import { supabase, dbError, Task, Event, GroceryItem, GroceryCategory, MealIngredient, TaskCategory, TaskPriority, EventCategory } from './lib/supabase';
 import { useUserMemory } from './hooks/useUserMemory';
 import { useWeeklyGroceryList } from './hooks/useWeeklyGroceryList';
 import { useMealPlanner } from './hooks/useMealPlanner';
@@ -144,7 +144,7 @@ export default function App() {
 
   // ── Action handlers ────────────────────────────────────────────────────────
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('tasks')
       .insert({
         title,
@@ -158,6 +158,7 @@ export default function App() {
       })
       .select()
       .single();
+    dbError('tasks (insert)', error);
     if (data) {
       const task = data as Task;
       setTasks((prev) => [task, ...prev]);
@@ -208,7 +209,7 @@ export default function App() {
   }
 
   async function addEvent(title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('events')
       .insert({
         title,
@@ -222,6 +223,7 @@ export default function App() {
       })
       .select()
       .single();
+    dbError('events (insert)', error);
     if (data) {
       setEvents((prev) => [...prev, data].sort((a, b) => a.event_date.localeCompare(b.event_date)));
       await userMemory.addHistoryAction(`Added event: ${title} on ${date}`);
@@ -239,11 +241,12 @@ export default function App() {
   }
 
   async function addGrocery(name: string, category: GroceryCategory) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('grocery_items')
       .insert({ name, category, memory_id: memoryId, user_id: session.user.id })
       .select()
       .single();
+    dbError('grocery_items (insert)', error);
     if (data) {
       setGroceryItems((prev) => [...prev, data]);
       await userMemory.addHistoryAction(`Added grocery: ${name}`);

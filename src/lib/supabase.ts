@@ -5,6 +5,11 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// DEBUG — remove once save issues are resolved
+export function dbError(table: string, error: { message?: string; code?: string } | null | undefined) {
+  if (error) console.error(`[DB error] table=${table} | code=${error.code} | msg=${error.message}`);
+}
+
 export type TaskCategory = 'Work' | 'Kids' | 'Home' | 'Self-care' | 'Grocery' | 'Personal' | 'Other';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export const TASK_CATEGORIES: TaskCategory[] = ['Work', 'Kids', 'Home', 'Self-care', 'Grocery', 'Personal', 'Other'];

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, Meal, MealIngredient, MealType } from '../lib/supabase';
+import { supabase, dbError, Meal, MealIngredient, MealType } from '../lib/supabase';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -70,7 +70,7 @@ export function useMealPlanner() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     const ingredients = await fetchIngredients(name);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('meals')
     .insert({
   memory_id: memoryId,
@@ -81,6 +81,7 @@ export function useMealPlanner() {
 })
       .select()
       .single();
+    dbError('meals (insert)', error);
     if (!data) return null;
     const meal = data as Meal;
     setMeals((prev) => [meal, ...prev]);

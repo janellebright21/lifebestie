@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   supabase,
+  dbError,
   WeeklyGroceryList,
   WeeklyGroceryItem,
   WeeklyGrocerySource,
@@ -663,7 +664,7 @@ export function useWeeklyGroceryList(
     const items = generateWeeklyItems(habits, routines, recentHistory, events, meals, tasks);
     const weekly_message = await fetchWeeklyIntroMessage(habits, routines, items, meals, events);
 
-    const { data: created } = await supabase
+    const { data: created, error: wglErr } = await supabase
       .from('weekly_grocery_lists')
       .insert({
         memory_id: memoryId,
@@ -674,6 +675,7 @@ export function useWeeklyGroceryList(
       })
       .select()
       .single();
+    dbError('weekly_grocery_lists (insert)', wglErr);
 
     if (created) setWeeklyList(created as WeeklyGroceryList);
     setLoading(false);

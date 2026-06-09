@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase, Receipt, ReceiptItem, GroceryCategory } from '../lib/supabase';
+import { supabase, dbError, Receipt, ReceiptItem, GroceryCategory } from '../lib/supabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -74,11 +74,12 @@ export function useReceipts() {
       items,
     };
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('receipts')
       .insert(payload)
       .select('*')
       .maybeSingle();
+    dbError('receipts (insert)', error);
 
     if (data) {
       setReceipts((prev) => [data as Receipt, ...prev]);
