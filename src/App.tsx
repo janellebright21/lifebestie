@@ -377,8 +377,10 @@ export default function App() {
           }
           onTogglePlanTask={dailyPlanner.togglePlanTask}
           onDismissPlanAdaptation={dailyPlanner.dismissAdaptation}
+          generationError={dailyPlanner.generationError}
           tomorrowReminders={prepareForTomorrow.reminders}
           tomorrowRemindersLoading={prepareForTomorrow.loading}
+          tomorrowRemindersError={prepareForTomorrow.fetchError}
           onDismissTomorrowReminder={prepareForTomorrow.dismissReminder}
           onRefreshTomorrowReminders={prepareForTomorrow.refresh}
         />
@@ -405,6 +407,7 @@ export default function App() {
           onLinkMealToEvent={linkMealToEvent}
           tomorrowReminders={prepareForTomorrow.reminders}
           tomorrowRemindersLoading={prepareForTomorrow.loading}
+          tomorrowRemindersError={prepareForTomorrow.fetchError}
           onDismissTomorrowReminder={prepareForTomorrow.dismissReminder}
           onRefreshTomorrowReminders={prepareForTomorrow.refresh}
         />

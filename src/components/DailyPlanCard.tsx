@@ -9,6 +9,7 @@ interface DailyPlanCardProps {
   plan: DailyPlan | null;
   loading: boolean;
   generating: boolean;
+  generationError: boolean;
   onGenerate: () => void;
   onToggleTask: (taskId: string, completed: boolean) => void;
   onDismissAdaptation: (id: string) => void;
@@ -170,6 +171,7 @@ export default function DailyPlanCard({
   plan,
   loading,
   generating,
+  generationError,
   onGenerate,
   onToggleTask,
   onDismissAdaptation,
@@ -202,15 +204,21 @@ export default function DailyPlanCard({
             <p className="text-xs text-gray-400">AI-powered, adapts to your pace</p>
           </div>
         </div>
-        <p className="text-xs text-gray-500 leading-relaxed">
-          Get a personalised plan built around your goals — 5–6 focused tasks, zero overwhelm. It learns from how you work.
-        </p>
+        {generationError ? (
+          <p className="text-xs text-gray-400 leading-relaxed">
+            AI help is not available right now, but you can still use the manual tools.
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Get a personalised plan built around your goals — 5–6 focused tasks, zero overwhelm. It learns from how you work.
+          </p>
+        )}
         <button
           onClick={onGenerate}
           className="w-full flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-white text-sm font-bold py-3 rounded-xl active:scale-[0.98] transition-all shadow-sm shadow-amber-200"
         >
           <Sparkles size={14} />
-          Generate My Morning Plan
+          {generationError ? 'Try Again' : 'Generate My Morning Plan'}
         </button>
       </div>
     );

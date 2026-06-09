@@ -4,6 +4,7 @@ import { X, RefreshCw, Moon, ChevronDown, ChevronUp } from 'lucide-react';
 interface Props {
   reminders: string[];
   loading: boolean;
+  error?: boolean;
   onDismiss: (reminder: string) => void;
   onRefresh: () => void;
   /** If true, show a more compact single-line preview (for Planner) */
@@ -13,13 +14,14 @@ interface Props {
 export default function PrepareForTomorrowBanner({
   reminders,
   loading,
+  error = false,
   onDismiss,
   onRefresh,
   compact = false,
 }: Props) {
   const [expanded, setExpanded] = useState(true);
 
-  if (!loading && reminders.length === 0) return null;
+  if (!loading && !error && reminders.length === 0) return null;
 
   if (compact) {
     return (
@@ -50,6 +52,12 @@ export default function PrepareForTomorrowBanner({
             </div>
             <span className="text-xs text-amber-400">Checking tomorrow…</span>
           </div>
+        )}
+
+        {!loading && expanded && error && reminders.length === 0 && (
+          <p className="text-xs text-amber-500">
+            AI help is not available right now, but you can still use the manual tools.
+          </p>
         )}
 
         {!loading && expanded && (
@@ -111,6 +119,13 @@ export default function PrepareForTomorrowBanner({
           </div>
           <span className="text-xs text-amber-400">Checking your tomorrow schedule…</span>
         </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && reminders.length === 0 && (
+        <p className="text-xs text-amber-500 px-1">
+          AI help is not available right now, but you can still use the manual tools.
+        </p>
       )}
 
       {/* Reminder cards */}

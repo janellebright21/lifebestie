@@ -38,6 +38,7 @@ interface PlannerPageProps {
   onLinkMealToEvent: (eventId: string, meal: Meal) => Promise<void>;
   tomorrowReminders: string[];
   tomorrowRemindersLoading: boolean;
+  tomorrowRemindersError?: boolean;
   onDismissTomorrowReminder: (reminder: string) => void;
   onRefreshTomorrowReminders: () => void;
 }
@@ -2834,6 +2835,7 @@ export default function PlannerPage({
   onLinkMealToEvent,
   tomorrowReminders,
   tomorrowRemindersLoading,
+  tomorrowRemindersError = false,
   onDismissTomorrowReminder,
   onRefreshTomorrowReminders,
 }: PlannerPageProps) {
@@ -2918,10 +2920,11 @@ export default function PlannerPage({
       )}
 
       {/* Prepare for Tomorrow */}
-      {(tomorrowRemindersLoading || tomorrowReminders.length > 0) && (
+      {(tomorrowRemindersLoading || tomorrowReminders.length > 0 || tomorrowRemindersError) && (
         <PrepareForTomorrowBanner
           reminders={tomorrowReminders}
           loading={tomorrowRemindersLoading}
+          error={tomorrowRemindersError}
           onDismiss={onDismissTomorrowReminder}
           onRefresh={onRefreshTomorrowReminders}
           compact

@@ -60,6 +60,7 @@ function saveDismissed(dismissed: Set<string>) {
 export interface UsePrepareForTomorrowReturn {
   reminders: string[];
   loading: boolean;
+  fetchError: boolean;
   refresh: () => void;
   dismissReminder: (reminder: string) => void;
 }
@@ -72,6 +73,7 @@ export function usePrepareForTomorrow(
 ): UsePrepareForTomorrowReturn {
   const [reminders, setReminders] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed);
 
   const fetchReminders = useCallback(async (force = false) => {
@@ -98,6 +100,7 @@ export function usePrepareForTomorrow(
     }
 
     setLoading(true);
+    setFetchError(false);
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/prepare-for-tomorrow`, {
         method: 'POST',
@@ -135,9 +138,11 @@ export function usePrepareForTomorrow(
         const fetched: string[] = Array.isArray(data.reminders) ? data.reminders : [];
         saveCache(fetched);
         setReminders(fetched);
+      } else {
+        setFetchError(true);
       }
     } catch {
-      // Silently fail — reminders are a nice-to-have
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -162,6 +167,7 @@ export function usePrepareForTomorrow(
   return {
     reminders: visible,
     loading,
+    fetchError,
     refresh: () => fetchReminders(true),
     dismissReminder: dismiss,
   };

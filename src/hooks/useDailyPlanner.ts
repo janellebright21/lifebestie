@@ -97,6 +97,7 @@ export function useDailyPlanner() {
   const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState(false);
   const memoryId = localStorage.getItem(MEMORY_ID_KEY); // kept for upsert payload; ownership is user_id
   const today = new Date().toISOString().split('T')[0];
   // Ref so callbacks always see latest plan without stale closure
@@ -192,6 +193,7 @@ export function useDailyPlanner() {
     if (plan && !force) return;
 
     setGenerating(true);
+    setGenerationError(false);
     try {
       const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
@@ -253,7 +255,10 @@ export function useDailyPlanner() {
         }),
       });
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        setGenerationError(true);
+        return;
+      }
       const aiPlan = await res.json();
 
       // Build initial adaptations
@@ -315,6 +320,8 @@ export function useDailyPlanner() {
         .single();
 
       if (data) setPlan(data as DailyPlan);
+    } catch {
+      setGenerationError(true);
     } finally {
       setGenerating(false);
     }
@@ -405,6 +412,7 @@ export function useDailyPlanner() {
     plan,
     loading,
     generating,
+    generationError,
     generate,
     togglePlanTask,
     dismissAdaptation,

@@ -27,8 +27,10 @@ interface HomePageProps {
   onGeneratePlan: () => void;
   onTogglePlanTask: (taskId: string, completed: boolean) => void;
   onDismissPlanAdaptation: (id: string) => void;
+  generationError: boolean;
   tomorrowReminders: string[];
   tomorrowRemindersLoading: boolean;
+  tomorrowRemindersError: boolean;
   onDismissTomorrowReminder: (reminder: string) => void;
   onRefreshTomorrowReminders: () => void;
 }
@@ -169,8 +171,10 @@ export default function HomePage({
   onGeneratePlan,
   onTogglePlanTask,
   onDismissPlanAdaptation,
+  generationError,
   tomorrowReminders,
   tomorrowRemindersLoading,
+  tomorrowRemindersError,
   onDismissTomorrowReminder,
   onRefreshTomorrowReminders,
 }: HomePageProps) {
@@ -259,10 +263,11 @@ export default function HomePage({
       )}
 
       {/* Prepare for Tomorrow (AI reminders) */}
-      {(tomorrowRemindersLoading || tomorrowReminders.length > 0) && (
+      {(tomorrowRemindersLoading || tomorrowReminders.length > 0 || tomorrowRemindersError) && (
         <PrepareForTomorrowBanner
           reminders={tomorrowReminders}
           loading={tomorrowRemindersLoading}
+          error={tomorrowRemindersError}
           onDismiss={onDismissTomorrowReminder}
           onRefresh={onRefreshTomorrowReminders}
         />
@@ -280,6 +285,7 @@ export default function HomePage({
           plan={dailyPlan}
           loading={dailyPlanLoading}
           generating={dailyPlanGenerating}
+          generationError={generationError}
           onGenerate={onGeneratePlan}
           onToggleTask={onTogglePlanTask}
           onDismissAdaptation={onDismissPlanAdaptation}
