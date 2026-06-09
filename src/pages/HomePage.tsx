@@ -1,5 +1,5 @@
-import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil } from 'lucide-react';
-import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions } from '../lib/supabase';
+import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed } from 'lucide-react';
+import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
 import { TabName } from '../components/BottomNav';
@@ -10,6 +10,7 @@ import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
 interface HomePageProps {
   tasks: Task[];
   events: Event[];
+  meals: Meal[];
   memory: UserMemory | null;
   habits: GroceryHabit[];
   goals: Goal[];
@@ -50,9 +51,108 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function formatTime(t?: string | null): string {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h)) return t;
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m ?? 0).padStart(2, '0')} ${ampm}`;
+}
+
+const PREP_CHECKLIST = [
+  "Review tomorrow's schedule",
+  'Set out clothes or bags',
+  'Prep lunch or snacks',
+  'Check dinner plan',
+];
+
+function TomorrowPrepCard({
+  tomorrowEvents,
+  tomorrowMeals,
+}: {
+  tomorrowEvents: Event[];
+  tomorrowMeals: Meal[];
+}) {
+  const hasContent = tomorrowEvents.length > 0 || tomorrowMeals.length > 0;
+
+  return (
+    <div className="bg-white rounded-2xl border border-sky-100 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-50">
+        <div className="w-7 h-7 rounded-xl bg-sky-50 flex items-center justify-center shrink-0">
+          <Sunrise size={14} className="text-sky-500" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-800">Tomorrow Prep</p>
+          <p className="text-xs text-gray-400">Get ahead for tomorrow</p>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 space-y-3">
+        {tomorrowEvents.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide mb-1.5">
+              On the calendar
+            </p>
+            <div className="space-y-1">
+              {tomorrowEvents.map((e) => (
+                <div key={e.id} className="flex items-center gap-2">
+                  <Calendar size={11} className="text-sky-400 shrink-0" />
+                  <span className="text-xs text-gray-700 font-medium">{e.title}</span>
+                  {e.event_time && (
+                    <span className="text-xs text-sky-500 font-semibold ml-auto shrink-0">
+                      {formatTime(e.event_time)}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tomorrowMeals.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1.5">
+              Meals planned
+            </p>
+            <div className="space-y-1">
+              {tomorrowMeals.map((m) => (
+                <div key={m.id} className="flex items-center gap-2">
+                  <UtensilsCrossed size={11} className="text-emerald-400 shrink-0" />
+                  <span className="text-xs text-gray-700 font-medium">{m.name}</span>
+                  {m.meal_type && (
+                    <span className="text-xs text-emerald-500 ml-auto shrink-0">{m.meal_type}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          {hasContent && (
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+              Prep checklist
+            </p>
+          )}
+          <div className="space-y-1.5">
+            {PREP_CHECKLIST.map((item) => (
+              <div key={item} className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-gray-200 shrink-0" />
+                <span className="text-xs text-gray-600">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage({
   tasks,
   events,
+  meals,
   memory,
   habits,
   goals,
@@ -75,11 +175,21 @@ export default function HomePage({
   onRefreshTomorrowReminders,
 }: HomePageProps) {
   const today = new Date().toISOString().split('T')[0];
+  const tomorrowDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  })();
   const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const todayTasks = tasks.slice(0, 4);
   const todayEvents = events
     .filter((e) => e.event_date === today)
     .sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
+
+  const tomorrowEvents = events
+    .filter((e) => e.event_date === tomorrowDate)
+    .sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
+  const tomorrowMeals = meals.filter((m) => m.meal_date === tomorrowDate);
 
   const proactive = getProactiveSuggestions();
   const suggestion =
@@ -91,7 +201,6 @@ export default function HomePage({
   const topSuggestion = pendingRoutineSuggestions[0] ?? null;
   const lowStockSuggestions = getLowStockSuggestions(habits, 3);
 
-  // Show plan card prominently: show it if loading, generating, or already exists, or if user has goals/tasks to plan
   const hasPlanContext = goals.length > 0 || tasks.filter((t) => !t.completed).length > 0;
   const showPlanCard = dailyPlan || dailyPlanLoading || dailyPlanGenerating || hasPlanContext;
 
@@ -149,7 +258,7 @@ export default function HomePage({
         />
       )}
 
-      {/* Prepare for Tomorrow */}
+      {/* Prepare for Tomorrow (AI reminders) */}
       {(tomorrowRemindersLoading || tomorrowReminders.length > 0) && (
         <PrepareForTomorrowBanner
           reminders={tomorrowReminders}
@@ -159,7 +268,13 @@ export default function HomePage({
         />
       )}
 
-      {/* AI Morning Plan — prime position */}
+      {/* Tomorrow Prep card */}
+      <TomorrowPrepCard
+        tomorrowEvents={tomorrowEvents}
+        tomorrowMeals={tomorrowMeals}
+      />
+
+      {/* AI Morning Plan */}
       {showPlanCard && (
         <DailyPlanCard
           plan={dailyPlan}

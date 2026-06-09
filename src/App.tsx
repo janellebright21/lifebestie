@@ -349,6 +349,7 @@ export default function App() {
         <HomePage
           tasks={tasks}
           events={events}
+          meals={mealPlanner.meals}
           memory={userMemory.memory}
           habits={userMemory.memory?.common_groceries ?? []}
           pendingRoutineSuggestions={userMemory.pendingRoutineSuggestions}
