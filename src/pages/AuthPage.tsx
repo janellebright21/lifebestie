@@ -12,19 +12,10 @@ export default function AuthPage() {
 
     setLoading(true);
 
-    // DEBUG — remove once auth issue is resolved
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-    console.log('[Auth debug] Supabase URL:', supabaseUrl);
-    console.log('[Auth debug] Mode:', mode);
-    console.log('[Auth debug] Email being submitted:', email);
-
-    const { data, error } =
+    const { error } =
       mode === 'signup'
         ? await supabase.auth.signUp({ email, password })
         : await supabase.auth.signInWithPassword({ email, password });
-
-    console.log('[Auth debug] Response data:', JSON.stringify(data, null, 2));
-    if (error) console.error('[Auth debug] Error:', error.message, '| Status:', error.status, '| Code:', error.code);
 
     setLoading(false);
 
