@@ -790,7 +790,19 @@ function WeeklyItemRow({
               {SOURCE_LABELS[item.source]}
             </span>
           )}
+          {item.quantity && !isSkipped && (
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${colors.bg} ${colors.text}`}>
+              {item.quantity}
+            </span>
+          )}
         </div>
+
+        {/* Used in — shown when ingredient came from multiple meals */}
+        {item.mealSources && item.mealSources.length > 1 && !isSkipped && (
+          <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+            Used in: {item.mealSources.join(', ')}
+          </p>
+        )}
 
         {/* Price row — hidden when skipped */}
         {!isSkipped && (

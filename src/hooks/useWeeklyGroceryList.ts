@@ -641,12 +641,50 @@ export function useWeeklyGroceryList(
   async function addWeeklyItem(
     name: string,
     category: GroceryCategory,
-    source: WeeklyGrocerySource = 'habit'
+    source: WeeklyGrocerySource = 'habit',
+    quantity?: string,
+    mealSources?: string[]
   ) {
     const list = listRef.current;
     if (!list) return;
-    if (list.items.some((i) => i.name.toLowerCase() === name.toLowerCase())) return;
-    await persist([...list.items, { name, category, source, checked: false, price: estimatePrice(name, category), estimated: true }]);
+    const existingIdx = list.items.findIndex((i) => i.name.toLowerCase() === name.toLowerCase());
+    if (existingIdx !== -1) {
+      // Merge quantities and sources into the existing item
+      const existing = list.items[existingIdx];
+      const updated = [...list.items];
+      let mergedQty = existing.quantity;
+
+      if (quantity && existing.quantity) {
+        // Both have quantities — try to add them (they share the same unit since they came from the same consolidation)
+        const a = parseFloat(existing.quantity);
+        const b = parseFloat(quantity);
+        if (!isNaN(a) && !isNaN(b)) {
+          mergedQty = String(parseFloat((a + b).toFixed(2)));
+        }
+      } else if (quantity && !existing.quantity) {
+        mergedQty = quantity;
+      }
+
+      const existingSources = existing.mealSources ?? [];
+      const newSources = (mealSources ?? []).filter((s) => !existingSources.includes(s));
+      updated[existingIdx] = {
+        ...existing,
+        quantity: mergedQty,
+        mealSources: newSources.length > 0 ? [...existingSources, ...newSources] : existingSources,
+      };
+      await persist(updated);
+      return;
+    }
+    await persist([...list.items, {
+      name,
+      category,
+      source,
+      checked: false,
+      price: estimatePrice(name, category),
+      estimated: true,
+      quantity,
+      mealSources,
+    }]);
   }
 
   /** Updates the price of a weekly item. Setting a price manually clears the estimated flag. */

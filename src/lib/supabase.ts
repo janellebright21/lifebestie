@@ -203,6 +203,8 @@ export interface Meal {
 export interface MealIngredient {
   name: string;
   category: GroceryCategory;
+  quantity?: string; // e.g. "2", "1/2"
+  unit?: string;     // e.g. "cups", "tbsp", "oz"
 }
 
 export interface WeeklyGroceryItem {
@@ -210,9 +212,11 @@ export interface WeeklyGroceryItem {
   category: GroceryCategory;
   source: WeeklyGrocerySource;
   checked: boolean;
-  skipped?: boolean;    // true when user marks "not needed this week"
-  price?: number;       // actual or estimated price per item
-  estimated?: boolean;  // true when price is AI/default-estimated, false when user-entered
+  skipped?: boolean;       // true when user marks "not needed this week"
+  price?: number;          // actual or estimated price per item
+  estimated?: boolean;     // true when price is AI/default-estimated, false when user-entered
+  quantity?: string;       // consolidated quantity, e.g. "3 cups"
+  mealSources?: string[];  // meal names this ingredient came from
 }
 
 export interface WeeklyGroceryList {

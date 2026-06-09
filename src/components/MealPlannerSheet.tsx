@@ -2,16 +2,79 @@ import { useState } from 'react';
 import { Plus, Trash2, ChevronRight, Sparkles, UtensilsCrossed, Check } from 'lucide-react';
 import { Meal, MealIngredient, getCategoryColors } from '../lib/supabase';
 
+interface ConsolidatedIngredient extends MealIngredient {
+  mealSources: string[];
+}
+
 interface Props {
   meals: Meal[];
   loadingMeals: boolean;
   onAddMeal: (name: string) => Promise<Meal | null>;
   onDeleteMeal: (id: string) => void;
-  onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
+  onPlanMeals: (mealIds: string[], ingredients: ConsolidatedIngredient[]) => Promise<void>;
   onClose: () => void;
 }
 
 type View = 'list' | 'select' | 'preview';
+
+/** Parse a quantity string like "2", "1/2", "1.5" into a float. Returns null if unparseable. */
+function parseQty(q?: string): number | null {
+  if (!q) return null;
+  const trimmed = q.trim();
+  const frac = trimmed.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
+  const num = parseFloat(trimmed);
+  return isNaN(num) ? null : num;
+}
+
+/** Format a float quantity back to a clean string (e.g. 2.5 → "2.5", 0.5 → "1/2"). */
+function formatQty(n: number): string {
+  if (n === 0.25) return '1/4';
+  if (n === 0.5)  return '1/2';
+  if (n === 0.75) return '3/4';
+  if (n === 1/3)  return '1/3';
+  if (n === 2/3)  return '2/3';
+  // round to 2 decimal places and strip trailing zeros
+  return parseFloat(n.toFixed(2)).toString();
+}
+
+/** Merge a new ingredient into the consolidated map. */
+function mergeIngredient(
+  map: Map<string, ConsolidatedIngredient>,
+  ing: MealIngredient,
+  mealName: string
+) {
+  const key = ing.name.toLowerCase().trim();
+  const existing = map.get(key);
+  if (!existing) {
+    map.set(key, {
+      ...ing,
+      mealSources: [mealName],
+    });
+    return;
+  }
+
+  // Append source if not already listed
+  if (!existing.mealSources.includes(mealName)) {
+    existing.mealSources.push(mealName);
+  }
+
+  // Merge quantities if both have compatible unit
+  const existingUnit = (existing.unit ?? '').toLowerCase().trim();
+  const incomingUnit = (ing.unit ?? '').toLowerCase().trim();
+  const existingQty = parseQty(existing.quantity);
+  const incomingQty = parseQty(ing.quantity);
+
+  if (existingQty !== null && incomingQty !== null && existingUnit === incomingUnit) {
+    const total = existingQty + incomingQty;
+    existing.quantity = formatQty(total);
+  } else if (incomingQty !== null && existingQty === null && !existing.quantity) {
+    // Existing had no quantity — adopt the incoming one
+    existing.quantity = ing.quantity;
+    existing.unit = ing.unit;
+  }
+  // If units differ or quantities are unparseable, keep existing as-is
+}
 
 export default function MealPlannerSheet({
   meals,
@@ -25,7 +88,7 @@ export default function MealPlannerSheet({
   const [newMealName, setNewMealName] = useState('');
   const [addingMeal, setAddingMeal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [previewIngredients, setPreviewIngredients] = useState<MealIngredient[]>([]);
+  const [previewIngredients, setPreviewIngredients] = useState<ConsolidatedIngredient[]>([]);
   const [planning, setPlanning] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -50,16 +113,14 @@ export default function MealPlannerSheet({
   }
 
   function buildPreview() {
-    // Merge ingredients from selected meals, deduplicating by lowercase name
-    const seen = new Map<string, MealIngredient>();
+    const consolidated = new Map<string, ConsolidatedIngredient>();
     for (const meal of meals) {
       if (!selectedIds.has(meal.id)) continue;
       for (const ing of meal.ingredients) {
-        const key = ing.name.toLowerCase();
-        if (!seen.has(key)) seen.set(key, ing);
+        mergeIngredient(consolidated, ing, meal.name);
       }
     }
-    setPreviewIngredients(Array.from(seen.values()));
+    setPreviewIngredients(Array.from(consolidated.values()));
     setView('preview');
   }
 
@@ -72,7 +133,7 @@ export default function MealPlannerSheet({
   }
 
   // Group preview ingredients by category
-  const grouped: Record<string, MealIngredient[]> = {};
+  const grouped: Record<string, ConsolidatedIngredient[]> = {};
   for (const ing of previewIngredients) {
     if (!grouped[ing.category]) grouped[ing.category] = [];
     grouped[ing.category]!.push(ing);
@@ -275,7 +336,7 @@ export default function MealPlannerSheet({
           {view === 'preview' && (
             <div className="space-y-4">
               <p className="text-xs text-gray-400">
-                These ingredients will be added to your weekly list tagged as "meal". Duplicates have been merged.
+                These ingredients will be added to your weekly list tagged as "meal". Quantities from multiple meals have been combined.
               </p>
 
               {Object.keys(grouped).map((cat) => {
@@ -290,12 +351,31 @@ export default function MealPlannerSheet({
                       </span>
                     </div>
                     <div className="space-y-1.5">
-                      {group.map((ing) => (
-                        <div key={ing.name} className="flex items-center gap-2 bg-white/70 rounded-xl px-3 py-2">
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${colors.dot}`} />
-                          <span className="text-sm text-gray-700">{ing.name}</span>
-                        </div>
-                      ))}
+                      {group.map((ing) => {
+                        const qtyLabel = ing.quantity
+                          ? `${ing.quantity}${ing.unit ? ' ' + ing.unit : ''}`
+                          : null;
+                        return (
+                          <div key={ing.name} className="bg-white/70 rounded-xl px-3 py-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${colors.dot}`} />
+                                <span className="text-sm text-gray-700 font-medium truncate">{ing.name}</span>
+                              </div>
+                              {qtyLabel && (
+                                <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
+                                  {qtyLabel}
+                                </span>
+                              )}
+                            </div>
+                            {ing.mealSources.length > 1 && (
+                              <p className="text-[10px] text-gray-400 mt-1 pl-3.5">
+                                Used in: {ing.mealSources.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
