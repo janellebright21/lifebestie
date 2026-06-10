@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind } from 'lucide-react';
+import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy } from 'lucide-react';
 import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
@@ -209,7 +209,7 @@ export default function HomePage({
   const hasPlanContext = goals.length > 0 || tasks.filter((t) => !t.completed).length > 0;
   const showPlanCard = dailyPlan || dailyPlanLoading || dailyPlanGenerating || hasPlanContext;
 
-  const { todayMovements, hasMoved, hasCompleted } = useMovement(events);
+  const { todayMovements, hasMoved, hasCompleted, streakResult } = useMovement(events);
 
   const LEVEL_ICONS_HOME: Record<EnergyLevel, React.ReactNode> = {
     low:      <Wind size={12} />,
@@ -302,9 +302,17 @@ export default function HomePage({
                   Movement Today
                 </span>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
-                {todayMovements.filter((m) => m.done).length}/{todayMovements.length} done
-              </span>
+              <div className="flex items-center gap-2">
+                {streakResult.streak > 0 && (
+                  <div className="flex items-center gap-1 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">
+                    <Trophy size={9} className="text-amber-500" />
+                    <span className="text-[10px] font-bold text-amber-600">{streakResult.streak}d</span>
+                  </div>
+                )}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
+                  {todayMovements.filter((m) => m.done).length}/{todayMovements.length} done
+                </span>
+              </div>
             </div>
             <div className="space-y-1.5">
               {todayMovements.map((m) => {
@@ -325,6 +333,9 @@ export default function HomePage({
                 );
               })}
             </div>
+            {streakResult.streak > 0 && (
+              <p className="text-xs text-amber-600 font-medium">{streakResult.message}</p>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-4 flex items-center gap-3">
@@ -333,7 +344,13 @@ export default function HomePage({
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-emerald-700">No movement yet today</p>
-              <p className="text-xs text-emerald-500 mt-0.5">Tap to pick something that fits your energy</p>
+              {streakResult.streak > 0 ? (
+                <p className="text-xs text-amber-500 mt-0.5">
+                  <Trophy size={9} className="inline mr-0.5" />{streakResult.streak}-day streak — keep it going!
+                </p>
+              ) : (
+                <p className="text-xs text-emerald-500 mt-0.5">Tap to pick something that fits your energy</p>
+              )}
             </div>
             <Plus size={16} className="text-emerald-400 shrink-0" />
           </div>

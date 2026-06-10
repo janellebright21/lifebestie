@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock } from 'lucide-react';
+import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
 import {
   EnergyLevel,
@@ -212,7 +212,7 @@ function TodaySummary({ todayMovements }: { todayMovements: TodayMovement[] }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MovementPage({ events, onAddEvent, onUpdateEvent }: MovementPageProps) {
-  const { todayMovements } = useMovement(events);
+  const { todayMovements, streakResult } = useMovement(events);
   const [adding, setAdding] = useState<string | null>(null);
 
   async function handleAdd(activity: MovementActivity) {
@@ -247,11 +247,22 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
           <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
             <Activity size={18} className="text-emerald-500" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-800 leading-none">Movement</h1>
             <p className="text-xs text-gray-400 mt-0.5">Pick what fits your energy today</p>
           </div>
+          {streakResult.streak > 0 && (
+            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100 rounded-xl px-2.5 py-1.5 shrink-0">
+              <Trophy size={12} className="text-amber-500" />
+              <span className="text-xs font-bold text-amber-600">{streakResult.streak}d</span>
+            </div>
+          )}
         </div>
+        {streakResult.streak > 0 && (
+          <div className="max-w-md mx-auto mt-2 px-0.5">
+            <p className="text-xs text-amber-600 font-medium">{streakResult.message}</p>
+          </div>
+        )}
       </div>
 
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">

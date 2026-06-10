@@ -83,6 +83,63 @@ export interface TodayMovement {
   done: boolean;
 }
 
+export interface StreakResult {
+  streak: number;
+  message: string;
+}
+
+function getStreakMessage(streak: number): string {
+  if (streak >= 7)  return 'One week strong!';
+  if (streak >= 3)  return "You're building momentum!";
+  if (streak >= 1)  return 'You started!';
+  return 'Start your streak today';
+}
+
+/** Returns a YYYY-MM-DD string offset by `daysAgo` from today. */
+function dateOffset(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split('T')[0];
+}
+
+/**
+ * Computes the current movement streak.
+ *
+ * A day counts if at least one Movement event has notes ending in "|done".
+ * The streak starts from today (if today has a done movement) or yesterday,
+ * and counts consecutive days backwards until a gap is found.
+ */
+function computeStreak(events: Event[]): number {
+  // Build a set of dates that have at least one completed movement
+  const doneDates = new Set<string>();
+  for (const e of events) {
+    if (e.category !== 'Movement') continue;
+    const decoded = decodeMovementNotes(e.notes);
+    if (decoded?.done) doneDates.add(e.event_date);
+  }
+
+  let streak = 0;
+  const today = dateOffset(0);
+  const hasToday = doneDates.has(today);
+
+  // Start from today if it has a completion, otherwise start from yesterday
+  const startOffset = hasToday ? 0 : 1;
+
+  // If neither today nor yesterday has a done movement the streak is 0
+  if (!hasToday && !doneDates.has(dateOffset(1))) return 0;
+
+  for (let i = startOffset; i <= 365; i++) {
+    const date = dateOffset(i);
+    if (doneDates.has(date)) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
 export function useMovement(events: Event[]) {
   const today = new Date().toISOString().split('T')[0];
 
@@ -97,9 +154,15 @@ export function useMovement(events: Event[]) {
       .filter((m): m is TodayMovement => m !== null);
   }, [events, today]);
 
+  const streakResult = useMemo((): StreakResult => {
+    const streak = computeStreak(events);
+    return { streak, message: getStreakMessage(streak) };
+  }, [events]);
+
   const hasMoved = todayMovements.length > 0;
   const hasCompleted = todayMovements.some((m) => m.done);
   const latestMovement = todayMovements[todayMovements.length - 1] ?? null;
 
-  return { todayMovements, hasMoved, hasCompleted, latestMovement };
+  return { todayMovements, hasMoved, hasCompleted, latestMovement, streakResult };
 }
+
