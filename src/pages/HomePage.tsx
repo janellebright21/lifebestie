@@ -1,8 +1,9 @@
-import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed } from 'lucide-react';
+import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind } from 'lucide-react';
 import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
 import { TabName } from '../components/BottomNav';
+import { useMovement, MOVEMENT_OPTIONS, EnergyLevel } from '../hooks/useMovement';
 import LowStockBanner from '../components/LowStockBanner';
 import DailyPlanCard from '../components/DailyPlanCard';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
@@ -208,6 +209,14 @@ export default function HomePage({
   const hasPlanContext = goals.length > 0 || tasks.filter((t) => !t.completed).length > 0;
   const showPlanCard = dailyPlan || dailyPlanLoading || dailyPlanGenerating || hasPlanContext;
 
+  const { todayMovements, hasMoved, hasCompleted } = useMovement(events);
+
+  const LEVEL_ICONS_HOME: Record<EnergyLevel, React.ReactNode> = {
+    low:      <Wind size={12} />,
+    moderate: <Zap size={12} />,
+    high:     <Flame size={12} />,
+  };
+
   return (
     <div className="px-4 pt-6 pb-28 space-y-6 max-w-md mx-auto">
       {/* Header */}
@@ -278,6 +287,58 @@ export default function HomePage({
         tomorrowEvents={tomorrowEvents}
         tomorrowMeals={tomorrowMeals}
       />
+
+      {/* Movement status card */}
+      <button
+        onClick={() => onTabChange('movement')}
+        className="w-full text-left active:scale-[0.98] transition-transform"
+      >
+        {hasMoved ? (
+          <div className={`rounded-2xl border px-4 py-3.5 space-y-2.5 ${hasCompleted ? 'bg-emerald-50 border-emerald-100' : 'bg-sky-50 border-sky-100'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity size={14} className={hasCompleted ? 'text-emerald-500' : 'text-sky-500'} />
+                <span className={`text-xs font-bold uppercase tracking-wide ${hasCompleted ? 'text-emerald-700' : 'text-sky-700'}`}>
+                  Movement Today
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${hasCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
+                {todayMovements.filter((m) => m.done).length}/{todayMovements.length} done
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {todayMovements.map((m) => {
+                const lc = MOVEMENT_OPTIONS[m.level].color;
+                return (
+                  <div key={m.event.id} className="flex items-center gap-2">
+                    {m.done
+                      ? <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                      : <Circle size={13} className="text-gray-300 shrink-0" />
+                    }
+                    <span className={`text-xs flex-1 ${m.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                      {m.activityLabel}
+                    </span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${lc.badge}`}>
+                      <span className={lc.icon}>{LEVEL_ICONS_HOME[m.level]}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+              <Activity size={16} className="text-emerald-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-emerald-700">No movement yet today</p>
+              <p className="text-xs text-emerald-500 mt-0.5">Tap to pick something that fits your energy</p>
+            </div>
+            <Plus size={16} className="text-emerald-400 shrink-0" />
+          </div>
+        )}
+      </button>
 
       {/* AI Morning Plan */}
       {showPlanCard && (

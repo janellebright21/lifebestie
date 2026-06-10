@@ -18,6 +18,7 @@ import AddPage from './pages/AddPage';
 import GroceryPage from './pages/GroceryPage';
 import GoalsPage from './pages/GoalsPage';
 import ChatPage from './pages/ChatPage';
+import MovementPage from './pages/MovementPage';
 import AuthPage from './pages/AuthPage';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
@@ -479,6 +480,13 @@ export default function App() {
           onAddGrocery={addGrocery}
           onAddWeeklyItem={addWeeklyItem}
           onUpdateMemory={userMemory.updatePreferences}
+        />
+      )}
+      {activeTab === 'movement' && (
+        <MovementPage
+          events={events}
+          onAddEvent={addEvent}
+          onUpdateEvent={updateEvent}
         />
       )}
 

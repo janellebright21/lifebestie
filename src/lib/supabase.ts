@@ -14,8 +14,8 @@ export type TaskCategory = 'Work' | 'Kids' | 'Home' | 'Self-care' | 'Grocery' | 
 export type TaskPriority = 'low' | 'medium' | 'high';
 export const TASK_CATEGORIES: TaskCategory[] = ['Work', 'Kids', 'Home', 'Self-care', 'Grocery', 'Personal', 'Other'];
 
-export type EventCategory = 'Work' | 'Kids' | 'Home' | 'Self-care' | 'Grocery' | 'Personal' | 'Other';
-export const EVENT_CATEGORIES: EventCategory[] = ['Work', 'Kids', 'Home', 'Self-care', 'Grocery', 'Personal', 'Other'];
+export type EventCategory = 'Work' | 'Kids' | 'Home' | 'Self-care' | 'Grocery' | 'Personal' | 'Movement' | 'Other';
+export const EVENT_CATEGORIES: EventCategory[] = ['Work', 'Kids', 'Home', 'Self-care', 'Grocery', 'Personal', 'Movement', 'Other'];
 
 // ─── Pastel color palette ─────────────────────────────────────────────────────
 
