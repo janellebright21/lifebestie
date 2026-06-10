@@ -547,10 +547,10 @@ function BudgetSuggestions({
   if (estimatedTotal <= weeklyBudget || weeklyBudget <= 0) return null;
 
   return (
-    <div className="bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3.5 space-y-2.5">
+    <div className="rounded-2xl px-4 py-3.5 space-y-2.5" style={{ backgroundColor: 'var(--theme-primary-light)', border: '1px solid var(--theme-primary-mid)' }}>
       <div className="flex items-center gap-2">
-        <Lightbulb size={13} className="text-rose-400 shrink-0" />
-        <span className="text-xs font-semibold text-rose-600">Ways to save this week</span>
+        <Lightbulb size={13} style={{ color: 'var(--theme-primary)' }} className="shrink-0" />
+        <span className="text-xs font-semibold" style={{ color: 'var(--theme-primary)' }}>Ways to save this week</span>
       </div>
 
       {loading && !fetched && (

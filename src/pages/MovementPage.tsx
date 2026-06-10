@@ -240,7 +240,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
   const levels: EnergyLevel[] = ['low', 'moderate', 'high'];
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 pb-24">
+    <div className="min-h-[100dvh] theme-app-bg pb-24">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
         <div className="max-w-md mx-auto flex items-center gap-3">

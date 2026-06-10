@@ -79,7 +79,7 @@ function CategoryPickerGrid({
           <button
             onClick={commitCustom}
             disabled={!custom.trim()}
-            className="text-xs font-semibold text-white bg-rose-400 hover:bg-rose-500 disabled:opacity-50 px-3 py-2 rounded-xl transition-colors"
+            className="text-xs font-semibold text-white theme-bg-primary hover:opacity-90 disabled:opacity-50 px-3 py-2 rounded-xl transition-colors"
           >
             Set
           </button>
@@ -281,7 +281,7 @@ export default function AddPage({ onAddTask, onAddEvent, onAddGrocery }: AddPage
             <button
               onClick={handleSave}
               disabled={!title.trim() || saving}
-              className="flex-1 text-sm text-white bg-rose-400 rounded-xl py-3 font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+              className="flex-1 text-sm text-white theme-bg-primary rounded-xl py-3 font-semibold disabled:opacity-50 active:scale-95 transition-transform"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>

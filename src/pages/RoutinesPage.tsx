@@ -140,7 +140,7 @@ function RoutineForm({
         <button
           onClick={handleSave}
           disabled={!name.trim() || saving}
-          className="flex-1 py-2.5 rounded-xl bg-rose-400 text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+          className="flex-1 py-2.5 rounded-xl theme-bg-primary text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform"
         >
           {saving ? 'Saving…' : 'Save Routine'}
         </button>
@@ -183,8 +183,8 @@ function RunCard({
         {/* Progress bar */}
         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
           <div
-            className={`h-full rounded-full transition-all duration-300 ${allDone ? 'bg-emerald-400' : 'bg-rose-400'}`}
-            style={{ width: `${pct}%` }}
+            className={`h-full rounded-full transition-all duration-300 ${allDone ? 'bg-emerald-400' : ''}`}
+            style={{ width: `${pct}%`, backgroundColor: allDone ? undefined : 'var(--theme-primary)' }}
           />
         </div>
 
@@ -255,8 +255,8 @@ function TemplateCard({
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="px-4 py-3.5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
-            <ListChecks size={15} className="text-rose-400" />
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--theme-primary-light)' }}>
+            <ListChecks size={15} style={{ color: 'var(--theme-primary)' }} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-800 truncate">{template.name}</p>
@@ -304,7 +304,7 @@ function TemplateCard({
         <button
           onClick={handleRun}
           disabled={starting}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-400 text-white text-sm font-bold disabled:opacity-50 active:scale-95 transition-transform shadow-sm shadow-rose-100"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl theme-bg-primary text-white text-sm font-bold disabled:opacity-50 active:scale-95 transition-transform shadow-sm"
         >
           <Play size={14} />
           {starting ? 'Starting…' : 'Run Routine'}
@@ -356,13 +356,13 @@ export default function RoutinesPage({
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 pb-24">
+    <div className="min-h-[100dvh] theme-app-bg pb-24">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
-              <ListChecks size={18} className="text-rose-400" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--theme-primary-light)' }}>
+              <ListChecks size={18} style={{ color: 'var(--theme-primary)' }} />
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-800 leading-none">Routines</h1>
@@ -372,7 +372,7 @@ export default function RoutinesPage({
           {mode === 'list' && (
             <button
               onClick={() => setMode('create')}
-              className="flex items-center gap-1.5 bg-rose-400 text-white text-xs font-bold px-3 py-2 rounded-xl active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 theme-bg-primary text-white text-xs font-bold px-3 py-2 rounded-xl active:scale-95 transition-transform"
             >
               <Plus size={13} /> New
             </button>
@@ -423,7 +423,7 @@ export default function RoutinesPage({
             </div>
             <button
               onClick={() => setMode('create')}
-              className="flex items-center gap-2 bg-rose-400 text-white text-sm font-bold px-4 py-2.5 rounded-xl active:scale-95 transition-transform"
+              className="flex items-center gap-2 theme-bg-primary text-white text-sm font-bold px-4 py-2.5 rounded-xl active:scale-95 transition-transform"
             >
               <Plus size={14} /> Create your first routine
             </button>
@@ -451,7 +451,7 @@ export default function RoutinesPage({
                     </button>
                     <button
                       onClick={() => handleDelete(template.id)}
-                      className="flex-1 py-2 rounded-xl bg-rose-400 text-white text-sm font-bold active:scale-95 transition-transform"
+                      className="flex-1 py-2 rounded-xl theme-bg-primary text-white text-sm font-bold active:scale-95 transition-transform"
                     >
                       Delete
                     </button>

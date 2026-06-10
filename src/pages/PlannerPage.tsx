@@ -2892,9 +2892,11 @@ export default function PlannerPage({
           </button>
           <button
             onClick={() => { setShowAddEvent((v) => !v); setShowAddTask(false); }}
-            className={`flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full shadow-sm active:scale-95 transition-all ${
-              showAddEvent ? 'bg-rose-400 text-white' : 'bg-rose-50 text-rose-500 border border-rose-100'
-            }`}
+            className="flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full shadow-sm active:scale-95 transition-all"
+            style={showAddEvent
+              ? { backgroundColor: 'var(--theme-primary)', color: '#fff' }
+              : { backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)', border: '1px solid var(--theme-primary-mid)' }
+            }
           >
             <Plus size={14} />
             Event

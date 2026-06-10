@@ -217,9 +217,10 @@ export default function ChatPage({
               <div
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                   msg.role === 'user'
-                    ? 'bg-rose-400 text-white rounded-br-sm'
+                    ? 'text-white rounded-br-sm'
                     : 'bg-white text-gray-700 shadow-sm border border-gray-50 rounded-bl-sm'
                 }`}
+                style={msg.role === 'user' ? { backgroundColor: 'var(--theme-primary)' } : {}}
               >
                 {msg.text}
               </div>
@@ -251,7 +252,8 @@ export default function ChatPage({
               <button
                 key={p}
                 onClick={() => sendMessage(p)}
-                className="shrink-0 text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-3 py-2 font-medium whitespace-nowrap active:scale-95 transition-transform"
+                className="shrink-0 text-xs rounded-full px-3 py-2 font-medium whitespace-nowrap active:scale-95 transition-transform"
+                style={{ color: 'var(--theme-primary)', backgroundColor: 'var(--theme-primary-light)', border: '1px solid var(--theme-primary-mid)' }}
               >
                 {p}
               </button>
@@ -275,7 +277,7 @@ export default function ChatPage({
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isTyping}
-            className="w-8 h-8 rounded-xl bg-rose-400 flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-all theme-bg-primary"
           >
             <Send size={14} className="text-white" />
           </button>
