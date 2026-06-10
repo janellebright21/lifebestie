@@ -297,6 +297,33 @@ export interface Receipt {
   updated_at: string;
 }
 
+// ─── Routine Builder ──────────────────────────────────────────────────────────
+
+export interface RoutineStep {
+  id: string;    // stable uuid so completed_step_ids can reference it
+  title: string;
+}
+
+export interface RoutineTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  steps: RoutineStep[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoutineRun {
+  id: string;
+  user_id: string;
+  template_id: string;
+  run_date: string;           // YYYY-MM-DD
+  steps_snapshot: RoutineStep[];
+  completed_step_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 /** Returns the ISO date string for the most recent Monday (start of current week). */
 export function getWeekStart(date = new Date()): string {
   const d = new Date(date);

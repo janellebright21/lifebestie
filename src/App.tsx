@@ -10,6 +10,7 @@ import { useGroceryBudget } from './hooks/useGroceryBudget';
 import { useSpendingTrends } from './hooks/useSpendingTrends';
 import { useReceipts } from './hooks/useReceipts';
 import { usePrepareForTomorrow } from './hooks/usePrepareForTomorrow';
+import { useRoutines } from './hooks/useRoutines';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import HomePage from './pages/HomePage';
@@ -19,6 +20,7 @@ import GroceryPage from './pages/GroceryPage';
 import GoalsPage from './pages/GoalsPage';
 import ChatPage from './pages/ChatPage';
 import MovementPage from './pages/MovementPage';
+import RoutinesPage from './pages/RoutinesPage';
 import AuthPage from './pages/AuthPage';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
@@ -42,6 +44,7 @@ export default function App() {
   const receipts = useReceipts();
   const mealPlanner = useMealPlanner();
   const groceryBudget = useGroceryBudget();
+  const routinesHook = useRoutines();
 
   const routines = userMemory.memory?.routines ?? [];
 
@@ -384,6 +387,9 @@ export default function App() {
           tomorrowRemindersError={prepareForTomorrow.fetchError}
           onDismissTomorrowReminder={prepareForTomorrow.dismissReminder}
           onRefreshTomorrowReminders={prepareForTomorrow.refresh}
+          activeRoutineRuns={routinesHook.activeRuns}
+          completedRoutineRuns={routinesHook.completedRuns}
+          routineTemplates={routinesHook.templates}
         />
       )}
       {activeTab === 'planner' && (
@@ -487,6 +493,19 @@ export default function App() {
           events={events}
           onAddEvent={addEvent}
           onUpdateEvent={updateEvent}
+        />
+      )}
+      {activeTab === 'routines' && (
+        <RoutinesPage
+          templates={routinesHook.templates}
+          todayRuns={routinesHook.todayRuns}
+          loading={routinesHook.loading}
+          onCreateTemplate={routinesHook.createTemplate}
+          onUpdateTemplate={routinesHook.updateTemplate}
+          onDeleteTemplate={routinesHook.deleteTemplate}
+          onStartRun={routinesHook.startRun}
+          onToggleStep={routinesHook.toggleStep}
+          getRunForTemplate={routinesHook.getRunForTemplate}
         />
       )}
 

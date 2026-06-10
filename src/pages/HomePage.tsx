@@ -1,5 +1,5 @@
-import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy } from 'lucide-react';
-import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal } from '../lib/supabase';
+import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks } from 'lucide-react';
+import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
 import { TabName } from '../components/BottomNav';
@@ -34,6 +34,9 @@ interface HomePageProps {
   tomorrowRemindersError: boolean;
   onDismissTomorrowReminder: (reminder: string) => void;
   onRefreshTomorrowReminders: () => void;
+  activeRoutineRuns: RoutineRun[];
+  completedRoutineRuns: RoutineRun[];
+  routineTemplates: RoutineTemplate[];
 }
 
 function getGreeting() {
@@ -178,6 +181,9 @@ export default function HomePage({
   tomorrowRemindersError,
   onDismissTomorrowReminder,
   onRefreshTomorrowReminders,
+  activeRoutineRuns,
+  completedRoutineRuns,
+  routineTemplates,
 }: HomePageProps) {
   const today = new Date().toISOString().split('T')[0];
   const tomorrowDate = (() => {
@@ -356,6 +362,54 @@ export default function HomePage({
           </div>
         )}
       </button>
+
+      {/* Active routine progress */}
+      {(activeRoutineRuns.length > 0 || completedRoutineRuns.length > 0) && (
+        <button
+          onClick={() => onTabChange('routines')}
+          className="w-full text-left active:scale-[0.98] transition-transform"
+        >
+          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm px-4 py-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ListChecks size={14} className="text-rose-400" />
+                <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Routines Today</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-500">
+                {completedRoutineRuns.length + activeRoutineRuns.length} active
+              </span>
+            </div>
+            <div className="space-y-2">
+              {[...activeRoutineRuns, ...completedRoutineRuns].map((run) => {
+                const tmpl = routineTemplates.find((t) => t.id === run.template_id);
+                if (!tmpl) return null;
+                const done = run.completed_step_ids.length;
+                const total = run.steps_snapshot.length;
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                const allDone = done >= total;
+                return (
+                  <div key={run.id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold ${allDone ? 'text-emerald-600' : 'text-gray-700'}`}>
+                        {tmpl.name}
+                      </span>
+                      <span className={`text-[10px] font-bold ${allDone ? 'text-emerald-500' : 'text-gray-400'}`}>
+                        {done}/{total}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${allDone ? 'bg-emerald-400' : 'bg-rose-400'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </button>
+      )}
 
       {/* AI Morning Plan */}
       {showPlanCard && (

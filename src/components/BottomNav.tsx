@@ -1,7 +1,7 @@
-import { Home, Calendar, Plus, ShoppingCart, MessageCircle, LogOut, Activity } from 'lucide-react';
+import { Home, Calendar, Plus, ShoppingCart, MessageCircle, LogOut, Activity, ListChecks } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-export type TabName = 'home' | 'planner' | 'add' | 'grocery' | 'movement' | 'goals' | 'chat';
+export type TabName = 'home' | 'planner' | 'add' | 'grocery' | 'movement' | 'routines' | 'goals' | 'chat';
 
 interface BottomNavProps {
   activeTab: TabName;
@@ -15,6 +15,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     { id: 'add' as TabName, icon: Plus, label: '' },
     { id: 'grocery' as TabName, icon: ShoppingCart, label: 'Grocery' },
     { id: 'movement' as TabName, icon: Activity, label: 'Move' },
+    { id: 'routines' as TabName, icon: ListChecks, label: 'Routines' },
     { id: 'chat' as TabName, icon: MessageCircle, label: 'Chat' },
   ];
 
@@ -35,10 +36,10 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className="relative -top-4 flex items-center justify-center w-12 h-12 rounded-full bg-rose-400 shadow-lg shadow-rose-200 active:scale-95 transition-transform"
+                className="relative -top-3 flex items-center justify-center w-11 h-11 rounded-full bg-rose-400 shadow-lg shadow-rose-200 active:scale-95 transition-transform"
                 aria-label="Add"
               >
-                <Plus size={22} className="text-white" strokeWidth={2.5} />
+                <Plus size={20} className="text-white" strokeWidth={2.5} />
               </button>
             );
           }
@@ -47,16 +48,16 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className="flex flex-col items-center gap-0.5 px-2 py-1 min-w-[36px]"
+              className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px]"
               aria-label={tab.label}
             >
               <Icon
-                size={20}
+                size={18}
                 className={isActive ? 'text-rose-400' : 'text-gray-400'}
                 strokeWidth={isActive ? 2.2 : 1.8}
               />
               <span
-                className={`text-[9px] font-medium ${isActive ? 'text-rose-400' : 'text-gray-400'}`}
+                className={`text-[8px] font-medium leading-none ${isActive ? 'text-rose-400' : 'text-gray-400'}`}
               >
                 {tab.label}
               </span>
@@ -66,15 +67,15 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
 
         <button
           onClick={handleSignOut}
-          className="flex flex-col items-center gap-0.5 px-2 py-1 min-w-[36px] group"
+          className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px] group"
           aria-label="Sign out"
         >
           <LogOut
-            size={20}
+            size={18}
             className="text-gray-300 group-hover:text-rose-300 transition-colors"
             strokeWidth={1.8}
           />
-          <span className="text-[9px] font-medium text-gray-300 group-hover:text-rose-300 transition-colors">
+          <span className="text-[8px] font-medium leading-none text-gray-300 group-hover:text-rose-300 transition-colors">
             Out
           </span>
         </button>
