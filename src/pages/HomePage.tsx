@@ -234,7 +234,7 @@ export default function HomePage({
     <div className="px-4 pt-6 pb-28 space-y-6 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <LifeBestieAvatar size="md" className="mt-0.5" avatarTheme={avatarTheme} />
+        <LifeBestieAvatar size="md" className="mt-0.5" avatarTheme={avatarTheme} expression="happy" />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}

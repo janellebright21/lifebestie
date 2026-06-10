@@ -373,9 +373,10 @@ export const DEFAULT_ENABLED_MODULES = new Set<ModuleId>(
 
 // ─── Personalization ──────────────────────────────────────────────────────────
 
-export type ThemeId      = 'cozy-coffee' | 'lavender-calm' | 'coastal-breeze' | 'boss-babe' | 'fresh-start';
-export type BgSkinId     = 'solid' | 'watercolor' | 'floral' | 'planner-paper' | 'minimalist';
-export type AvatarThemeId = 'classic' | 'cozy' | 'wellness' | 'professional';
+export type ThemeId        = 'cozy-coffee' | 'lavender-calm' | 'coastal-breeze' | 'boss-babe' | 'fresh-start';
+export type BgSkinId       = 'solid' | 'watercolor' | 'floral' | 'planner-paper' | 'minimalist';
+export type AvatarThemeId  = 'classic' | 'cozy' | 'wellness' | 'professional';
+export type AvatarExpression = 'happy' | 'encouraging' | 'proud' | 'calm';
 
 export interface ThemeDef {
   id: ThemeId;

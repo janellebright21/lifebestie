@@ -73,6 +73,18 @@ export default function MyBestiePage({
 
       <div className="max-w-md mx-auto px-4 py-5 space-y-8">
 
+        {/* ─── Greeting bubble ────────────────────────────────────────────── */}
+        <LifeBestieAvatar
+          size="sm"
+          avatarTheme={currentAvatarTheme}
+          expression="encouraging"
+          bubble={
+            preferredName
+              ? `Hey ${preferredName}! Here's everything I know about you 💛`
+              : "Here's your LifeBestie profile 💛"
+          }
+        />
+
         {/* ─── Hero card ──────────────────────────────────────────────────── */}
         <div
           className="rounded-3xl px-5 py-6 flex items-center gap-5"
@@ -81,7 +93,7 @@ export default function MyBestiePage({
             border: '1px solid var(--theme-primary-mid)',
           }}
         >
-          <LifeBestieAvatar size="lg" avatarTheme={currentAvatarTheme} />
+          <LifeBestieAvatar size="lg" avatarTheme={currentAvatarTheme} expression="proud" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
               LifeBestie
@@ -121,7 +133,7 @@ export default function MyBestiePage({
             {/* Avatar */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-3 py-3 space-y-2">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Avatar</p>
-              <LifeBestieAvatar size="sm" avatarTheme={currentAvatarTheme} />
+              <LifeBestieAvatar size="sm" avatarTheme={currentAvatarTheme} expression="happy" />
               <p className="text-xs font-semibold text-gray-700 leading-tight">{avatar.label}</p>
             </div>
           </div>

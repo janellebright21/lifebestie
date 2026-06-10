@@ -100,7 +100,7 @@ const STEPS: Step[] = [
 function BotBubble({ text, visible }: { text: string; visible: boolean }) {
   return (
     <div className={`flex items-end gap-2 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-      <LifeBestieAvatar size="sm" />
+      <LifeBestieAvatar size="sm" expression="encouraging" />
       <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-100 max-w-[85%]">
         <p className="text-sm text-gray-700 leading-relaxed">{text}</p>
       </div>
@@ -204,7 +204,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 shrink-0">
         <div className="max-w-md mx-auto flex items-center gap-3">
-          <LifeBestieAvatar size="md" pulse />
+          <LifeBestieAvatar size="md" pulse expression="happy" />
           <div>
             <h1 className="text-base font-bold text-gray-800 leading-none">LifeBestie</h1>
             <p className="text-xs text-gray-400 mt-0.5">Let's get to know each other</p>
@@ -242,7 +242,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
         {saving && (
           <div className="flex items-end gap-2">
-            <LifeBestieAvatar size="sm" pulse />
+            <LifeBestieAvatar size="sm" pulse expression="calm" />
             <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-100">
               <div className="flex gap-1 items-center">
                 <span className="w-1.5 h-1.5 bg-rose-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
