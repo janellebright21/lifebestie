@@ -164,6 +164,7 @@ export default function App() {
 
   const userId = session.user.id;
   const preferredName = userProfile.profile?.preferred_name || undefined;
+  const selectedCharacter = (userProfile.profile?.character_id ?? 'emma') as import('./lib/supabase').CharacterId;
 
   // ── Action handlers ────────────────────────────────────────────────────────
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
@@ -416,6 +417,7 @@ export default function App() {
           enabledModules={enabledModules}
           preferredName={preferredName}
           avatarTheme={personalization.avatarTheme}
+          character={selectedCharacter}
         />
       )}
       {activeTab === 'planner' && (
@@ -514,6 +516,7 @@ export default function App() {
           onUpdateMemory={userMemory.updatePreferences}
           preferredName={preferredName}
           avatarTheme={personalization.avatarTheme}
+          character={selectedCharacter}
         />
       )}
       {activeTab === 'movement' && enabledModules.has('movement') && (
@@ -542,6 +545,8 @@ export default function App() {
           currentTheme={personalization.theme}
           currentBgSkin={personalization.bgSkin}
           currentAvatarTheme={personalization.avatarTheme}
+          character={selectedCharacter}
+          onSetCharacter={(id) => userProfile.saveProfile({ character_id: id })}
           isEnabled={moduleSettings.isEnabled}
           memories={lifeBestieMemory.memories}
           memoriesLoading={lifeBestieMemory.loading}

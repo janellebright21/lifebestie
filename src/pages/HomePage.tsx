@@ -41,6 +41,7 @@ interface HomePageProps {
   enabledModules: Set<ModuleId>;
   preferredName?: string;
   avatarTheme?: import('../lib/supabase').AvatarThemeId;
+  character?: import('../lib/supabase').CharacterId;
 }
 
 function getGreeting() {
@@ -191,6 +192,7 @@ export default function HomePage({
   enabledModules,
   preferredName,
   avatarTheme,
+  character,
 }: HomePageProps) {
   const today = new Date().toISOString().split('T')[0];
   const tomorrowDate = (() => {
@@ -233,9 +235,9 @@ export default function HomePage({
   return (
     <div className="px-4 pt-6 pb-28 space-y-6 max-w-md mx-auto">
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <LifeBestieAvatar size="md" className="mt-0.5" avatarTheme={avatarTheme} expression="happy" />
-        <div className="flex-1 min-w-0">
+      <div className="flex items-end gap-4">
+        <LifeBestieAvatar size="xl" variant="portrait" avatarTheme={avatarTheme} expression="happy" character={character} />
+        <div className="flex-1 min-w-0 pb-1">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>

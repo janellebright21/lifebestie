@@ -25,6 +25,7 @@ interface ChatPageProps {
   getProactiveSuggestions?: () => string[];
   preferredName?: string;
   avatarTheme?: import('../lib/supabase').AvatarThemeId;
+  character?: import('../lib/supabase').CharacterId;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -103,6 +104,7 @@ export default function ChatPage({
   getProactiveSuggestions,
   preferredName,
   avatarTheme,
+  character,
 }: ChatPageProps) {
   const initMessage: Message = {
     id: 'init',
@@ -196,7 +198,7 @@ export default function ChatPage({
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
-        <LifeBestieAvatar size="md" avatarTheme={avatarTheme} expression={isTyping ? 'encouraging' : 'calm'} />
+        <LifeBestieAvatar size="xl" variant="portrait" avatarTheme={avatarTheme} expression={isTyping ? 'encouraging' : 'calm'} character={character} />
         <div>
           <h1 className="text-sm font-bold text-gray-800">LifeBestie</h1>
           <p className="text-xs text-emerald-500 font-medium">Always here for you</p>
@@ -211,7 +213,7 @@ export default function ChatPage({
             className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
             {msg.role === 'assistant' && (
-              <LifeBestieAvatar size="sm" className="mb-0.5" avatarTheme={avatarTheme} expression="calm" />
+              <LifeBestieAvatar size="sm" className="mb-0.5" avatarTheme={avatarTheme} expression="calm" character={character} />
             )}
             <div className={`max-w-[78%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
               <div
@@ -231,7 +233,7 @@ export default function ChatPage({
 
         {isTyping && (
           <div className="flex items-end gap-2">
-            <LifeBestieAvatar size="sm" avatarTheme={avatarTheme} expression="encouraging" />
+            <LifeBestieAvatar size="sm" avatarTheme={avatarTheme} expression="encouraging" character={character} />
             <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-50">
               <div className="flex gap-1 items-center h-4">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />

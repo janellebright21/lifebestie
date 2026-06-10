@@ -377,6 +377,9 @@ export type ThemeId        = 'cozy-coffee' | 'lavender-calm' | 'coastal-breeze' 
 export type BgSkinId       = 'solid' | 'watercolor' | 'floral' | 'planner-paper' | 'minimalist';
 export type AvatarThemeId  = 'classic' | 'cozy' | 'wellness' | 'professional';
 export type AvatarExpression = 'happy' | 'encouraging' | 'proud' | 'calm';
+export type CharacterId      = 'emma' | 'ava' | 'nora' | 'luna';
+export type CharacterVariant = 'portrait' | 'full-body';
+export type OutfitId         = 'default' | 'casual' | 'active' | 'cozy';
 
 export interface ThemeDef {
   id: ThemeId;
@@ -542,6 +545,70 @@ export const AVATAR_THEMES: AvatarThemeDef[] = [
   },
 ];
 
+export interface CharacterDef {
+  id: CharacterId;
+  name: string;
+  emoji: string;
+  tagline: string;
+  ringGradient: string;
+  innerGradient: string;
+  faceEyes: string;
+  faceMouth: string;
+  faceBlush: string;
+  faceAccent: string;
+}
+
+export const CHARACTERS: CharacterDef[] = [
+  {
+    id: 'emma',
+    name: 'Emma',
+    emoji: '🌸',
+    tagline: 'Warm & cheerful',
+    ringGradient:  'from-rose-200 via-pink-100 to-rose-100',
+    innerGradient: 'from-rose-300 to-pink-200',
+    faceEyes:  '#9f1239',
+    faceMouth: '#be123c',
+    faceBlush: '#fda4af',
+    faceAccent:'#f59e0b',
+  },
+  {
+    id: 'ava',
+    name: 'Ava',
+    emoji: '🌿',
+    tagline: 'Calm & grounded',
+    ringGradient:  'from-emerald-200 via-teal-100 to-emerald-100',
+    innerGradient: 'from-emerald-300 to-teal-200',
+    faceEyes:  '#064e3b',
+    faceMouth: '#047857',
+    faceBlush: '#6ee7b7',
+    faceAccent:'#059669',
+  },
+  {
+    id: 'nora',
+    name: 'Nora',
+    emoji: '☀️',
+    tagline: 'Cozy & nurturing',
+    ringGradient:  'from-amber-200 via-orange-100 to-amber-100',
+    innerGradient: 'from-amber-300 to-orange-200',
+    faceEyes:  '#78350f',
+    faceMouth: '#b45309',
+    faceBlush: '#fdba74',
+    faceAccent:'#d97706',
+  },
+  {
+    id: 'luna',
+    name: 'Luna',
+    emoji: '🌙',
+    tagline: 'Cool & thoughtful',
+    ringGradient:  'from-sky-200 via-blue-100 to-sky-100',
+    innerGradient: 'from-sky-300 to-blue-200',
+    faceEyes:  '#0c4a6e',
+    faceMouth: '#0369a1',
+    faceBlush: '#7dd3fc',
+    faceAccent:'#0284c7',
+  },
+];
+
 export const DEFAULT_PERSONALIZATION = {
   theme: 'cozy-coffee' as ThemeId,
   bgSkin: 'solid' as BgSkinId,
@@ -597,6 +664,7 @@ export interface UserProfile {
   main_goals: MainGoal[];
   biggest_challenge: string;
   onboarding_done: boolean;
+  character_id?: CharacterId;
   created_at: string;
   updated_at: string;
 }
@@ -609,6 +677,7 @@ export const EMPTY_PROFILE: Omit<UserProfile, 'user_id' | 'created_at' | 'update
   main_goals: [],
   biggest_challenge: '',
   onboarding_done: false,
+  character_id: 'emma',
 };
 
 export interface LowStockSuggestion {
