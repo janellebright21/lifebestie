@@ -368,7 +368,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 font-sans">
+    <div className="min-h-[100dvh] theme-app-bg font-sans">
       {activeTab === 'home' && (
         <HomePage
           tasks={tasks}

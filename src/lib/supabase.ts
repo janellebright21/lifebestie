@@ -396,10 +396,12 @@ export interface BgSkinDef {
   label: string;
   description: string;
   emoji: string;
-  /** Tailwind bg class(es) applied to the page root */
-  bgClass: string;
-  /** CSS pattern string injected as backgroundImage (empty = none) */
+  /** Base background color as a hex value for CSS var */
+  solidColor: string;
+  /** CSS backgroundImage value (empty string = none) */
   patternStyle: string;
+  /** Legacy Tailwind class kept for reference — NOT applied to DOM */
+  bgClass: string;
 }
 
 export interface AvatarThemeDef {
@@ -466,40 +468,45 @@ export const BG_SKINS: BgSkinDef[] = [
     label: 'Solid',
     description: 'Clean and minimal.',
     emoji: '⬜',
-    bgClass: 'bg-gray-50',
+    solidColor: '#f9fafb',
     patternStyle: '',
+    bgClass: 'bg-gray-50',
   },
   {
     id: 'watercolor',
     label: 'Watercolor',
     description: 'Soft blended tones.',
     emoji: '🎨',
-    bgClass: 'bg-[#fdf6f0]',
+    solidColor: '#fdf6f0',
     patternStyle: 'radial-gradient(ellipse at 20% 20%, var(--theme-primary-light) 0%, transparent 60%), radial-gradient(ellipse at 80% 80%, var(--theme-primary-mid) 0%, transparent 50%)',
+    bgClass: 'bg-[#fdf6f0]',
   },
   {
     id: 'floral',
     label: 'Floral',
     description: 'Delicate repeated petal motif.',
     emoji: '🌸',
-    bgClass: 'bg-gray-50',
+    solidColor: '#f9fafb',
     patternStyle: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23f9a8d4' fill-opacity='0.15'%3E%3Ccircle cx='20' cy='20' r='3'/%3E%3Ccircle cx='20' cy='10' r='2'/%3E%3Ccircle cx='20' cy='30' r='2'/%3E%3Ccircle cx='10' cy='20' r='2'/%3E%3Ccircle cx='30' cy='20' r='2'/%3E%3Ccircle cx='13' cy='13' r='1.5'/%3E%3Ccircle cx='27' cy='13' r='1.5'/%3E%3Ccircle cx='13' cy='27' r='1.5'/%3E%3Ccircle cx='27' cy='27' r='1.5'/%3E%3C/g%3E%3C/svg%3E")`,
+    bgClass: 'bg-gray-50',
   },
   {
     id: 'planner-paper',
     label: 'Planner Paper',
     description: 'Subtle grid like a notebook.',
     emoji: '📓',
-    bgClass: 'bg-[#fafafa]',
+    solidColor: '#fafafa',
     patternStyle: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20h40M20 0v40' stroke='%23e5e7eb' stroke-width='0.5' fill='none'/%3E%3C/svg%3E")`,
+    bgClass: 'bg-[#fafafa]',
   },
   {
     id: 'minimalist',
     label: 'Minimalist',
     description: 'Pure white, nothing distracting.',
     emoji: '◻️',
-    bgClass: 'bg-white',
+    solidColor: '#ffffff',
     patternStyle: '',
+    bgClass: 'bg-white',
   },
 ];
 

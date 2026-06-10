@@ -17,29 +17,34 @@ const TAB_MODULE: Partial<Record<TabName, ModuleId>> = {
   chat:     'ai-assistant',
 };
 
+const THEME_PRIMARY     = 'var(--theme-primary)';
+const THEME_PRIMARY_MID = 'var(--theme-primary-mid)';
+
 export default function BottomNav({ activeTab, onTabChange, enabledModules }: BottomNavProps) {
   const allTabs = [
-    { id: 'home'     as TabName, icon: Home,         label: 'Home'     },
-    { id: 'planner'  as TabName, icon: Calendar,     label: 'Planner'  },
-    { id: 'add'      as TabName, icon: Plus,         label: ''         },
-    { id: 'grocery'  as TabName, icon: ShoppingCart, label: 'Grocery'  },
-    { id: 'movement' as TabName, icon: Activity,     label: 'Move'     },
-    { id: 'routines' as TabName, icon: ListChecks,   label: 'Routines' },
-    { id: 'chat'     as TabName, icon: MessageCircle,label: 'Chat'     },
+    { id: 'home'     as TabName, icon: Home,          label: 'Home'     },
+    { id: 'planner'  as TabName, icon: Calendar,      label: 'Planner'  },
+    { id: 'add'      as TabName, icon: Plus,           label: ''         },
+    { id: 'grocery'  as TabName, icon: ShoppingCart,  label: 'Grocery'  },
+    { id: 'movement' as TabName, icon: Activity,       label: 'Move'     },
+    { id: 'routines' as TabName, icon: ListChecks,     label: 'Routines' },
+    { id: 'chat'     as TabName, icon: MessageCircle,  label: 'Chat'     },
   ];
 
-  // Keep a tab if it has no gating module, or its module is enabled
   const tabs = allTabs.filter((t) => {
     const module = TAB_MODULE[t.id];
     return !module || enabledModules.has(module);
   });
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-rose-100 safe-bottom">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 bg-white safe-bottom"
+      style={{ borderTop: `1px solid ${THEME_PRIMARY_MID}` }}
+    >
       <div className="flex items-center justify-around px-1 py-2 max-w-md mx-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isAdd = tab.id === 'add';
+          const isAdd    = tab.id === 'add';
           const isActive = activeTab === tab.id;
 
           if (isAdd) {
@@ -47,7 +52,8 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className="relative -top-3 flex items-center justify-center w-11 h-11 rounded-full bg-rose-400 shadow-lg shadow-rose-200 active:scale-95 transition-transform"
+                className="relative -top-3 flex items-center justify-center w-11 h-11 rounded-full shadow-lg active:scale-95 transition-transform"
+                style={{ backgroundColor: THEME_PRIMARY, boxShadow: `0 4px 14px ${THEME_PRIMARY_MID}` }}
                 aria-label="Add"
               >
                 <Plus size={20} className="text-white" strokeWidth={2.5} />
@@ -64,17 +70,21 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
             >
               <Icon
                 size={18}
-                className={isActive ? 'text-rose-400' : 'text-gray-400'}
+                style={{ color: isActive ? THEME_PRIMARY : undefined }}
+                className={isActive ? '' : 'text-gray-400'}
                 strokeWidth={isActive ? 2.2 : 1.8}
               />
-              <span className={`text-[8px] font-medium leading-none ${isActive ? 'text-rose-400' : 'text-gray-400'}`}>
+              <span
+                className={`text-[8px] font-medium leading-none ${isActive ? '' : 'text-gray-400'}`}
+                style={{ color: isActive ? THEME_PRIMARY : undefined }}
+              >
                 {tab.label}
               </span>
             </button>
           );
         })}
 
-        {/* Settings gear — always visible, not module-gated */}
+        {/* Settings gear — always visible */}
         <button
           onClick={() => onTabChange('settings')}
           className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px]"
@@ -82,10 +92,14 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
         >
           <Settings
             size={18}
-            className={activeTab === 'settings' ? 'text-rose-400' : 'text-gray-400'}
+            style={{ color: activeTab === 'settings' ? THEME_PRIMARY : undefined }}
+            className={activeTab === 'settings' ? '' : 'text-gray-400'}
             strokeWidth={activeTab === 'settings' ? 2.2 : 1.8}
           />
-          <span className={`text-[8px] font-medium leading-none ${activeTab === 'settings' ? 'text-rose-400' : 'text-gray-400'}`}>
+          <span
+            className={`text-[8px] font-medium leading-none ${activeTab === 'settings' ? '' : 'text-gray-400'}`}
+            style={{ color: activeTab === 'settings' ? THEME_PRIMARY : undefined }}
+          >
             Settings
           </span>
         </button>

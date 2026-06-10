@@ -7,6 +7,10 @@
   --theme-primary:       #f87171;
   --theme-primary-light: #fff1f2;
   --theme-primary-mid:   #fecdd3;
+
+  /* Default: Solid background skin */
+  --theme-bg-color: #f9fafb;
+  --theme-bg-image: none;
 }
 
 @layer base {
@@ -30,7 +34,15 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* Theme-aware utility classes used by themed components */
+  /* App root background — driven entirely by CSS vars set by usePersonalization */
+  .theme-app-bg {
+    background-color: var(--theme-bg-color);
+    background-image: var(--theme-bg-image);
+    background-repeat: repeat;
+    background-size: auto;
+  }
+
+  /* Theme-aware accent utilities */
   .theme-bg-primary {
     background-color: var(--theme-primary);
   }
@@ -42,8 +54,5 @@
   }
   .theme-border-mid {
     border-color: var(--theme-primary-mid);
-  }
-  .theme-ring {
-    --tw-ring-color: var(--theme-primary-mid);
   }
 }

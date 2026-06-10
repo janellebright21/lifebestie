@@ -5,42 +5,36 @@ import {
   THEMES, BG_SKINS,
   DEFAULT_PERSONALIZATION,
 } from '../lib/supabase';
-
 export interface PersonalizationState {
   theme: ThemeId;
   bgSkin: BgSkinId;
   avatarTheme: AvatarThemeId;
 }
 
-function applyToDOM(state: PersonalizationState) {
-  const theme = THEMES.find((t) => t.id === state.theme) ?? THEMES[0]!;
-  const skin  = BG_SKINS.find((s) => s.id === state.bgSkin) ?? BG_SKINS[0]!;
-
+// CSS custom properties on :root — picked up by any component using var(--theme-*)
+// This is the ONLY DOM mutation; we no longer touch body classes.
+function setCSSVars(theme: ReturnType<typeof THEMES.find>, skin: ReturnType<typeof BG_SKINS.find>) {
+  if (!theme || !skin) return;
   const root = document.documentElement;
   root.style.setProperty('--theme-primary',       theme.primary);
   root.style.setProperty('--theme-primary-light',  theme.primaryLight);
   root.style.setProperty('--theme-primary-mid',    theme.primaryMid);
+  root.style.setProperty('--theme-bg-color',       skin.solidColor);
+  root.style.setProperty('--theme-bg-image',       skin.patternStyle || 'none');
+}
 
-  // Apply background skin to body
-  const body = document.body;
-
-  // Remove all previous skin bg classes
-  body.classList.remove(
-    'bg-gray-50', 'bg-[#fdf6f0]', 'bg-[#fafafa]', 'bg-white'
-  );
-  // Add current skin bg class (handles Tailwind arbitrary-value class names safely)
-  if (skin.bgClass) {
-    skin.bgClass.split(' ').forEach((cls) => body.classList.add(cls));
-  }
-
-  body.style.backgroundImage  = skin.patternStyle || '';
-  body.style.backgroundRepeat = skin.patternStyle ? 'repeat' : '';
-  body.style.backgroundSize   = skin.patternStyle ? 'auto' : '';
+function applyToDOM(state: PersonalizationState) {
+  const theme = THEMES.find((t) => t.id === state.theme) ?? THEMES[0]!;
+  const skin  = BG_SKINS.find((s) => s.id === state.bgSkin) ?? BG_SKINS[0]!;
+  setCSSVars(theme, skin);
 }
 
 export function usePersonalization() {
   const [state, setState] = useState<PersonalizationState>(DEFAULT_PERSONALIZATION);
   const [loaded, setLoaded] = useState(false);
+
+  // Apply defaults immediately on first render (before DB load) so there's no flash
+  useEffect(() => { applyToDOM(DEFAULT_PERSONALIZATION); }, []);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -54,19 +48,28 @@ export function usePersonalization() {
 
     if (data) {
       const next: PersonalizationState = {
-        theme:       (data.theme       as ThemeId)      ?? DEFAULT_PERSONALIZATION.theme,
-        bgSkin:      (data.bg_skin     as BgSkinId)     ?? DEFAULT_PERSONALIZATION.bgSkin,
+        theme:       (data.theme        as ThemeId)       ?? DEFAULT_PERSONALIZATION.theme,
+        bgSkin:      (data.bg_skin      as BgSkinId)      ?? DEFAULT_PERSONALIZATION.bgSkin,
         avatarTheme: (data.avatar_theme as AvatarThemeId) ?? DEFAULT_PERSONALIZATION.avatarTheme,
       };
       setState(next);
       applyToDOM(next);
-    } else {
-      applyToDOM(DEFAULT_PERSONALIZATION);
     }
     setLoaded(true);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Load on mount and re-load whenever auth state changes (sign-in after page load)
+  useEffect(() => {
+    load();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') load();
+      if (event === 'SIGNED_OUT') {
+        setState(DEFAULT_PERSONALIZATION);
+        applyToDOM(DEFAULT_PERSONALIZATION);
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+  }, [load]);
 
   async function setTheme(theme: ThemeId): Promise<void> {
     const next = { ...state, theme };

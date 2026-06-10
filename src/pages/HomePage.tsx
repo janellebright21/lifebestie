@@ -236,7 +236,7 @@ export default function HomePage({
       <div className="flex items-start gap-3">
         <LifeBestieAvatar size="md" className="mt-0.5" avatarTheme={avatarTheme} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-rose-300 uppercase tracking-widest mb-0.5">
+          <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
           <h1 className="text-2xl font-bold text-gray-800 leading-tight">
@@ -388,10 +388,10 @@ export default function HomePage({
           <div className="rounded-2xl border border-gray-100 bg-white shadow-sm px-4 py-3.5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ListChecks size={14} className="text-rose-400" />
+                <ListChecks size={14} style={{ color: 'var(--theme-primary)' }} />
                 <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Routines Today</span>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-500">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}>
                 {completedRoutineRuns.length + activeRoutineRuns.length} active
               </span>
             </div>
@@ -415,8 +415,8 @@ export default function HomePage({
                     </div>
                     <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 ${allDone ? 'bg-emerald-400' : 'bg-rose-400'}`}
-                        style={{ width: `${pct}%` }}
+                        className={`h-full rounded-full transition-all duration-300`}
+                        style={{ width: `${pct}%`, backgroundColor: allDone ? '#34d399' : 'var(--theme-primary)' }}
                       />
                     </div>
                   </div>
@@ -444,12 +444,13 @@ export default function HomePage({
       <div className="grid grid-cols-3 gap-3">
         <button
           onClick={() => onTabChange('add')}
-          className="flex flex-col items-center gap-2 bg-rose-50 rounded-2xl py-4 px-2 active:scale-95 transition-transform"
+          className="flex flex-col items-center gap-2 rounded-2xl py-4 px-2 active:scale-95 transition-transform"
+          style={{ backgroundColor: 'var(--theme-primary-light)' }}
         >
-          <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
-            <Plus size={18} className="text-rose-400" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--theme-primary-mid)' }}>
+            <Plus size={18} style={{ color: 'var(--theme-primary)' }} />
           </div>
-          <span className="text-xs font-medium text-rose-500 text-center leading-tight">Add Task</span>
+          <span className="text-xs font-medium text-center leading-tight" style={{ color: 'var(--theme-primary)' }}>Add Task</span>
         </button>
         <button
           onClick={() => onTabChange('planner')}
@@ -483,10 +484,10 @@ export default function HomePage({
                 key={event.id}
                 className="flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-50"
               >
-                <div className="text-xs font-semibold text-rose-400 w-12 shrink-0">
+                <div className="text-xs font-semibold w-12 shrink-0" style={{ color: 'var(--theme-primary)' }}>
                   {event.event_time || '—'}
                 </div>
-                <div className="w-px h-6 bg-rose-100 shrink-0" />
+                <div className="w-px h-6 shrink-0" style={{ backgroundColor: 'var(--theme-primary-mid)' }} />
                 <span className="text-sm text-gray-700 font-medium">{event.title}</span>
               </div>
             ))}
@@ -513,7 +514,7 @@ export default function HomePage({
                 className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-50 active:scale-[0.99] transition-transform text-left"
               >
                 {task.completed ? (
-                  <CheckCircle2 size={20} className="text-rose-400 shrink-0" />
+                  <CheckCircle2 size={20} style={{ color: 'var(--theme-primary)' }} className="shrink-0" />
                 ) : (
                   <Circle size={20} className="text-gray-300 shrink-0" />
                 )}
@@ -536,16 +537,16 @@ export default function HomePage({
           <Sparkles size={14} className="text-amber-400" />
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">LifeBestie Suggests</h2>
         </div>
-        <div className="bg-gradient-to-br from-rose-50 to-amber-50 rounded-2xl px-4 py-4 border border-rose-100">
+        <div className="rounded-2xl px-4 py-4" style={{ background: 'linear-gradient(135deg, var(--theme-primary-light), var(--theme-bg-color, #fdf6e3))', border: '1px solid var(--theme-primary-mid)' }}>
           <p className="text-sm text-gray-600 leading-relaxed">{suggestion}</p>
 
           {todayRoutines.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-rose-100">
+            <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--theme-primary-mid)' }}>
               <p className="text-xs text-gray-400 font-medium mb-1.5">Your routines today:</p>
               <div className="space-y-1">
                 {todayRoutines.map((r) => (
                   <div key={r.name} className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="w-10 text-rose-400 font-semibold shrink-0">{r.time}</span>
+                    <span className="w-10 font-semibold shrink-0" style={{ color: 'var(--theme-primary)' }}>{r.time}</span>
                     <span>{capitalize(r.name)}</span>
                   </div>
                 ))}
@@ -555,7 +556,8 @@ export default function HomePage({
 
           <button
             onClick={() => onTabChange('chat')}
-            className="mt-3 text-xs font-semibold text-rose-400 underline underline-offset-2"
+            className="mt-3 text-xs font-semibold underline underline-offset-2"
+            style={{ color: 'var(--theme-primary)' }}
           >
             Ask me anything →
           </button>
