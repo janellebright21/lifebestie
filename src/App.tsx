@@ -28,6 +28,7 @@ import RoutinesPage from './pages/RoutinesPage';
 import SettingsPage from './pages/SettingsPage';
 import OnboardingPage from './pages/OnboardingPage';
 import AuthPage from './pages/AuthPage';
+import MyBestiePage from './pages/MyBestiePage';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
 
@@ -533,6 +534,20 @@ export default function App() {
           onStartRun={routinesHook.startRun}
           onToggleStep={routinesHook.toggleStep}
           getRunForTemplate={routinesHook.getRunForTemplate}
+        />
+      )}
+      {activeTab === 'bestie' && (
+        <MyBestiePage
+          preferredName={userProfile.profile?.preferred_name ?? ''}
+          currentTheme={personalization.theme}
+          currentBgSkin={personalization.bgSkin}
+          currentAvatarTheme={personalization.avatarTheme}
+          isEnabled={moduleSettings.isEnabled}
+          memories={lifeBestieMemory.memories}
+          memoriesLoading={lifeBestieMemory.loading}
+          onAddMemory={lifeBestieMemory.addMemory}
+          onUpdateMemory={lifeBestieMemory.updateMemory}
+          onDeleteMemory={lifeBestieMemory.deleteMemory}
         />
       )}
       {activeTab === 'settings' && (

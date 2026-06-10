@@ -1,7 +1,7 @@
-import { Home, Calendar, Plus, ShoppingCart, MessageCircle, Activity, ListChecks, Settings } from 'lucide-react';
+import { Home, Calendar, Plus, ShoppingCart, MessageCircle, Activity, ListChecks, Settings, Heart } from 'lucide-react';
 import { ModuleId } from '../lib/supabase';
 
-export type TabName = 'home' | 'planner' | 'add' | 'grocery' | 'movement' | 'routines' | 'goals' | 'chat' | 'settings';
+export type TabName = 'home' | 'planner' | 'add' | 'grocery' | 'movement' | 'routines' | 'goals' | 'chat' | 'bestie' | 'settings';
 
 interface BottomNavProps {
   activeTab: TabName;
@@ -24,11 +24,11 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
   const allTabs = [
     { id: 'home'     as TabName, icon: Home,          label: 'Home'     },
     { id: 'planner'  as TabName, icon: Calendar,      label: 'Planner'  },
-    { id: 'add'      as TabName, icon: Plus,           label: ''         },
+    { id: 'add'      as TabName, icon: Plus,          label: ''         },
     { id: 'grocery'  as TabName, icon: ShoppingCart,  label: 'Grocery'  },
-    { id: 'movement' as TabName, icon: Activity,       label: 'Move'     },
-    { id: 'routines' as TabName, icon: ListChecks,     label: 'Routines' },
-    { id: 'chat'     as TabName, icon: MessageCircle,  label: 'Chat'     },
+    { id: 'movement' as TabName, icon: Activity,      label: 'Move'     },
+    { id: 'routines' as TabName, icon: ListChecks,    label: 'Routines' },
+    { id: 'chat'     as TabName, icon: MessageCircle, label: 'Chat'     },
   ];
 
   const tabs = allTabs.filter((t) => {
@@ -83,6 +83,26 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
             </button>
           );
         })}
+
+        {/* My Bestie — always visible */}
+        <button
+          onClick={() => onTabChange('bestie')}
+          className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px]"
+          aria-label="My Bestie"
+        >
+          <Heart
+            size={18}
+            style={{ color: activeTab === 'bestie' ? THEME_PRIMARY : undefined }}
+            className={activeTab === 'bestie' ? '' : 'text-gray-400'}
+            strokeWidth={activeTab === 'bestie' ? 2.2 : 1.8}
+          />
+          <span
+            className={`text-[8px] font-medium leading-none ${activeTab === 'bestie' ? '' : 'text-gray-400'}`}
+            style={{ color: activeTab === 'bestie' ? THEME_PRIMARY : undefined }}
+          >
+            Bestie
+          </span>
+        </button>
 
         {/* Settings gear — always visible */}
         <button
