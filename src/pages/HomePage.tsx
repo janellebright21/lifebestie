@@ -7,6 +7,7 @@ import { useMovement, MOVEMENT_OPTIONS, EnergyLevel } from '../hooks/useMovement
 import LowStockBanner from '../components/LowStockBanner';
 import DailyPlanCard from '../components/DailyPlanCard';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
+import LifeBestieAvatar from '../components/LifeBestieAvatar';
 
 interface HomePageProps {
   tasks: Task[];
@@ -38,6 +39,7 @@ interface HomePageProps {
   completedRoutineRuns: RoutineRun[];
   routineTemplates: RoutineTemplate[];
   enabledModules: Set<ModuleId>;
+  preferredName?: string;
 }
 
 function getGreeting() {
@@ -186,6 +188,7 @@ export default function HomePage({
   completedRoutineRuns,
   routineTemplates,
   enabledModules,
+  preferredName,
 }: HomePageProps) {
   const today = new Date().toISOString().split('T')[0];
   const tomorrowDate = (() => {
@@ -228,14 +231,21 @@ export default function HomePage({
   return (
     <div className="px-4 pt-6 pb-28 space-y-6 max-w-md mx-auto">
       {/* Header */}
-      <div>
-        <p className="text-xs font-medium text-rose-300 uppercase tracking-widest mb-1">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        </p>
-        <h1 className="text-2xl font-bold text-gray-800 leading-tight">
-          {getGreeting()}, Mama 💛
-        </h1>
-        <p className="text-sm text-gray-400 mt-1">Here's what's on your plate today.</p>
+      <div className="flex items-start gap-3">
+        <LifeBestieAvatar size="md" className="mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-rose-300 uppercase tracking-widest mb-0.5">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </p>
+          <h1 className="text-2xl font-bold text-gray-800 leading-tight">
+            {getGreeting()}{preferredName ? `, ${preferredName}` : ''}.
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {todayEvents.length > 0
+              ? `You've got ${todayEvents.length} thing${todayEvents.length > 1 ? 's' : ''} on today.`
+              : "Here's what's on your plate today."}
+          </p>
+        </div>
       </div>
 
       {/* Routine Suggestion Banner */}

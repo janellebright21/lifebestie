@@ -12,6 +12,7 @@ import { useReceipts } from './hooks/useReceipts';
 import { usePrepareForTomorrow } from './hooks/usePrepareForTomorrow';
 import { useRoutines } from './hooks/useRoutines';
 import { useModuleSettings } from './hooks/useModuleSettings';
+import { useUserProfile } from './hooks/useUserProfile';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import HomePage from './pages/HomePage';
@@ -23,6 +24,7 @@ import ChatPage from './pages/ChatPage';
 import MovementPage from './pages/MovementPage';
 import RoutinesPage from './pages/RoutinesPage';
 import SettingsPage from './pages/SettingsPage';
+import OnboardingPage from './pages/OnboardingPage';
 import AuthPage from './pages/AuthPage';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
@@ -48,6 +50,7 @@ export default function App() {
   const groceryBudget = useGroceryBudget();
   const routinesHook = useRoutines();
   const moduleSettings = useModuleSettings();
+  const userProfile = useUserProfile();
 
   const routines = userMemory.memory?.routines ?? [];
 
@@ -149,7 +152,13 @@ export default function App() {
     return <AuthPage />;
   }
 
+  // ── Guard: show onboarding if profile not yet complete ────────────────────
+  if (userProfile.needsOnboarding) {
+    return <OnboardingPage onComplete={userProfile.completeOnboarding} />;
+  }
+
   const userId = session.user.id;
+  const preferredName = userProfile.profile?.preferred_name || undefined;
 
   // ── Action handlers ────────────────────────────────────────────────────────
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
@@ -400,6 +409,7 @@ export default function App() {
           completedRoutineRuns={routinesHook.completedRuns}
           routineTemplates={routinesHook.templates}
           enabledModules={enabledModules}
+          preferredName={preferredName}
         />
       )}
       {activeTab === 'planner' && (
@@ -496,6 +506,7 @@ export default function App() {
           onAddGrocery={addGrocery}
           onAddWeeklyItem={addWeeklyItem}
           onUpdateMemory={userMemory.updatePreferences}
+          preferredName={preferredName}
         />
       )}
       {activeTab === 'movement' && enabledModules.has('movement') && (

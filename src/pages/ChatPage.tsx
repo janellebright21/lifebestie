@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory } from '../lib/supabase';
+import LifeBestieAvatar from '../components/LifeBestieAvatar';
 
 interface Message {
   id: string;
@@ -22,14 +23,8 @@ interface ChatPageProps {
   onAddWeeklyItem?: (name: string, category: GroceryCategory, source: import('../lib/supabase').WeeklyGrocerySource) => Promise<void>;
   onUpdateMemory: (prefs: Preferences) => Promise<void>;
   getProactiveSuggestions?: () => string[];
+  preferredName?: string;
 }
-
-const DEFAULT_MESSAGE: Message = {
-  id: 'init',
-  role: 'assistant',
-  text: "Hey mama 💛 I'm here to help you stay on track today. What do you need?",
-  timestamp: new Date(),
-};
 
 const SUGGESTED_PROMPTS = [
   "What's next today?",
@@ -105,8 +100,17 @@ export default function ChatPage({
   onAddGrocery,
   onUpdateMemory,
   getProactiveSuggestions,
+  preferredName,
 }: ChatPageProps) {
-  const [messages, setMessages] = useState<Message[]>([DEFAULT_MESSAGE]);
+  const initMessage: Message = {
+    id: 'init',
+    role: 'assistant',
+    text: preferredName
+      ? `Hey ${preferredName} 💛 I'm here to help you stay on top of things today. What do you need?`
+      : "Hey 💛 I'm here to help you stay on track today. What do you need?",
+    timestamp: new Date(),
+  };
+  const [messages, setMessages] = useState<Message[]>([initMessage]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -190,9 +194,7 @@ export default function ChatPage({
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-300 to-amber-300 flex items-center justify-center shadow-sm">
-          <Sparkles size={18} className="text-white" />
-        </div>
+        <LifeBestieAvatar size="md" />
         <div>
           <h1 className="text-sm font-bold text-gray-800">LifeBestie</h1>
           <p className="text-xs text-emerald-500 font-medium">Always here for you</p>
@@ -207,9 +209,7 @@ export default function ChatPage({
             className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
             {msg.role === 'assistant' && (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-300 to-amber-300 flex items-center justify-center shrink-0 mb-0.5">
-                <Sparkles size={12} className="text-white" />
-              </div>
+              <LifeBestieAvatar size="sm" className="mb-0.5" />
             )}
             <div className={`max-w-[78%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
               <div
@@ -228,9 +228,7 @@ export default function ChatPage({
 
         {isTyping && (
           <div className="flex items-end gap-2">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-300 to-amber-300 flex items-center justify-center shrink-0">
-              <Sparkles size={12} className="text-white" />
-            </div>
+            <LifeBestieAvatar size="sm" />
             <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-50">
               <div className="flex gap-1 items-center h-4">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />

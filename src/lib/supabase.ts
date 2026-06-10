@@ -371,6 +371,36 @@ export const DEFAULT_ENABLED_MODULES = new Set<ModuleId>(
   MODULE_DEFS.filter((m) => m.defaultEnabled).map((m) => m.id)
 );
 
+// ─── User Profile ─────────────────────────────────────────────────────────────
+
+export type HouseholdType = 'solo' | 'couple' | 'family_kids' | 'family_teens' | 'multi_gen' | 'other';
+export type WorkSchedule  = 'full_time' | 'part_time' | 'work_from_home' | 'stay_home' | 'shift_work' | 'flexible';
+export type Chronotype    = 'morning' | 'evening' | 'neither';
+export type MainGoal      = 'stay_organized' | 'reduce_stress' | 'save_money' | 'eat_healthier' | 'more_family_time' | 'better_routines' | 'fitness';
+
+export interface UserProfile {
+  user_id: string;
+  preferred_name: string;
+  household_type: HouseholdType | '';
+  work_schedule: WorkSchedule | '';
+  chronotype: Chronotype | '';
+  main_goals: MainGoal[];
+  biggest_challenge: string;
+  onboarding_done: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const EMPTY_PROFILE: Omit<UserProfile, 'user_id' | 'created_at' | 'updated_at'> = {
+  preferred_name: '',
+  household_type: '',
+  work_schedule: '',
+  chronotype: '',
+  main_goals: [],
+  biggest_challenge: '',
+  onboarding_done: false,
+};
+
 export interface LowStockSuggestion {
   habit: GroceryHabit;
   daysSinceAdded: number;
