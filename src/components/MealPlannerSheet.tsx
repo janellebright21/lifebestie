@@ -90,6 +90,7 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
   const [ingredients, setIngredients] = useState<MealIngredient[]>(
     meal.ingredients.length > 0 ? meal.ingredients : []
   );
+  const aiUnavailable = meal.ingredients.length === 0;
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
   const [unit, setUnit] = useState('');
@@ -131,6 +132,12 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
         Ingredients — {meal.name}
       </p>
+
+      {aiUnavailable && (
+        <p className="text-xs text-gray-400">
+          AI help is not available right now — add ingredients manually below.
+        </p>
+      )}
 
       {/* Existing rows */}
       {ingredients.length > 0 && (
@@ -248,7 +255,7 @@ export default function MealPlannerSheet({
     const meal = await onAddMeal(newMealName.trim());
     setNewMealName('');
     setAddingMeal(false);
-    // Open ingredient editor immediately if no ingredients came back (API key absent)
+    // Open ingredient editor when AI couldn't fetch ingredients
     if (meal && meal.ingredients.length === 0) {
       setEditingId(meal.id);
     }

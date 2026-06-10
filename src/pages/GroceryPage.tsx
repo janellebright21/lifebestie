@@ -528,6 +528,10 @@ function BudgetSuggestions({
             body: JSON.stringify({ items, weeklyBudget, estimatedTotal }),
           }
         );
+        if (!res.ok) {
+          setSuggestions([]);
+          return;
+        }
         const data = await res.json();
         setSuggestions(data.suggestions ?? []);
       } catch {
