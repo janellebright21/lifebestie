@@ -1,27 +1,38 @@
-import { Home, Calendar, Plus, ShoppingCart, MessageCircle, LogOut, Activity, ListChecks } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { Home, Calendar, Plus, ShoppingCart, MessageCircle, Activity, ListChecks, Settings } from 'lucide-react';
+import { ModuleId } from '../lib/supabase';
 
-export type TabName = 'home' | 'planner' | 'add' | 'grocery' | 'movement' | 'routines' | 'goals' | 'chat';
+export type TabName = 'home' | 'planner' | 'add' | 'grocery' | 'movement' | 'routines' | 'goals' | 'chat' | 'settings';
 
 interface BottomNavProps {
   activeTab: TabName;
   onTabChange: (tab: TabName) => void;
+  enabledModules: Set<ModuleId>;
 }
 
-export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
-  const tabs = [
-    { id: 'home' as TabName, icon: Home, label: 'Home' },
-    { id: 'planner' as TabName, icon: Calendar, label: 'Planner' },
-    { id: 'add' as TabName, icon: Plus, label: '' },
-    { id: 'grocery' as TabName, icon: ShoppingCart, label: 'Grocery' },
-    { id: 'movement' as TabName, icon: Activity, label: 'Move' },
-    { id: 'routines' as TabName, icon: ListChecks, label: 'Routines' },
-    { id: 'chat' as TabName, icon: MessageCircle, label: 'Chat' },
+// Map from tab → module that gates it (undefined = always shown)
+const TAB_MODULE: Partial<Record<TabName, ModuleId>> = {
+  grocery:  'grocery',
+  movement: 'movement',
+  routines: 'routines',
+  chat:     'ai-assistant',
+};
+
+export default function BottomNav({ activeTab, onTabChange, enabledModules }: BottomNavProps) {
+  const allTabs = [
+    { id: 'home'     as TabName, icon: Home,         label: 'Home'     },
+    { id: 'planner'  as TabName, icon: Calendar,     label: 'Planner'  },
+    { id: 'add'      as TabName, icon: Plus,         label: ''         },
+    { id: 'grocery'  as TabName, icon: ShoppingCart, label: 'Grocery'  },
+    { id: 'movement' as TabName, icon: Activity,     label: 'Move'     },
+    { id: 'routines' as TabName, icon: ListChecks,   label: 'Routines' },
+    { id: 'chat'     as TabName, icon: MessageCircle,label: 'Chat'     },
   ];
 
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-  }
+  // Keep a tab if it has no gating module, or its module is enabled
+  const tabs = allTabs.filter((t) => {
+    const module = TAB_MODULE[t.id];
+    return !module || enabledModules.has(module);
+  });
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-rose-100 safe-bottom">
@@ -56,27 +67,26 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 className={isActive ? 'text-rose-400' : 'text-gray-400'}
                 strokeWidth={isActive ? 2.2 : 1.8}
               />
-              <span
-                className={`text-[8px] font-medium leading-none ${isActive ? 'text-rose-400' : 'text-gray-400'}`}
-              >
+              <span className={`text-[8px] font-medium leading-none ${isActive ? 'text-rose-400' : 'text-gray-400'}`}>
                 {tab.label}
               </span>
             </button>
           );
         })}
 
+        {/* Settings gear — always visible, not module-gated */}
         <button
-          onClick={handleSignOut}
-          className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px] group"
-          aria-label="Sign out"
+          onClick={() => onTabChange('settings')}
+          className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px]"
+          aria-label="Settings"
         >
-          <LogOut
+          <Settings
             size={18}
-            className="text-gray-300 group-hover:text-rose-300 transition-colors"
-            strokeWidth={1.8}
+            className={activeTab === 'settings' ? 'text-rose-400' : 'text-gray-400'}
+            strokeWidth={activeTab === 'settings' ? 2.2 : 1.8}
           />
-          <span className="text-[8px] font-medium leading-none text-gray-300 group-hover:text-rose-300 transition-colors">
-            Out
+          <span className={`text-[8px] font-medium leading-none ${activeTab === 'settings' ? 'text-rose-400' : 'text-gray-400'}`}>
+            Settings
           </span>
         </button>
       </div>

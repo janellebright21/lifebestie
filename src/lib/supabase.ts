@@ -333,6 +333,44 @@ export function getWeekStart(date = new Date()): string {
   return d.toISOString().split('T')[0];
 }
 
+// ─── Module Settings ──────────────────────────────────────────────────────────
+
+export type ModuleId =
+  | 'grocery'
+  | 'meals'
+  | 'budget'
+  | 'movement'
+  | 'ai-assistant'
+  | 'routines'
+  | 'family-hub'
+  | 'chore-tracking'
+  | 'school-tracker';
+
+export interface ModuleDef {
+  id: ModuleId;
+  label: string;
+  description: string;
+  defaultEnabled: boolean;
+  /** Whether the module has a fully-built UI (false = coming soon) */
+  available: boolean;
+}
+
+export const MODULE_DEFS: ModuleDef[] = [
+  { id: 'meals',           label: 'Meals',           description: 'Plan meals and link ingredients to your grocery list.',         defaultEnabled: true,  available: true  },
+  { id: 'grocery',         label: 'Grocery',         description: 'Weekly grocery list, pantry tracking, and receipt scanning.',    defaultEnabled: true,  available: true  },
+  { id: 'budget',          label: 'Budget',          description: 'Track grocery spending against a weekly budget.',                defaultEnabled: true,  available: true  },
+  { id: 'movement',        label: 'Movement',        description: 'Daily activity options with energy levels and streak tracking.', defaultEnabled: true,  available: true  },
+  { id: 'routines',        label: 'Routines',        description: 'Build and run reusable daily checklists with one tap.',          defaultEnabled: true,  available: true  },
+  { id: 'ai-assistant',    label: 'AI Assistant',    description: 'Chat with your personal AI to plan, add tasks, and get help.',  defaultEnabled: true,  available: true  },
+  { id: 'family-hub',      label: 'Family Hub',      description: 'Shared calendars, tasks, and notes for the whole family.',      defaultEnabled: false, available: false },
+  { id: 'chore-tracking',  label: 'Chore Tracking',  description: 'Assign and track chores with rewards and reminders.',           defaultEnabled: false, available: false },
+  { id: 'school-tracker',  label: 'School Tracker',  description: 'Track assignments, grades, and school events for kids.',        defaultEnabled: false, available: false },
+];
+
+export const DEFAULT_ENABLED_MODULES = new Set<ModuleId>(
+  MODULE_DEFS.filter((m) => m.defaultEnabled).map((m) => m.id)
+);
+
 export interface LowStockSuggestion {
   habit: GroceryHabit;
   daysSinceAdded: number;

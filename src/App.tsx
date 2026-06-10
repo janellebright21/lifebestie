@@ -11,6 +11,7 @@ import { useSpendingTrends } from './hooks/useSpendingTrends';
 import { useReceipts } from './hooks/useReceipts';
 import { usePrepareForTomorrow } from './hooks/usePrepareForTomorrow';
 import { useRoutines } from './hooks/useRoutines';
+import { useModuleSettings } from './hooks/useModuleSettings';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import HomePage from './pages/HomePage';
@@ -21,6 +22,7 @@ import GoalsPage from './pages/GoalsPage';
 import ChatPage from './pages/ChatPage';
 import MovementPage from './pages/MovementPage';
 import RoutinesPage from './pages/RoutinesPage';
+import SettingsPage from './pages/SettingsPage';
 import AuthPage from './pages/AuthPage';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
@@ -45,6 +47,7 @@ export default function App() {
   const mealPlanner = useMealPlanner();
   const groceryBudget = useGroceryBudget();
   const routinesHook = useRoutines();
+  const moduleSettings = useModuleSettings();
 
   const routines = userMemory.memory?.routines ?? [];
 
@@ -347,6 +350,12 @@ export default function App() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  const enabledModules = new Set(
+    (['grocery', 'meals', 'budget', 'movement', 'routines', 'ai-assistant',
+      'family-hub', 'chore-tracking', 'school-tracker'] as const)
+      .filter((id) => moduleSettings.isEnabled(id))
+  );
+
   return (
     <div className="min-h-[100dvh] bg-gray-50 font-sans">
       {activeTab === 'home' && (
@@ -390,6 +399,7 @@ export default function App() {
           activeRoutineRuns={routinesHook.activeRuns}
           completedRoutineRuns={routinesHook.completedRuns}
           routineTemplates={routinesHook.templates}
+          enabledModules={enabledModules}
         />
       )}
       {activeTab === 'planner' && (
@@ -427,7 +437,7 @@ export default function App() {
           goals={goalsHook.goals}
         />
       )}
-      {activeTab === 'grocery' && (
+      {activeTab === 'grocery' && enabledModules.has('grocery') && (
         <GroceryPage
           items={groceryItems}
           weeklyList={weeklyGrocery.weeklyList}
@@ -473,7 +483,7 @@ export default function App() {
           onSetProgress={goalsHook.setProgress}
         />
       )}
-      {activeTab === 'chat' && (
+      {activeTab === 'chat' && enabledModules.has('ai-assistant') && (
         <ChatPage
           memory={userMemory.memory}
           tasks={tasks}
@@ -488,14 +498,14 @@ export default function App() {
           onUpdateMemory={userMemory.updatePreferences}
         />
       )}
-      {activeTab === 'movement' && (
+      {activeTab === 'movement' && enabledModules.has('movement') && (
         <MovementPage
           events={events}
           onAddEvent={addEvent}
           onUpdateEvent={updateEvent}
         />
       )}
-      {activeTab === 'routines' && (
+      {activeTab === 'routines' && enabledModules.has('routines') && (
         <RoutinesPage
           templates={routinesHook.templates}
           todayRuns={routinesHook.todayRuns}
@@ -508,8 +518,18 @@ export default function App() {
           getRunForTemplate={routinesHook.getRunForTemplate}
         />
       )}
+      {activeTab === 'settings' && (
+        <SettingsPage
+          isEnabled={moduleSettings.isEnabled}
+          onSetEnabled={moduleSettings.setEnabled}
+        />
+      )}
 
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        enabledModules={enabledModules}
+      />
 
       {userMemory.confirmingCandidate && (
         <RoutineConfirmSheet

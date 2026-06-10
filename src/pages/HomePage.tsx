@@ -1,5 +1,5 @@
 import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks } from 'lucide-react';
-import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun } from '../lib/supabase';
+import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
 import { TabName } from '../components/BottomNav';
@@ -37,6 +37,7 @@ interface HomePageProps {
   activeRoutineRuns: RoutineRun[];
   completedRoutineRuns: RoutineRun[];
   routineTemplates: RoutineTemplate[];
+  enabledModules: Set<ModuleId>;
 }
 
 function getGreeting() {
@@ -184,6 +185,7 @@ export default function HomePage({
   activeRoutineRuns,
   completedRoutineRuns,
   routineTemplates,
+  enabledModules,
 }: HomePageProps) {
   const today = new Date().toISOString().split('T')[0];
   const tomorrowDate = (() => {
@@ -295,6 +297,7 @@ export default function HomePage({
       />
 
       {/* Movement status card */}
+      {enabledModules.has('movement') && (
       <button
         onClick={() => onTabChange('movement')}
         className="w-full text-left active:scale-[0.98] transition-transform"
@@ -362,9 +365,10 @@ export default function HomePage({
           </div>
         )}
       </button>
+      )}
 
       {/* Active routine progress */}
-      {(activeRoutineRuns.length > 0 || completedRoutineRuns.length > 0) && (
+      {enabledModules.has('routines') && (activeRoutineRuns.length > 0 || completedRoutineRuns.length > 0) && (
         <button
           onClick={() => onTabChange('routines')}
           className="w-full text-left active:scale-[0.98] transition-transform"
