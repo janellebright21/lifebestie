@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Default: Cozy Coffee theme */
+  --theme-primary:       #f87171;
+  --theme-primary-light: #fff1f2;
+  --theme-primary-mid:   #fecdd3;
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
@@ -21,5 +28,22 @@
 @layer utilities {
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Theme-aware utility classes used by themed components */
+  .theme-bg-primary {
+    background-color: var(--theme-primary);
+  }
+  .theme-text-primary {
+    color: var(--theme-primary);
+  }
+  .theme-bg-light {
+    background-color: var(--theme-primary-light);
+  }
+  .theme-border-mid {
+    border-color: var(--theme-primary-mid);
+  }
+  .theme-ring {
+    --tw-ring-color: var(--theme-primary-mid);
   }
 }

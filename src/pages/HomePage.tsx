@@ -40,6 +40,7 @@ interface HomePageProps {
   routineTemplates: RoutineTemplate[];
   enabledModules: Set<ModuleId>;
   preferredName?: string;
+  avatarTheme?: import('../lib/supabase').AvatarThemeId;
 }
 
 function getGreeting() {
@@ -189,6 +190,7 @@ export default function HomePage({
   routineTemplates,
   enabledModules,
   preferredName,
+  avatarTheme,
 }: HomePageProps) {
   const today = new Date().toISOString().split('T')[0];
   const tomorrowDate = (() => {
@@ -232,7 +234,7 @@ export default function HomePage({
     <div className="px-4 pt-6 pb-28 space-y-6 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <LifeBestieAvatar size="md" className="mt-0.5" />
+        <LifeBestieAvatar size="md" className="mt-0.5" avatarTheme={avatarTheme} />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-rose-300 uppercase tracking-widest mb-0.5">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}

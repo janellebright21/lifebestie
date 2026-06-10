@@ -13,6 +13,7 @@ import { usePrepareForTomorrow } from './hooks/usePrepareForTomorrow';
 import { useRoutines } from './hooks/useRoutines';
 import { useModuleSettings } from './hooks/useModuleSettings';
 import { useUserProfile } from './hooks/useUserProfile';
+import { usePersonalization } from './hooks/usePersonalization';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import HomePage from './pages/HomePage';
@@ -51,6 +52,7 @@ export default function App() {
   const routinesHook = useRoutines();
   const moduleSettings = useModuleSettings();
   const userProfile = useUserProfile();
+  const personalization = usePersonalization();
 
   const routines = userMemory.memory?.routines ?? [];
 
@@ -410,6 +412,7 @@ export default function App() {
           routineTemplates={routinesHook.templates}
           enabledModules={enabledModules}
           preferredName={preferredName}
+          avatarTheme={personalization.avatarTheme}
         />
       )}
       {activeTab === 'planner' && (
@@ -507,6 +510,7 @@ export default function App() {
           onAddWeeklyItem={addWeeklyItem}
           onUpdateMemory={userMemory.updatePreferences}
           preferredName={preferredName}
+          avatarTheme={personalization.avatarTheme}
         />
       )}
       {activeTab === 'movement' && enabledModules.has('movement') && (
@@ -533,6 +537,12 @@ export default function App() {
         <SettingsPage
           isEnabled={moduleSettings.isEnabled}
           onSetEnabled={moduleSettings.setEnabled}
+          currentTheme={personalization.theme}
+          currentBgSkin={personalization.bgSkin}
+          currentAvatarTheme={personalization.avatarTheme}
+          onSetTheme={personalization.setTheme}
+          onSetBgSkin={personalization.setBgSkin}
+          onSetAvatarTheme={personalization.setAvatarTheme}
         />
       )}
 

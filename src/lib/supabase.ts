@@ -371,6 +371,175 @@ export const DEFAULT_ENABLED_MODULES = new Set<ModuleId>(
   MODULE_DEFS.filter((m) => m.defaultEnabled).map((m) => m.id)
 );
 
+// ─── Personalization ──────────────────────────────────────────────────────────
+
+export type ThemeId      = 'cozy-coffee' | 'lavender-calm' | 'coastal-breeze' | 'boss-babe' | 'fresh-start';
+export type BgSkinId     = 'solid' | 'watercolor' | 'floral' | 'planner-paper' | 'minimalist';
+export type AvatarThemeId = 'classic' | 'cozy' | 'wellness' | 'professional';
+
+export interface ThemeDef {
+  id: ThemeId;
+  label: string;
+  description: string;
+  /** Primary accent color (used for nav active, buttons, badges) */
+  primary: string;
+  /** Light tint for backgrounds */
+  primaryLight: string;
+  /** Slightly darker shade for text/borders */
+  primaryMid: string;
+  /** Preview swatch — array of 2 hex colors */
+  swatch: [string, string];
+}
+
+export interface BgSkinDef {
+  id: BgSkinId;
+  label: string;
+  description: string;
+  emoji: string;
+  /** Tailwind bg class(es) applied to the page root */
+  bgClass: string;
+  /** CSS pattern string injected as backgroundImage (empty = none) */
+  patternStyle: string;
+}
+
+export interface AvatarThemeDef {
+  id: AvatarThemeId;
+  label: string;
+  emoji: string;
+  /** Tailwind gradient classes for outer ring */
+  ringGradient: string;
+  /** Tailwind gradient classes for inner circle */
+  innerGradient: string;
+}
+
+export const THEMES: ThemeDef[] = [
+  {
+    id: 'cozy-coffee',
+    label: 'Cozy Coffee',
+    description: 'Warm rose and amber — the original.',
+    primary:      '#f87171', // rose-400
+    primaryLight: '#fff1f2', // rose-50
+    primaryMid:   '#fecdd3', // rose-200
+    swatch:       ['#f87171', '#fbbf24'],
+  },
+  {
+    id: 'lavender-calm',
+    label: 'Lavender Calm',
+    description: 'Soft violet and lilac for a peaceful vibe.',
+    primary:      '#a78bfa', // violet-400
+    primaryLight: '#f5f3ff', // violet-50
+    primaryMid:   '#ddd6fe', // violet-200
+    swatch:       ['#a78bfa', '#c4b5fd'],
+  },
+  {
+    id: 'coastal-breeze',
+    label: 'Coastal Breeze',
+    description: 'Ocean blues that feel fresh and open.',
+    primary:      '#38bdf8', // sky-400
+    primaryLight: '#f0f9ff', // sky-50
+    primaryMid:   '#bae6fd', // sky-200
+    swatch:       ['#38bdf8', '#6ee7b7'],
+  },
+  {
+    id: 'boss-babe',
+    label: 'Boss Babe',
+    description: 'Bold and confident in deep rose and gold.',
+    primary:      '#e11d48', // rose-600
+    primaryLight: '#fff1f2', // rose-50
+    primaryMid:   '#fecdd3', // rose-200
+    swatch:       ['#e11d48', '#d97706'],
+  },
+  {
+    id: 'fresh-start',
+    label: 'Fresh Start',
+    description: 'Clean greens — minimal and grounded.',
+    primary:      '#34d399', // emerald-400
+    primaryLight: '#ecfdf5', // emerald-50
+    primaryMid:   '#a7f3d0', // emerald-200
+    swatch:       ['#34d399', '#6ee7b7'],
+  },
+];
+
+export const BG_SKINS: BgSkinDef[] = [
+  {
+    id: 'solid',
+    label: 'Solid',
+    description: 'Clean and minimal.',
+    emoji: '⬜',
+    bgClass: 'bg-gray-50',
+    patternStyle: '',
+  },
+  {
+    id: 'watercolor',
+    label: 'Watercolor',
+    description: 'Soft blended tones.',
+    emoji: '🎨',
+    bgClass: 'bg-[#fdf6f0]',
+    patternStyle: 'radial-gradient(ellipse at 20% 20%, var(--theme-primary-light) 0%, transparent 60%), radial-gradient(ellipse at 80% 80%, var(--theme-primary-mid) 0%, transparent 50%)',
+  },
+  {
+    id: 'floral',
+    label: 'Floral',
+    description: 'Delicate repeated petal motif.',
+    emoji: '🌸',
+    bgClass: 'bg-gray-50',
+    patternStyle: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23f9a8d4' fill-opacity='0.15'%3E%3Ccircle cx='20' cy='20' r='3'/%3E%3Ccircle cx='20' cy='10' r='2'/%3E%3Ccircle cx='20' cy='30' r='2'/%3E%3Ccircle cx='10' cy='20' r='2'/%3E%3Ccircle cx='30' cy='20' r='2'/%3E%3Ccircle cx='13' cy='13' r='1.5'/%3E%3Ccircle cx='27' cy='13' r='1.5'/%3E%3Ccircle cx='13' cy='27' r='1.5'/%3E%3Ccircle cx='27' cy='27' r='1.5'/%3E%3C/g%3E%3C/svg%3E")`,
+  },
+  {
+    id: 'planner-paper',
+    label: 'Planner Paper',
+    description: 'Subtle grid like a notebook.',
+    emoji: '📓',
+    bgClass: 'bg-[#fafafa]',
+    patternStyle: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20h40M20 0v40' stroke='%23e5e7eb' stroke-width='0.5' fill='none'/%3E%3C/svg%3E")`,
+  },
+  {
+    id: 'minimalist',
+    label: 'Minimalist',
+    description: 'Pure white, nothing distracting.',
+    emoji: '◻️',
+    bgClass: 'bg-white',
+    patternStyle: '',
+  },
+];
+
+export const AVATAR_THEMES: AvatarThemeDef[] = [
+  {
+    id: 'classic',
+    label: 'Classic',
+    emoji: '💛',
+    ringGradient:  'from-rose-200 via-amber-100 to-rose-100',
+    innerGradient: 'from-rose-300 to-amber-200',
+  },
+  {
+    id: 'cozy',
+    label: 'Cozy',
+    emoji: '☕',
+    ringGradient:  'from-amber-200 via-orange-100 to-amber-100',
+    innerGradient: 'from-amber-300 to-orange-200',
+  },
+  {
+    id: 'wellness',
+    label: 'Wellness',
+    emoji: '🌿',
+    ringGradient:  'from-emerald-200 via-teal-100 to-emerald-100',
+    innerGradient: 'from-emerald-300 to-teal-200',
+  },
+  {
+    id: 'professional',
+    label: 'Professional',
+    emoji: '✨',
+    ringGradient:  'from-sky-200 via-blue-100 to-sky-100',
+    innerGradient: 'from-sky-300 to-blue-200',
+  },
+];
+
+export const DEFAULT_PERSONALIZATION = {
+  theme: 'cozy-coffee' as ThemeId,
+  bgSkin: 'solid' as BgSkinId,
+  avatarTheme: 'classic' as AvatarThemeId,
+};
+
 // ─── User Profile ─────────────────────────────────────────────────────────────
 
 export type HouseholdType = 'solo' | 'couple' | 'family_kids' | 'family_teens' | 'multi_gen' | 'other';
