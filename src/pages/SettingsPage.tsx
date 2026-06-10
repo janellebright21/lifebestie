@@ -4,8 +4,10 @@ import {
   MODULE_DEFS, ModuleId,
   THEMES, BG_SKINS, AVATAR_THEMES,
   ThemeId, BgSkinId, AvatarThemeId,
+  LifeBestieMemory, MemoryCategory,
 } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
+import MemorySection from '../components/MemorySection';
 
 interface SettingsPageProps {
   isEnabled: (id: ModuleId) => boolean;
@@ -16,6 +18,11 @@ interface SettingsPageProps {
   onSetTheme: (id: ThemeId) => Promise<void>;
   onSetBgSkin: (id: BgSkinId) => Promise<void>;
   onSetAvatarTheme: (id: AvatarThemeId) => Promise<void>;
+  memories: LifeBestieMemory[];
+  memoriesLoading: boolean;
+  onAddMemory: (category: MemoryCategory, title: string, value: string) => Promise<LifeBestieMemory | null>;
+  onUpdateMemory: (id: string, patch: Partial<Pick<LifeBestieMemory, 'category' | 'title' | 'value'>>) => Promise<void>;
+  onDeleteMemory: (id: string) => Promise<void>;
 }
 
 // ─── Section header ───────────────────────────────────────────────────────────
@@ -151,6 +158,7 @@ export default function SettingsPage({
   isEnabled, onSetEnabled,
   currentTheme, currentBgSkin, currentAvatarTheme,
   onSetTheme, onSetBgSkin, onSetAvatarTheme,
+  memories, memoriesLoading, onAddMemory, onUpdateMemory, onDeleteMemory,
 }: SettingsPageProps) {
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -184,6 +192,18 @@ export default function SettingsPage({
           onSetTheme={onSetTheme}
           onSetBgSkin={onSetBgSkin}
           onSetAvatarTheme={onSetAvatarTheme}
+        />
+
+        {/* Divider */}
+        <div className="border-t border-gray-100" />
+
+        {/* Memory */}
+        <MemorySection
+          memories={memories}
+          loading={memoriesLoading}
+          onAdd={onAddMemory}
+          onUpdate={onUpdateMemory}
+          onDelete={onDeleteMemory}
         />
 
         {/* Divider */}

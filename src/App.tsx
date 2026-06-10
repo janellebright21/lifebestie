@@ -14,6 +14,7 @@ import { useRoutines } from './hooks/useRoutines';
 import { useModuleSettings } from './hooks/useModuleSettings';
 import { useUserProfile } from './hooks/useUserProfile';
 import { usePersonalization } from './hooks/usePersonalization';
+import { useLifeBestieMemory } from './hooks/useLifeBestieMemory';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import HomePage from './pages/HomePage';
@@ -53,6 +54,7 @@ export default function App() {
   const moduleSettings = useModuleSettings();
   const userProfile = useUserProfile();
   const personalization = usePersonalization();
+  const lifeBestieMemory = useLifeBestieMemory();
 
   const routines = userMemory.memory?.routines ?? [];
 
@@ -543,6 +545,11 @@ export default function App() {
           onSetTheme={personalization.setTheme}
           onSetBgSkin={personalization.setBgSkin}
           onSetAvatarTheme={personalization.setAvatarTheme}
+          memories={lifeBestieMemory.memories}
+          memoriesLoading={lifeBestieMemory.loading}
+          onAddMemory={lifeBestieMemory.addMemory}
+          onUpdateMemory={lifeBestieMemory.updateMemory}
+          onDeleteMemory={lifeBestieMemory.deleteMemory}
         />
       )}
 

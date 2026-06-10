@@ -547,6 +547,39 @@ export const DEFAULT_PERSONALIZATION = {
   avatarTheme: 'classic' as AvatarThemeId,
 };
 
+// ─── LifeBestie Memory ────────────────────────────────────────────────────────
+
+export const MEMORY_CATEGORIES = [
+  'Preference', 'Goal', 'Challenge', 'Routine',
+  'Favorite', 'Household', 'Wellness', 'Budget', 'Other',
+] as const;
+
+export type MemoryCategory = typeof MEMORY_CATEGORIES[number];
+
+export interface LifeBestieMemory {
+  id: string;
+  user_id: string;
+  category: MemoryCategory;
+  title: string;
+  value: string;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** emoji + color for each memory category */
+export const MEMORY_CATEGORY_META: Record<MemoryCategory, { emoji: string; color: string; bg: string }> = {
+  Preference: { emoji: '💜', color: '#a78bfa', bg: '#f5f3ff' },
+  Goal:       { emoji: '🎯', color: '#34d399', bg: '#ecfdf5' },
+  Challenge:  { emoji: '⚡', color: '#fbbf24', bg: '#fffbeb' },
+  Routine:    { emoji: '🔁', color: '#60a5fa', bg: '#eff6ff' },
+  Favorite:   { emoji: '⭐', color: '#f59e0b', bg: '#fef3c7' },
+  Household:  { emoji: '🏠', color: '#6ee7b7', bg: '#d1fae5' },
+  Wellness:   { emoji: '🌿', color: '#34d399', bg: '#ecfdf5' },
+  Budget:     { emoji: '💰', color: '#fb923c', bg: '#fff7ed' },
+  Other:      { emoji: '📝', color: '#9ca3af', bg: '#f3f4f6' },
+};
+
 // ─── User Profile ─────────────────────────────────────────────────────────────
 
 export type HouseholdType = 'solo' | 'couple' | 'family_kids' | 'family_teens' | 'multi_gen' | 'other';
