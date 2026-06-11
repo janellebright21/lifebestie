@@ -148,80 +148,271 @@
   pointer-events: none;
 }
 
-/* ─── Floating Bestie button animations ───────────────────────────────────── */
+/* ─── Peek-A-Bestie: layered character movement system ────────────────────────
+   Six named movement states, each composed of multiple CSS animations running
+   on independent elements (body, head, shoulders) at different periods.
+   All animations are CSS-only and respect prefers-reduced-motion.
+   --------------------------------------------------------------------------- */
 
-/* idle breathe — gentle float */
-@keyframes floating-idle {
-  0%, 100% { transform: translateY(0);    }
-  50%       { transform: translateY(-4px); }
+/* ── Shared utility keyframes ─────────────────────────────────────────────── */
+
+/* Slow body breathe — almost imperceptible scale */
+@keyframes pb-body-breathe {
+  0%, 100% { transform: scaleY(1)    translateY(0);    }
+  45%       { transform: scaleY(1.012) translateY(-1px); }
+  90%       { transform: scaleY(0.995) translateY(0.5px); }
 }
 
-/* rise up when tapped */
-@keyframes peek-rise {
+/* Head bob — independent period from body, slightly faster */
+@keyframes pb-head-bob {
+  0%, 100% { transform: translateY(0)    rotate(0deg);    }
+  30%       { transform: translateY(-2px) rotate(-0.6deg); }
+  65%       { transform: translateY(-1px) rotate(0.4deg);  }
+}
+
+/* Shoulder shrug — ultra-subtle vertical movement at slower rate */
+@keyframes pb-shoulder-shrug {
+  0%, 100% { transform: translateY(0) scaleX(1);     }
+  50%       { transform: translateY(-1.5px) scaleX(1.005); }
+}
+
+/* Blink — eye overlay briefly appears */
+@keyframes pb-blink {
+  0%, 88%, 92%, 100% { transform: scaleY(0); opacity: 0; }
+  89%, 91%            { transform: scaleY(1); opacity: 1; }
+}
+
+/* Double-blink (alert, page switch) */
+@keyframes pb-double-blink {
+  0%, 12%, 16%, 28%, 32%, 100% { transform: scaleY(0); opacity: 0; }
+  13%, 15%                      { transform: scaleY(1); opacity: 1; }
+  29%, 31%                      { transform: scaleY(1); opacity: 1; }
+}
+
+/* ── State: IDLE ──────────────────────────────────────────────────────────── */
+
+@keyframes pb-idle-body {
+  0%, 100% { transform: translateY(0)   rotate(0deg); }
+  40%       { transform: translateY(-3px) rotate(0deg); }
+  80%       { transform: translateY(-1px) rotate(0deg); }
+}
+
+/* ── State: LISTENING (lean-forward) ──────────────────────────────────────── */
+
+@keyframes pb-listen-body {
+  0%, 100% { transform: rotate(0deg)   translateY(0); }
+  50%       { transform: rotate(-3deg)  translateY(-2px); }
+}
+
+@keyframes pb-listen-head {
+  0%, 100% { transform: translateY(0) rotate(0deg);    }
+  40%       { transform: translateY(-3px) rotate(-2deg); }
+  80%       { transform: translateY(-1px) rotate(-0.5deg); }
+}
+
+/* ── State: THINKING (tilt + slow pulse) ──────────────────────────────────── */
+
+@keyframes pb-think-body {
+  0%, 100% { transform: scale(1);     opacity: 1;    }
+  50%       { transform: scale(0.975); opacity: 0.92; }
+}
+
+@keyframes pb-think-head {
+  0%, 100% { transform: rotate(0deg)  translateY(0); }
+  30%       { transform: rotate(-4deg) translateY(-1px); }
+  70%       { transform: rotate(-2deg) translateY(-2px); }
+}
+
+/* ── State: CELEBRATING (joyful bounce) ──────────────────────────────────── */
+
+@keyframes pb-celebrate-body {
+  0%   { transform: translateY(0)     scale(1);    }
+  18%  { transform: translateY(-14px) scale(1.04); }
+  35%  { transform: translateY(0)     scale(0.97); }
+  50%  { transform: translateY(-8px)  scale(1.02); }
+  65%  { transform: translateY(0)     scale(0.99); }
+  80%  { transform: translateY(-4px)  scale(1.01); }
+  100% { transform: translateY(0)     scale(1);    }
+}
+
+@keyframes pb-celebrate-head {
+  0%   { transform: translateY(0)     rotate(0deg);  }
+  20%  { transform: translateY(-5px)  rotate(4deg);  }
+  40%  { transform: translateY(2px)   rotate(-2deg); }
+  60%  { transform: translateY(-3px)  rotate(2deg);  }
+  100% { transform: translateY(0)     rotate(0deg);  }
+}
+
+/* sparkle burst around the character on celebrate */
+@keyframes pb-sparkle {
+  0%   { opacity: 0; transform: translate(0, 0)     scale(0);   }
+  35%  { opacity: 1; transform: translate(var(--sx), var(--sy)) scale(1.1); }
+  100% { opacity: 0; transform: translate(calc(var(--sx)*1.6), calc(var(--sy)*1.6)) scale(0.4); }
+}
+
+/* ── State: CALM (slow drift) ────────────────────────────────────────────── */
+
+@keyframes pb-calm-body {
+  0%, 100% { transform: translateY(0)   rotate(0deg);    }
+  50%       { transform: translateY(-5px) rotate(0.3deg); }
+}
+
+@keyframes pb-calm-head {
+  0%, 100% { transform: translateY(0) rotate(0deg);   }
+  60%       { transform: translateY(-2px) rotate(-0.4deg); }
+}
+
+/* ── State: PEEKING (side-to-side with counter-sway on head) ─────────────── */
+
+@keyframes pb-peek-body {
+  0%, 100% { transform: translateX(0)    rotate(0deg);   }
+  25%       { transform: translateX(-3px) rotate(-1.5deg); }
+  75%       { transform: translateX(2px)  rotate(1deg);   }
+}
+
+@keyframes pb-peek-head {
+  0%, 100% { transform: translateX(0)   rotate(0deg);   }
+  25%       { transform: translateX(2px) rotate(1.2deg); }
+  75%       { transform: translateX(-1px) rotate(-0.8deg); }
+}
+
+/* ── Rise / Rest (tap interaction) ────────────────────────────────────────── */
+
+@keyframes pb-rise {
   0%   { transform: translateY(0);     }
-  60%  { transform: translateY(-14px); }
+  55%  { transform: translateY(-14px); }
   100% { transform: translateY(-12px); }
 }
 
-/* return to rest */
-@keyframes peek-rest {
+@keyframes pb-rest {
   0%   { transform: translateY(-12px); }
-  100% { transform: translateY(0);     }
+  100% { transform: translateY(0); }
 }
 
-/* entrance wave on tab switch — applied to the whole character */
-@keyframes floating-wave {
-  0%   { transform: translateY(0)     rotate(0deg);   }
-  20%  { transform: translateY(-6px)  rotate(-5deg);  }
-  45%  { transform: translateY(-10px) rotate(3deg);   }
-  65%  { transform: translateY(-6px)  rotate(-2deg);  }
-  80%  { transform: translateY(-3px)  rotate(1deg);   }
-  100% { transform: translateY(0)     rotate(0deg);   }
+/* ── Tab-switch entrance ───────────────────────────────────────────────────── */
+
+@keyframes pb-enter {
+  0%   { transform: translateY(10px) rotate(0deg);   opacity: 0.6; }
+  40%  { transform: translateY(-8px) rotate(-4deg);  opacity: 1;   }
+  65%  { transform: translateY(-3px) rotate(2deg);   }
+  82%  { transform: translateY(-6px) rotate(-1deg);  }
+  100% { transform: translateY(0)    rotate(0deg);   }
 }
 
-/* blink: an overlay that covers the eyes region briefly */
-@keyframes peek-blink {
-  0%, 92%, 96%, 100% { opacity: 0; }
-  93%, 95%           { opacity: 1; }
-}
+/* ── Panel slide-up ────────────────────────────────────────────────────────── */
 
-/* quick-action panel slide up */
 @keyframes panel-slide-up {
   from { opacity: 0; transform: translateY(12px) scale(0.96); }
   to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
-.floating-bestie-idle {
-  animation: floating-idle 3.8s ease-in-out infinite;
+/* ═══════════════════════════════════════════════════════════════════════════
+   CSS CLASSES — each movement state exposes a .pb-state-* class on the root
+   wrapper, with descendant selectors for .pb-body, .pb-head, .pb-shoulder,
+   .pb-blink, .pb-sparkle-dot. This keeps JSX clean.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* IDLE ─────────────────────────────────────────────────────────────────────── */
+.pb-state-idle .pb-body      { animation: pb-idle-body     4.2s ease-in-out infinite; }
+.pb-state-idle .pb-head      { animation: pb-head-bob      2.9s ease-in-out infinite; }
+.pb-state-idle .pb-shoulder  { animation: pb-shoulder-shrug 5.1s ease-in-out infinite; }
+.pb-state-idle .pb-blink     { animation: pb-blink         6s   ease-in-out infinite; }
+
+/* LISTENING ─────────────────────────────────────────────────────────────────── */
+.pb-state-listening .pb-body     { animation: pb-listen-body 2.4s ease-in-out infinite; transform-origin: bottom center; }
+.pb-state-listening .pb-head     { animation: pb-listen-head 2.4s ease-in-out 0.15s infinite; }
+.pb-state-listening .pb-shoulder { animation: pb-shoulder-shrug 3.8s ease-in-out infinite; }
+.pb-state-listening .pb-blink    { animation: pb-double-blink 4s ease-in-out infinite; }
+
+/* THINKING ──────────────────────────────────────────────────────────────────── */
+.pb-state-thinking .pb-body     { animation: pb-think-body 3s ease-in-out infinite; }
+.pb-state-thinking .pb-head     { animation: pb-think-head 3s ease-in-out infinite; transform-origin: bottom center; }
+.pb-state-thinking .pb-shoulder { animation: pb-shoulder-shrug 4.5s ease-in-out infinite; }
+.pb-state-thinking .pb-blink    { animation: pb-blink 8s ease-in-out infinite; }
+
+/* CELEBRATING ───────────────────────────────────────────────────────────────── */
+.pb-state-celebrating .pb-body     { animation: pb-celebrate-body 0.9s cubic-bezier(0.34,1.56,0.64,1) both; }
+.pb-state-celebrating .pb-head     { animation: pb-celebrate-head 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.05s both; }
+.pb-state-celebrating .pb-shoulder { animation: pb-shoulder-shrug 0.45s ease-in-out 3 both; }
+.pb-state-celebrating .pb-blink    { animation: pb-double-blink 1.2s ease-in-out both; }
+
+/* CALM ──────────────────────────────────────────────────────────────────────── */
+.pb-state-calm .pb-body     { animation: pb-calm-body 5.5s ease-in-out infinite; }
+.pb-state-calm .pb-head     { animation: pb-calm-head 5.5s ease-in-out 0.4s infinite; }
+.pb-state-calm .pb-shoulder { animation: pb-shoulder-shrug 7s ease-in-out infinite; }
+.pb-state-calm .pb-blink    { animation: pb-blink 9s ease-in-out infinite; }
+
+/* PEEKING ───────────────────────────────────────────────────────────────────── */
+.pb-state-peeking .pb-body     { animation: pb-peek-body 3.6s ease-in-out infinite; transform-origin: bottom center; }
+.pb-state-peeking .pb-head     { animation: pb-peek-head 3.6s ease-in-out 0.2s infinite; }
+.pb-state-peeking .pb-shoulder { animation: pb-shoulder-shrug 4.8s ease-in-out infinite; }
+.pb-state-peeking .pb-blink    { animation: pb-blink 5s ease-in-out infinite; }
+
+/* RISE (tap open) ───────────────────────────────────────────────────────────── */
+.pb-state-rise .pb-body  { animation: pb-rise 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.pb-state-rise .pb-head  { animation: pb-head-bob 2.9s ease-in-out infinite; }
+.pb-state-rise .pb-blink { animation: pb-blink 6s ease-in-out infinite; }
+
+/* REST (tap close) ──────────────────────────────────────────────────────────── */
+.pb-state-rest .pb-body { animation: pb-rest 0.24s ease-in-out forwards; }
+
+/* ENTER (tab-switch) ────────────────────────────────────────────────────────── */
+.pb-state-enter .pb-body     { animation: pb-enter 0.72s cubic-bezier(0.34,1.56,0.64,1) both; }
+.pb-state-enter .pb-head     { animation: pb-head-bob 2.9s ease-in-out 0.72s infinite; }
+.pb-state-enter .pb-shoulder { animation: pb-shoulder-shrug 5.1s ease-in-out 0.72s infinite; }
+.pb-state-enter .pb-blink    { animation: pb-double-blink 2s ease-in-out 0.5s both; }
+
+/* Sparkle dots on celebrate */
+.pb-sparkle-dot {
+  position:   absolute;
+  width:       7px;
+  height:      7px;
+  border-radius: 50%;
+  background:  var(--theme-primary);
+  animation:   pb-sparkle 0.75s ease-out forwards;
+  pointer-events: none;
 }
 
-.floating-bestie-rise {
-  animation: peek-rise 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.floating-bestie-rest {
-  animation: peek-rest 0.24s ease-in-out forwards;
-}
-
-.floating-bestie-wave {
-  animation: floating-wave 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* blink overlay — driven by a 5s loop so she blinks every ~5s */
-.floating-bestie-blink {
-  animation: peek-blink 5s ease-in-out infinite;
-}
-
+/* Panel enter */
 .floating-panel-enter {
   animation: panel-slide-up 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* ── Honour reduced-motion ────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .floating-bestie-idle,
-  .floating-bestie-rise,
-  .floating-bestie-rest,
-  .floating-bestie-wave,
-  .floating-bestie-blink,
+  .pb-state-idle .pb-body,
+  .pb-state-idle .pb-head,
+  .pb-state-idle .pb-shoulder,
+  .pb-state-idle .pb-blink,
+  .pb-state-listening .pb-body,
+  .pb-state-listening .pb-head,
+  .pb-state-listening .pb-shoulder,
+  .pb-state-listening .pb-blink,
+  .pb-state-thinking .pb-body,
+  .pb-state-thinking .pb-head,
+  .pb-state-thinking .pb-shoulder,
+  .pb-state-thinking .pb-blink,
+  .pb-state-celebrating .pb-body,
+  .pb-state-celebrating .pb-head,
+  .pb-state-celebrating .pb-shoulder,
+  .pb-state-celebrating .pb-blink,
+  .pb-state-calm .pb-body,
+  .pb-state-calm .pb-head,
+  .pb-state-calm .pb-shoulder,
+  .pb-state-calm .pb-blink,
+  .pb-state-peeking .pb-body,
+  .pb-state-peeking .pb-head,
+  .pb-state-peeking .pb-shoulder,
+  .pb-state-peeking .pb-blink,
+  .pb-state-rise .pb-body,
+  .pb-state-rise .pb-head,
+  .pb-state-rise .pb-blink,
+  .pb-state-rest .pb-body,
+  .pb-state-enter .pb-body,
+  .pb-state-enter .pb-head,
+  .pb-state-enter .pb-shoulder,
+  .pb-state-enter .pb-blink,
+  .pb-sparkle-dot,
   .floating-panel-enter {
     animation: none;
   }
