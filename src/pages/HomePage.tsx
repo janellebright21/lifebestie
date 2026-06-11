@@ -224,6 +224,17 @@ export default function HomePage({
   const hasOverdueTasks = pendingTasks.some((t) => t.due_date && t.due_date < today);
   const homeExpression = getHomeExpression(pendingTasks.length, hasOverdueTasks, proudFlash);
 
+  const tomorrowDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  })();
+  const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  const todayTasks = tasks.slice(0, 4);
+  const todayEvents = events
+    .filter((e) => e.event_date === today)
+    .sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
+
   // Build a personalised subtitle based on bestie notes when available
   const tod = getTimeOfDay();
   let homeSubtitle: string;
@@ -239,17 +250,6 @@ export default function HomePage({
   } else {
     homeSubtitle = "Here's what's on your plate today.";
   }
-
-  const tomorrowDate = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  })();
-  const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-  const todayTasks = tasks.slice(0, 4);
-  const todayEvents = events
-    .filter((e) => e.event_date === today)
-    .sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
 
   const tomorrowEvents = events
     .filter((e) => e.event_date === tomorrowDate)
