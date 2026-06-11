@@ -15,6 +15,7 @@ import { useModuleSettings } from './hooks/useModuleSettings';
 import { useUserProfile } from './hooks/useUserProfile';
 import { usePersonalization } from './hooks/usePersonalization';
 import { useLifeBestieMemory } from './hooks/useLifeBestieMemory';
+import { useBestiePersonalization } from './hooks/useBestiePersonalization';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import HomePage from './pages/HomePage';
@@ -56,6 +57,7 @@ export default function App() {
   const userProfile = useUserProfile();
   const personalization = usePersonalization();
   const lifeBestieMemory = useLifeBestieMemory();
+  const bestiePersonalization = useBestiePersonalization();
 
   const routines = userMemory.memory?.routines ?? [];
 
@@ -418,6 +420,8 @@ export default function App() {
           preferredName={preferredName}
           avatarTheme={personalization.avatarTheme}
           character={selectedCharacter}
+          bestieNotes={bestiePersonalization.notes}
+          memoriesCount={lifeBestieMemory.memories.length}
         />
       )}
       {activeTab === 'planner' && (
@@ -556,6 +560,8 @@ export default function App() {
           onAddMemory={lifeBestieMemory.addMemory}
           onUpdateMemory={lifeBestieMemory.updateMemory}
           onDeleteMemory={lifeBestieMemory.deleteMemory}
+          bestieNotes={bestiePersonalization.notes}
+          onSaveNotes={bestiePersonalization.saveNotes}
         />
       )}
       {activeTab === 'settings' && (

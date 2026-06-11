@@ -1,12 +1,15 @@
-import { Heart, CheckCircle2, Sparkles, Check } from 'lucide-react';
+import { Heart, CheckCircle2, Sparkles, Check, Pencil, X } from 'lucide-react';
+import { useState } from 'react';
 import {
   THEMES, BG_SKINS, AVATAR_THEMES, CHARACTERS,
   MODULE_DEFS,
   ThemeId, BgSkinId, AvatarThemeId, CharacterId, ModuleId,
   LifeBestieMemory, MemoryCategory,
+  getRelationshipLevel, RELATIONSHIP_LABELS,
 } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
 import MemorySection from '../components/MemorySection';
+import type { BestieNotes } from '../hooks/useBestiePersonalization';
 
 interface MyBestiePageProps {
   preferredName: string;
@@ -21,6 +24,8 @@ interface MyBestiePageProps {
   onAddMemory: (category: MemoryCategory, title: string, value: string) => Promise<LifeBestieMemory | null>;
   onUpdateMemory: (id: string, patch: Partial<Pick<LifeBestieMemory, 'category' | 'title' | 'value'>>) => Promise<void>;
   onDeleteMemory: (id: string) => Promise<void>;
+  bestieNotes: BestieNotes;
+  onSaveNotes: (patch: Partial<BestieNotes>) => Promise<void>;
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -28,6 +33,70 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
     <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
       {children}
     </h2>
+  );
+}
+
+interface NoteFieldProps {
+  label: string;
+  placeholder: string;
+  value: string;
+  onSave: (val: string) => void;
+}
+
+function NoteField({ label, placeholder, value, onSave }: NoteFieldProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  function handleOpen() { setDraft(value); setEditing(true); }
+  function handleCancel() { setEditing(false); }
+  function handleSave() { onSave(draft.trim()); setEditing(false); }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
+        {!editing && (
+          <button
+            onClick={handleOpen}
+            className="flex items-center gap-1 text-[10px] font-semibold active:scale-95 transition-transform"
+            style={{ color: 'var(--theme-primary)' }}
+          >
+            <Pencil size={9} />
+            {value ? 'Edit' : 'Add'}
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
+            placeholder={placeholder}
+            className="flex-1 text-xs px-3 py-2 rounded-xl border focus:outline-none"
+            style={{ borderColor: 'var(--theme-primary-mid)' }}
+          />
+          <button
+            onClick={handleSave}
+            className="px-3 py-2 rounded-xl text-white text-xs font-semibold active:scale-95 transition-transform"
+            style={{ backgroundColor: 'var(--theme-primary)' }}
+          >
+            Save
+          </button>
+          <button
+            onClick={handleCancel}
+            className="p-2 rounded-xl bg-gray-100 active:scale-95 transition-transform"
+          >
+            <X size={12} className="text-gray-500" />
+          </button>
+        </div>
+      ) : (
+        <p className={`text-xs leading-relaxed ${value ? 'text-gray-700' : 'text-gray-300 italic'}`}>
+          {value || placeholder}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -44,6 +113,8 @@ export default function MyBestiePage({
   onAddMemory,
   onUpdateMemory,
   onDeleteMemory,
+  bestieNotes,
+  onSaveNotes,
 }: MyBestiePageProps) {
   const theme   = THEMES.find((t) => t.id === currentTheme) ?? THEMES[0]!;
   const skin    = BG_SKINS.find((s) => s.id === currentBgSkin) ?? BG_SKINS[0]!;
@@ -56,6 +127,13 @@ export default function MyBestiePage({
     acc[m.category] = (acc[m.category] ?? 0) + 1;
     return acc;
   }, {});
+
+  const relationshipLevel = getRelationshipLevel(memories.length);
+  const relationshipLabel = RELATIONSHIP_LABELS[relationshipLevel];
+
+  const greetingMessage = preferredName
+    ? `Hey ${preferredName}! Here's everything I know about you.`
+    : "Here's your LifeBestie profile.";
 
   return (
     <div className="min-h-[100dvh] theme-app-bg pb-24">
@@ -70,7 +148,9 @@ export default function MyBestiePage({
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-800 leading-none">My Bestie</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Your LifeBestie profile</p>
+            <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--theme-primary)' }}>
+              {relationshipLabel}
+            </p>
           </div>
         </div>
       </div>
@@ -83,11 +163,7 @@ export default function MyBestiePage({
           expression="encouraging"
           size="md"
           showSpeechBubble
-          message={
-            preferredName
-              ? `Hey ${preferredName}! Here's everything I know about you 💛`
-              : "Here's your LifeBestie profile 💛"
-          }
+          message={greetingMessage}
         />
 
         {/* ─── Hero card ──────────────────────────────────────────────────── */}
@@ -99,7 +175,6 @@ export default function MyBestiePage({
             minHeight: '180px',
           }}
         >
-          {/* Text side */}
           <div className="px-5 pt-6 pb-6 pr-40">
             <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
               {charDef.role}
@@ -110,13 +185,15 @@ export default function MyBestiePage({
             <p className="text-xs italic mt-1 leading-relaxed" style={{ color: 'var(--theme-primary)' }}>
               "{charDef.catchphrase}"
             </p>
-            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-              {memories.length > 0
-                ? `I know ${memories.length} thing${memories.length === 1 ? '' : 's'} about you.`
-                : "I'm still getting to know you. Add some memories!"}
-            </p>
+            {/* Soft relationship label — subtle, no numbers */}
+            <div
+              className="inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-full text-[10px] font-semibold"
+              style={{ backgroundColor: 'var(--theme-primary-mid)', color: 'var(--theme-primary)' }}
+            >
+              <Sparkles size={9} />
+              {relationshipLabel}
+            </div>
           </div>
-          {/* Character — anchored to bottom-right */}
           <div className="absolute bottom-0 right-4 pb-4">
             <BestieAvatar characterId={character} expression="proud" size="full" />
           </div>
@@ -168,7 +245,7 @@ export default function MyBestiePage({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4">
             <p className="text-xs text-gray-400 mb-3">How your Bestie looks in different moments</p>
             <div className="grid grid-cols-5 gap-2">
-              {([ 'happy', 'thinking', 'encouraging', 'proud', 'calm' ] as const).map((expr) => (
+              {(['happy', 'thinking', 'encouraging', 'proud', 'calm'] as const).map((expr) => (
                 <div key={expr} className="flex flex-col items-center gap-1.5">
                   <BestieAvatar characterId={character} expression={expr} size="sm" />
                   <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide text-center leading-tight">
@@ -177,6 +254,40 @@ export default function MyBestiePage({
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* ─── Personalization notes ──────────────────────────────────────── */}
+        <div>
+          <SectionHeading>What your Bestie knows</SectionHeading>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 space-y-5">
+            <p className="text-xs text-gray-400 leading-relaxed">
+              These notes help your Bestie personalise greetings and suggestions. They stay private and only you can see them.
+            </p>
+            <NoteField
+              label="Common planning struggle"
+              placeholder="e.g. I forget to schedule breaks"
+              value={bestieNotes.planning_struggle}
+              onSave={(v) => onSaveNotes({ planning_struggle: v })}
+            />
+            <NoteField
+              label="Meal planning preference"
+              placeholder="e.g. Quick weeknight dinners, batch cooking on Sundays"
+              value={bestieNotes.meal_preference}
+              onSave={(v) => onSaveNotes({ meal_preference: v })}
+            />
+            <NoteField
+              label="Wellness preference"
+              placeholder="e.g. Morning walks, yoga, reading before bed"
+              value={bestieNotes.wellness_preference}
+              onSave={(v) => onSaveNotes({ wellness_preference: v })}
+            />
+            <NoteField
+              label="How I like encouragement"
+              placeholder="e.g. Gentle reminders, motivational pushes"
+              value={bestieNotes.encouragement_style}
+              onSave={(v) => onSaveNotes({ encouragement_style: v })}
+            />
           </div>
         </div>
 

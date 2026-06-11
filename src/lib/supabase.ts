@@ -685,8 +685,37 @@ export interface UserProfile {
   biggest_challenge: string;
   onboarding_done: boolean;
   character_id?: CharacterId;
+  // Soft personalization notes — used in greetings and suggestions
+  planning_struggle?: string;
+  meal_preference?: string;
+  wellness_preference?: string;
+  encouragement_style?: string;
   created_at: string;
   updated_at: string;
+}
+
+export type RelationshipLevel =
+  | 'just-met'
+  | 'getting-to-know'
+  | 'knows-rhythm'
+  | 'life-bestie';
+
+export const RELATIONSHIP_LABELS: Record<RelationshipLevel, string> = {
+  'just-met':          'Just met',
+  'getting-to-know':   'Getting to know you',
+  'knows-rhythm':      'Knows your rhythm',
+  'life-bestie':       'Your LifeBestie',
+};
+
+/**
+ * Derives the relationship level from how much the Bestie knows about the user.
+ * Based on memories count — completely invisible to the user as a mechanic.
+ */
+export function getRelationshipLevel(memoriesCount: number): RelationshipLevel {
+  if (memoriesCount >= 9) return 'life-bestie';
+  if (memoriesCount >= 4) return 'knows-rhythm';
+  if (memoriesCount >= 1) return 'getting-to-know';
+  return 'just-met';
 }
 
 export const EMPTY_PROFILE: Omit<UserProfile, 'user_id' | 'created_at' | 'updated_at'> = {

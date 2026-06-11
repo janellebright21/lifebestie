@@ -10,6 +10,7 @@ import DailyPlanCard from '../components/DailyPlanCard';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
 import BestieAvatar from '../components/besties/BestieAvatar';
 import { getHomeExpression } from '../lib/bestieExpression';
+import type { BestieNotes } from '../hooks/useBestiePersonalization';
 
 interface HomePageProps {
   tasks: Task[];
@@ -44,12 +45,21 @@ interface HomePageProps {
   preferredName?: string;
   avatarTheme?: import('../lib/supabase').AvatarThemeId;
   character?: import('../lib/supabase').CharacterId;
+  bestieNotes?: BestieNotes;
+  memoriesCount?: number;
+}
+
+function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
 }
 
 function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
+  const tod = getTimeOfDay();
+  if (tod === 'morning')   return 'Good morning';
+  if (tod === 'afternoon') return 'Good afternoon';
   return 'Good evening';
 }
 
@@ -194,6 +204,8 @@ export default function HomePage({
   enabledModules,
   preferredName,
   character,
+  bestieNotes,
+  memoriesCount = 0,
 }: HomePageProps) {
   const [proudFlash, setProudFlash] = useState(false);
   const proudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -211,6 +223,23 @@ export default function HomePage({
   const pendingTasks = tasks.filter((t) => !t.completed);
   const hasOverdueTasks = pendingTasks.some((t) => t.due_date && t.due_date < today);
   const homeExpression = getHomeExpression(pendingTasks.length, hasOverdueTasks, proudFlash);
+
+  // Build a personalised subtitle based on bestie notes when available
+  const tod = getTimeOfDay();
+  let homeSubtitle: string;
+  if (bestieNotes && memoriesCount >= 4 && bestieNotes.planning_struggle) {
+    homeSubtitle = `Remember: ${bestieNotes.planning_struggle.toLowerCase()} — I've got you.`;
+  } else if (bestieNotes && memoriesCount >= 4 && bestieNotes.wellness_preference) {
+    const wellness = bestieNotes.wellness_preference.toLowerCase();
+    homeSubtitle = tod === 'evening'
+      ? `Don't forget your ${wellness} before bed.`
+      : `Have you done your ${wellness} today?`;
+  } else if (todayEvents.length > 0) {
+    homeSubtitle = `You've got ${todayEvents.length} thing${todayEvents.length > 1 ? 's' : ''} on today.`;
+  } else {
+    homeSubtitle = "Here's what's on your plate today.";
+  }
+
   const tomorrowDate = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -265,9 +294,7 @@ export default function HomePage({
             {getGreeting()}{preferredName ? `, ${preferredName}` : ''}.
           </h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {todayEvents.length > 0
-              ? `You've got ${todayEvents.length} thing${todayEvents.length > 1 ? 's' : ''} on today.`
-              : "Here's what's on your plate today."}
+            {homeSubtitle}
           </p>
         </div>
       </div>
