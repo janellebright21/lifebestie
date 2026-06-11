@@ -1,13 +1,16 @@
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
 
-const SUPABASE_STORAGE = 'https://gepozsoziwgroeieudzg.supabase.co/storage/v1/object/public/character-images';
+import emmaImg from '../../assets/characters/Public/Character/emma.png';
+import avaImg  from '../../assets/characters/Public/Character/ava.png';
+import noraImg from '../../assets/characters/Public/Character/nora.png';
+import lunaImg from '../../assets/characters/Public/Character/luna.png';
 
 const CHARACTER_IMAGES: Record<CharacterId, string> = {
-  emma: `${SUPABASE_STORAGE}/emma.png`,
-  ava:  `${SUPABASE_STORAGE}/ava.png`,
-  nora: `${SUPABASE_STORAGE}/nora.png`,
-  luna: `${SUPABASE_STORAGE}/luna.png`,
+  emma: emmaImg,
+  ava:  avaImg,
+  nora: noraImg,
+  luna: lunaImg,
 };
 
 export interface BestieAvatarProps {
