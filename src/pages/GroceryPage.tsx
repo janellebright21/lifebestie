@@ -19,6 +19,8 @@ import {
   getWeekStart,
   getCategoryColors,
 } from '../lib/supabase';
+import type { CharacterId } from '../lib/supabase';
+import BestieAvatar from '../components/besties/BestieAvatar';
 import MealPlannerSheet from '../components/MealPlannerSheet';
 import LowStockBanner from '../components/LowStockBanner';
 import ShoppingMode from '../components/ShoppingMode';
@@ -40,6 +42,7 @@ interface GroceryPageProps {
   mealsLoading: boolean;
   weeklyBudget: number;
   estimatedTotal: number;
+  character?: CharacterId;
   onToggle: (id: string, checked: boolean) => void;
   onAdd: (name: string, category: GroceryCategory) => Promise<void>;
   onDelete: (id: string) => void;
@@ -1643,6 +1646,7 @@ export default function GroceryPage({
   mealsLoading,
   weeklyBudget,
   estimatedTotal,
+  character,
   onToggle,
   onAdd,
   onDelete,
@@ -1770,13 +1774,20 @@ const existingNames = new Set(
 
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">Grocery List</h1>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {pageTab === 'today'
-              ? `${totalUnchecked} item${totalUnchecked !== 1 ? 's' : ''} to get`
-              : `${weeklyUnchecked} item${weeklyUnchecked !== 1 ? 's' : ''} remaining this week`}
-          </p>
+        <div className="flex items-center gap-3">
+          <BestieAvatar
+            characterId={character ?? 'emma'}
+            expression={weeklyLoading || mealsLoading ? 'thinking' : 'happy'}
+            size="sm"
+          />
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">Grocery List</h1>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {pageTab === 'today'
+                ? `${totalUnchecked} item${totalUnchecked !== 1 ? 's' : ''} to get`
+                : `${weeklyUnchecked} item${weeklyUnchecked !== 1 ? 's' : ''} remaining this week`}
+            </p>
+          </div>
         </div>
        {pageTab === 'today' && (aiItems ?? []).length > 0 && (
           <button

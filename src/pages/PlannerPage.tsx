@@ -12,8 +12,10 @@ import {
   EVENT_CATEGORIES, EventCategory,
   PASTEL_COLORS, PastelColorKey, PastelColor, PASTEL_COLOR_MAP,
 } from '../lib/supabase';
+import type { CharacterId } from '../lib/supabase';
 import { useCategoryColors, seedDefaultColors } from '../hooks/useCategoryColors';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
+import BestieAvatar from '../components/besties/BestieAvatar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +25,7 @@ interface PlannerPageProps {
   routines: Routine[];
   goals: Goal[];
   meals: Meal[];
+  character?: CharacterId;
   onAddEvent: (title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) => Promise<void>;
   onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<void>;
   onToggleTask: (id: string, completed: boolean) => void;
@@ -2820,6 +2823,7 @@ export default function PlannerPage({
   routines,
   goals,
   meals,
+  character,
   onAddEvent,
   onAddTask,
   onToggleTask,
@@ -2852,6 +2856,9 @@ export default function PlannerPage({
   // Seed defaults on first load
   useMemo(() => { seedDefaultColors(); }, []);
 
+  const pendingTodayTasks = tasks.filter((t) => !t.completed && t.due_date === today);
+  const plannerExpression = pendingTodayTasks.length === 0 ? 'encouraging' as const : 'happy' as const;
+
   const overdueCount = tasks.filter((t) => !t.completed && t.due_date && t.due_date < today).length;
   const selectedEventCount = events.filter((e) => e.event_date === selectedDate).length;
   const selectedTaskCount = tasks.filter((t) => !t.completed && t.due_date === selectedDate).length;
@@ -2879,7 +2886,10 @@ export default function PlannerPage({
     <div className="px-4 pt-6 pb-28 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-gray-800">Planner</h1>
+        <div className="flex items-center gap-3">
+          <BestieAvatar characterId={character ?? 'emma'} expression={plannerExpression} size="sm" />
+          <h1 className="text-xl font-bold text-gray-800">Planner</h1>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => { setShowAddTask((v) => !v); setShowAddEvent(false); }}

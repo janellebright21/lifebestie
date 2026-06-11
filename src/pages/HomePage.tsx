@@ -9,6 +9,7 @@ import LowStockBanner from '../components/LowStockBanner';
 import DailyPlanCard from '../components/DailyPlanCard';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
 import BestieAvatar from '../components/besties/BestieAvatar';
+import { getHomeExpression } from '../lib/bestieExpression';
 
 interface HomePageProps {
   tasks: Task[];
@@ -207,6 +208,9 @@ export default function HomePage({
   }, [onToggleTask]);
 
   const today = new Date().toISOString().split('T')[0];
+  const pendingTasks = tasks.filter((t) => !t.completed);
+  const hasOverdueTasks = pendingTasks.some((t) => t.due_date && t.due_date < today);
+  const homeExpression = getHomeExpression(pendingTasks.length, hasOverdueTasks, proudFlash);
   const tomorrowDate = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -250,7 +254,7 @@ export default function HomePage({
       <div className="flex items-end gap-4">
         <BestieAvatar
           characterId={character ?? 'emma'}
-          expression={proudFlash ? 'proud' : 'happy'}
+          expression={homeExpression}
           size="lg"
         />
         <div className="flex-1 min-w-0 pb-1">

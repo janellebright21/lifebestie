@@ -427,6 +427,7 @@ export default function App() {
           routines={userMemory.memory?.routines ?? []}
           goals={goalsHook.goals}
           meals={mealPlanner.meals}
+          character={selectedCharacter}
           onAddEvent={addEvent}
           onAddTask={addTask}
           onToggleTask={toggleTask}
@@ -471,6 +472,7 @@ export default function App() {
           mealsLoading={mealPlanner.loading}
           receiptScanning={receipts.scanning}
           receiptScanError={receipts.scanError}
+          character={selectedCharacter}
           onAdd={addGrocery}
           onToggle={toggleGrocery}
           onDelete={deleteGrocery}
@@ -522,6 +524,7 @@ export default function App() {
       {activeTab === 'movement' && enabledModules.has('movement') && (
         <MovementPage
           events={events}
+          character={selectedCharacter}
           onAddEvent={addEvent}
           onUpdateEvent={updateEvent}
         />

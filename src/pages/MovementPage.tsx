@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
+import type { CharacterId } from '../lib/supabase';
 import {
   EnergyLevel,
   MovementActivity,
@@ -9,9 +10,11 @@ import {
   encodeMovementNotes,
   useMovement,
 } from '../hooks/useMovement';
+import BestieAvatar from '../components/besties/BestieAvatar';
 
 interface MovementPageProps {
   events: Event[];
+  character?: CharacterId;
   onAddEvent: (
     title: string,
     date: string,
@@ -211,7 +214,7 @@ function TodaySummary({ todayMovements }: { todayMovements: TodayMovement[] }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function MovementPage({ events, onAddEvent, onUpdateEvent }: MovementPageProps) {
+export default function MovementPage({ events, character, onAddEvent, onUpdateEvent }: MovementPageProps) {
   const { todayMovements, streakResult } = useMovement(events);
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -244,9 +247,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
         <div className="max-w-md mx-auto flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-            <Activity size={18} className="text-emerald-500" />
-          </div>
+          <BestieAvatar characterId={character ?? 'emma'} expression="calm" size="sm" />
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-800 leading-none">Movement</h1>
             <p className="text-xs text-gray-400 mt-0.5">Pick what fits your energy today</p>
