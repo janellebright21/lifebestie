@@ -24,10 +24,10 @@ export interface BestieAvatarProps {
 }
 
 const SIZES: Record<NonNullable<BestieAvatarProps['size']>, number> = {
-  sm:   40,
-  md:   56,
-  lg:   80,
-  full: 112,
+  sm:   50,
+  md:   70,
+  lg:  100,
+  full: 140,
 };
 
 function SpeechBubble({ message, primaryColor }: { message: string; primaryColor: string }) {

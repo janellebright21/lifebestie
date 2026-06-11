@@ -96,11 +96,11 @@ export default function MyBestiePage({
           style={{
             background: `linear-gradient(135deg, var(--theme-primary-light) 0%, var(--theme-bg-color, #f9fafb) 100%)`,
             border: '1px solid var(--theme-primary-mid)',
-            minHeight: '160px',
+            minHeight: '180px',
           }}
         >
           {/* Text side */}
-          <div className="px-5 pt-6 pb-6 pr-36">
+          <div className="px-5 pt-6 pb-6 pr-40">
             <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
               {charDef.role}
             </p>
