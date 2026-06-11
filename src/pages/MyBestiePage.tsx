@@ -101,11 +101,14 @@ export default function MyBestiePage({
           {/* Text side */}
           <div className="px-5 pt-6 pb-6 pr-36">
             <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
-              LifeBestie · {charDef.name}
+              {charDef.role}
             </p>
             <h2 className="text-xl font-bold text-gray-800 leading-tight">
-              {preferredName ? `Hey, ${preferredName}!` : 'Your Bestie'}
+              {preferredName ? `Hey, ${preferredName}!` : charDef.name}
             </h2>
+            <p className="text-xs italic mt-1 leading-relaxed" style={{ color: 'var(--theme-primary)' }}>
+              "{charDef.catchphrase}"
+            </p>
             <p className="text-xs text-gray-500 mt-2 leading-relaxed">
               {memories.length > 0
                 ? `I know ${memories.length} thing${memories.length === 1 ? '' : 's'} about you.`
@@ -141,7 +144,8 @@ export default function MyBestiePage({
                   <LifeBestieAvatar size="md" character={c.id} expression="happy" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-gray-800 leading-none">{c.name}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 leading-tight">{c.tagline}</p>
+                    <p className="text-[10px] font-semibold mt-0.5 leading-tight" style={{ color: 'var(--theme-primary)' }}>{c.role}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5 leading-tight italic">{c.catchphrase}</p>
                   </div>
                   {isSelected && (
                     <div

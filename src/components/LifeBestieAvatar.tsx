@@ -57,13 +57,16 @@ function AvatarFace({ expression, palette }: { expression: AvatarExpression; pal
   const blushOpacity =
     expression === 'proud'       ? 0.55 :
     expression === 'happy'       ? 0.35 :
-    expression === 'encouraging' ? 0.20 : 0.12;
+    expression === 'encouraging' ? 0.20 :
+    expression === 'tired'       ? 0.08 :
+    0.12;
 
   return (
     <svg viewBox="0 0 40 40" width="100%" height="100%" aria-hidden="true">
       <ellipse cx="10" cy="23" rx="4.5" ry="3.5" fill={blush} opacity={blushOpacity} />
       <ellipse cx="30" cy="23" rx="4.5" ry="3.5" fill={blush} opacity={blushOpacity} />
 
+      {/* Eyes */}
       {(expression === 'happy' || expression === 'encouraging') && (<>
         <circle cx="14" cy="17" r="2.5" fill={eyes} />
         <circle cx="26" cy="17" r="2.5" fill={eyes} />
@@ -85,16 +88,53 @@ function AvatarFace({ expression, palette }: { expression: AvatarExpression; pal
         <path d="M 23 14 Q 26 12.5 29 14" stroke={mouth} strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.4" />
       </>)}
 
+      {/* Thinking: one raised brow, eyes looking up-right, neutral pursed mouth */}
+      {expression === 'thinking' && (<>
+        <circle cx="14" cy="16.5" r="2" fill={eyes} opacity="0.9" />
+        <circle cx="26" cy="16.5" r="2" fill={eyes} opacity="0.9" />
+        <circle cx="15.4" cy="15.3" r="0.7" fill="white" opacity="0.8" />
+        <circle cx="27.4" cy="15.3" r="0.7" fill="white" opacity="0.8" />
+        {/* Right brow raised */}
+        <path d="M 23 13 Q 26.5 10.5 29 12" stroke={mouth} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+        {/* Left brow flat */}
+        <path d="M 11 13.5 Q 14 12.5 17 13.5" stroke={mouth} strokeWidth="1.4" strokeLinecap="round" fill="none" />
+        {/* Small thought dots top-right */}
+        <circle cx="31" cy="9"   r="0.8" fill={accent} opacity="0.7" />
+        <circle cx="33" cy="7"   r="1.1" fill={accent} opacity="0.6" />
+        <circle cx="35.5" cy="5" r="1.5" fill={accent} opacity="0.5" />
+      </>)}
+
+      {/* Tired: droopy half-closed eyes, flat-sad mouth, heavy lids */}
+      {expression === 'tired' && (<>
+        {/* Eye bases */}
+        <circle cx="14" cy="18" r="2.2" fill={eyes} opacity="0.65" />
+        <circle cx="26" cy="18" r="2.2" fill={eyes} opacity="0.65" />
+        {/* Heavy drooping lids */}
+        <path d="M 11.5 16.5 Q 14 14.5 16.5 16.5" stroke={eyes} strokeWidth="3.5" strokeLinecap="round" fill="none" />
+        <path d="M 23.5 16.5 Q 26 14.5 28.5 16.5" stroke={eyes} strokeWidth="3.5" strokeLinecap="round" fill="none" />
+        {/* Flat brows */}
+        <path d="M 11 13.8 Q 14 13 17 13.8" stroke={mouth} strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.45" />
+        <path d="M 23 13.8 Q 26 13 29 13.8" stroke={mouth} strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.45" />
+        {/* Small Zs top-right */}
+        <text x="30" y="12" fontSize="3.5" fill={accent} opacity="0.5" fontWeight="bold">z</text>
+        <text x="32.5" y="9.5" fontSize="4.5" fill={accent} opacity="0.4" fontWeight="bold">z</text>
+      </>)}
+
+      {/* Eyebrows for encouraging */}
       {expression === 'encouraging' && (<>
         <path d="M 11 13 Q 14 11 17 13" stroke={mouth} strokeWidth="1.6" strokeLinecap="round" fill="none" />
         <path d="M 23 13 Q 26 11 29 13" stroke={mouth} strokeWidth="1.6" strokeLinecap="round" fill="none" />
       </>)}
 
+      {/* Mouths */}
       {expression === 'happy'       && <path d="M 11 24 Q 20 33 29 24" stroke={mouth} strokeWidth="2.2" strokeLinecap="round" fill="none" />}
       {expression === 'encouraging' && <path d="M 12 25 Q 20 32 28 25" stroke={mouth} strokeWidth="2.2" strokeLinecap="round" fill="none" />}
       {expression === 'proud'       && <path d="M 11 23 Q 20 32 29 23" stroke={mouth} strokeWidth="2.2" strokeLinecap="round" fill="none" />}
       {expression === 'calm'        && <path d="M 14 24 Q 20 28.5 26 24" stroke={mouth} strokeWidth="2" strokeLinecap="round" fill="none" />}
+      {expression === 'thinking'    && <path d="M 14 25 Q 18 27 22 25" stroke={mouth} strokeWidth="1.8" strokeLinecap="round" fill="none" />}
+      {expression === 'tired'       && <path d="M 14 26 Q 20 23.5 26 26" stroke={mouth} strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.8" />}
 
+      {/* Accent decorations */}
       {expression === 'happy' && (
         <path d="M 31.5 11 L 32.1 9.3 L 32.7 11 L 34.4 11.5 L 32.7 12 L 32.1 13.7 L 31.5 12 L 29.8 11.5 Z" fill={accent} opacity="0.8" />
       )}
@@ -206,7 +246,7 @@ export default function LifeBestieAvatar({
   avatarTheme = 'classic',
   expression  = 'happy',
   character,
-  outfit      = 'default',
+  outfit      = 'classic' as OutfitId,
   bubble,
 }: LifeBestieAvatarProps) {
   const [imgFailed, setImgFailed] = useState(false);

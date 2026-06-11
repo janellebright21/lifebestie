@@ -376,10 +376,10 @@ export const DEFAULT_ENABLED_MODULES = new Set<ModuleId>(
 export type ThemeId        = 'cozy-coffee' | 'lavender-calm' | 'coastal-breeze' | 'boss-babe' | 'fresh-start';
 export type BgSkinId       = 'solid' | 'watercolor' | 'floral' | 'planner-paper' | 'minimalist';
 export type AvatarThemeId  = 'classic' | 'cozy' | 'wellness' | 'professional';
-export type AvatarExpression = 'happy' | 'encouraging' | 'proud' | 'calm';
+export type AvatarExpression = 'happy' | 'encouraging' | 'proud' | 'calm' | 'thinking' | 'tired';
 export type CharacterId      = 'emma' | 'ava' | 'nora' | 'luna';
 export type CharacterVariant = 'portrait' | 'full-body';
-export type OutfitId         = 'default' | 'casual' | 'active' | 'cozy';
+export type OutfitId         = 'classic' | 'cozy' | 'professional' | 'wellness';
 
 export interface ThemeDef {
   id: ThemeId;
@@ -546,66 +546,86 @@ export const AVATAR_THEMES: AvatarThemeDef[] = [
 ];
 
 export interface CharacterDef {
-  id: CharacterId;
-  name: string;
-  emoji: string;
-  tagline: string;
-  ringGradient: string;
+  id:           CharacterId;
+  name:         string;
+  emoji:        string;
+  role:         string;
+  tagline:      string;
+  catchphrase:  string;
+  superpower:   string;
+  primaryColor: string;
+  ringGradient:  string;
   innerGradient: string;
-  faceEyes: string;
-  faceMouth: string;
-  faceBlush: string;
-  faceAccent: string;
+  faceEyes:     string;
+  faceMouth:    string;
+  faceBlush:    string;
+  faceAccent:   string;
 }
 
 export const CHARACTERS: CharacterDef[] = [
   {
-    id: 'emma',
-    name: 'Emma',
-    emoji: '🌸',
-    tagline: 'Warm & cheerful',
-    ringGradient:  'from-rose-200 via-pink-100 to-rose-100',
-    innerGradient: 'from-rose-300 to-pink-200',
-    faceEyes:  '#9f1239',
-    faceMouth: '#be123c',
-    faceBlush: '#fda4af',
-    faceAccent:'#f59e0b',
+    id:           'emma',
+    name:         'Emma',
+    emoji:        '💜',
+    role:         'The Life Bestie',
+    tagline:      'Supportive & warm',
+    catchphrase:  "We'll figure it out together.",
+    superpower:   'Brings it all together and helps you through anything life throws at you.',
+    primaryColor: '#a788fa',
+    ringGradient:  'from-violet-200 via-purple-100 to-violet-100',
+    innerGradient: 'from-violet-300 to-purple-200',
+    faceEyes:     '#6d28d9',
+    faceMouth:    '#7c3aed',
+    faceBlush:    '#ddd6fe',
+    faceAccent:   '#a78bfa',
   },
   {
-    id: 'ava',
-    name: 'Ava',
-    emoji: '🌿',
-    tagline: 'Calm & grounded',
-    ringGradient:  'from-emerald-200 via-teal-100 to-emerald-100',
-    innerGradient: 'from-emerald-300 to-teal-200',
-    faceEyes:  '#064e3b',
-    faceMouth: '#047857',
-    faceBlush: '#6ee7b7',
-    faceAccent:'#059669',
+    id:           'ava',
+    name:         'Ava',
+    emoji:        '📋',
+    role:         'The Strategy Bestie',
+    tagline:      'Organized & goal-driven',
+    catchphrase:  "Let's make a plan.",
+    superpower:   'Turns big goals into clear, actionable plans.',
+    primaryColor: '#4c7bd9',
+    ringGradient:  'from-blue-200 via-sky-100 to-blue-100',
+    innerGradient: 'from-blue-300 to-sky-200',
+    faceEyes:     '#1e40af',
+    faceMouth:    '#1d4ed8',
+    faceBlush:    '#bfdbfe',
+    faceAccent:   '#4c7bd9',
   },
   {
-    id: 'nora',
-    name: 'Nora',
-    emoji: '☀️',
-    tagline: 'Cozy & nurturing',
-    ringGradient:  'from-amber-200 via-orange-100 to-amber-100',
-    innerGradient: 'from-amber-300 to-orange-200',
-    faceEyes:  '#78350f',
-    faceMouth: '#b45309',
-    faceBlush: '#fdba74',
-    faceAccent:'#d97706',
+    id:           'nora',
+    name:         'Nora',
+    emoji:        '🌿',
+    role:         'The Homemaker Bestie',
+    tagline:      'Nurturing & resourceful',
+    catchphrase:  "Let's make life a little easier.",
+    superpower:   'From-scratch ideas, meal planning, and making life at home easier.',
+    primaryColor: '#6fa66b',
+    ringGradient:  'from-green-200 via-emerald-100 to-green-100',
+    innerGradient: 'from-green-300 to-emerald-200',
+    faceEyes:     '#166534',
+    faceMouth:    '#15803d',
+    faceBlush:    '#bbf7d0',
+    faceAccent:   '#6fa66b',
   },
   {
-    id: 'luna',
-    name: 'Luna',
-    emoji: '🌙',
-    tagline: 'Cool & thoughtful',
-    ringGradient:  'from-sky-200 via-blue-100 to-sky-100',
-    innerGradient: 'from-sky-300 to-blue-200',
-    faceEyes:  '#0c4a6e',
-    faceMouth: '#0369a1',
-    faceBlush: '#7dd3fc',
-    faceAccent:'#0284c7',
+    id:           'luna',
+    name:         'Luna',
+    emoji:        '🔥',
+    role:         'The Wellness Bestie',
+    tagline:      'Energetic & motivating',
+    catchphrase:  'Progress over perfection.',
+    superpower:   'Self-care ideas, workouts, and building healthy habits that last.',
+    primaryColor: '#ffbc42',
+    ringGradient:  'from-orange-200 via-amber-100 to-orange-100',
+    innerGradient: 'from-orange-300 to-amber-200',
+    faceEyes:     '#9a3412',
+    faceMouth:    '#c2410c',
+    faceBlush:    '#fed7aa',
+    faceAccent:   '#ffbc42',
   },
 ];
 

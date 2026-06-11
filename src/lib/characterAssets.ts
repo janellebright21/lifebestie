@@ -8,6 +8,9 @@ import { CharacterId, CharacterVariant, AvatarExpression, OutfitId } from './sup
 // Convention on disk:
 //   /public/characters/{id}/portrait/{expression}_{outfit}.png
 //   /public/characters/{id}/full-body/{expression}_{outfit}.png
+//
+// Official required expressions: happy · encouraging · proud · calm · thinking · tired
+// Official required outfits:     classic · cozy · professional · wellness
 
 export interface CharacterAssetManifest {
   hasPortrait:  boolean;
@@ -16,11 +19,17 @@ export interface CharacterAssetManifest {
   outfits:      OutfitId[];
 }
 
+// All four characters share the same required expressions and outfits per the
+// official character guide. Flip the booleans and populate the arrays as each
+// character's art is finalized — no component changes required.
+const ALL_EXPRESSIONS: AvatarExpression[] = ['happy', 'encouraging', 'proud', 'calm', 'thinking', 'tired'];
+const ALL_OUTFITS: OutfitId[]             = ['classic', 'cozy', 'professional', 'wellness'];
+
 const MANIFESTS: Record<CharacterId, CharacterAssetManifest> = {
-  emma: { hasPortrait: false, hasFullBody: false, expressions: [], outfits: [] },
-  ava:  { hasPortrait: false, hasFullBody: false, expressions: [], outfits: [] },
-  nora: { hasPortrait: false, hasFullBody: false, expressions: [], outfits: [] },
-  luna: { hasPortrait: false, hasFullBody: false, expressions: [], outfits: [] },
+  emma: { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  ava:  { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  nora: { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  luna: { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
 };
 
 export function getManifest(id: CharacterId): CharacterAssetManifest {
@@ -29,13 +38,13 @@ export function getManifest(id: CharacterId): CharacterAssetManifest {
 
 // ─── Path resolver ────────────────────────────────────────────────────────────
 // Returns the expected public URL for a given character asset.
-// Caller should confirm the manifest says the asset exists before using the path.
+// The component only loads the image when the manifest marks the variant as available.
 
 export function getAssetPath(
   id:         CharacterId,
   variant:    CharacterVariant,
   expression: AvatarExpression = 'happy',
-  outfit:     OutfitId         = 'default',
+  outfit:     OutfitId         = 'classic',
 ): string {
   return `/characters/${id}/${variant}/${expression}_${outfit}.png`;
 }
@@ -56,7 +65,9 @@ export function resolveExpression(
   id:         CharacterId,
   expression: AvatarExpression,
 ): AvatarExpression | null {
-  const { expressions } = MANIFESTS[id];
+  const manifest = MANIFESTS[id];
+  if (!manifest.hasPortrait && !manifest.hasFullBody) return null;
+  const { expressions } = manifest;
   if (expressions.length === 0) return null;
   if (expressions.includes(expression)) return expression;
   if (expressions.includes('happy')) return 'happy';
@@ -68,9 +79,11 @@ export function resolveOutfit(
   id:     CharacterId,
   outfit: OutfitId,
 ): OutfitId | null {
-  const { outfits } = MANIFESTS[id];
+  const manifest = MANIFESTS[id];
+  if (!manifest.hasPortrait && !manifest.hasFullBody) return null;
+  const { outfits } = manifest;
   if (outfits.length === 0) return null;
   if (outfits.includes(outfit)) return outfit;
-  if (outfits.includes('default')) return 'default';
+  if (outfits.includes('classic')) return 'classic';
   return outfits[0] ?? null;
 }
