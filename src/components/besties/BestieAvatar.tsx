@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
 import { getManifest, getAssetPath } from '../../lib/characterAssets';
+import referenceSheet from '../../assets/characters/55341C94-210F-4AB5-8298-75CDEC93AC4A.jpeg';
 
 export interface BestieAvatarProps {
   characterId: CharacterId;
@@ -13,81 +14,88 @@ export interface BestieAvatarProps {
   className?: string;
 }
 
-// Portrait dimensions for each size
-const PORTRAIT_DIM: Record<NonNullable<BestieAvatarProps['size']>, string> = {
-  sm:   'w-10 h-10',
-  md:   'w-14 h-14',
-  lg:   'w-20 h-20',
-  full: 'w-28 h-28',
+// Rendered height of the reference sheet image (px) and x/y offsets (px)
+// to crop each character's face+upper-body into the circular container.
+// Reference sheet natural size: ~1290 × 968 px
+// Emma large figure: leftmost column (~x 0–185, y 60–680 in original)
+// Ava: ~x 235–500 | Nora: ~x 505–755 | Luna: ~x 760–1010 | Emma small col: ~x 1020–1290
+interface CropConfig {
+  imgH: number;  // rendered height of the full sheet inside the container
+  x: number;     // left offset (negative = shift image left)
+  y: number;     // top offset (negative = shift image up)
+}
+
+const CROPS: Record<CharacterId, CropConfig> = {
+  // Emma large figure on the far left of the reference sheet.
+  // At imgH=460: scale = 460/968 ≈ 0.475 → rendered width ≈ 613px
+  // Emma face centre original ≈ (95, 120) → rendered ≈ (45, 57)
+  // Shift so face lands near centre of container
+  emma: { imgH: 460, x: -10, y: -28 },
+
+  // Ava column starts at original x≈235 → rendered x≈163 at same scale
+  // Her face centre original ≈ (340, 120) → rendered ≈ (161, 57) at imgH=460
+  ava:  { imgH: 460, x: -126, y: -28 },
+
+  // Nora column starts at original x≈505
+  // Face centre original ≈ (610, 120) → rendered ≈ (290, 57)
+  nora: { imgH: 460, x: -256, y: -28 },
+
+  // Luna column starts at original x≈760
+  // Face centre original ≈ (870, 120) → rendered ≈ (413, 57)
+  luna: { imgH: 460, x: -378, y: -28 },
 };
 
-// Expression-specific emoji overlays
-const EXPRESSION_EMOJI: Record<AvatarExpression, string> = {
-  happy:       '😊',
-  encouraging: '🤗',
-  proud:       '🥹',
-  calm:        '😌',
-  thinking:    '🤔',
-  tired:       '😴',
+const PORTRAIT_DIM: Record<NonNullable<BestieAvatarProps['size']>, number> = {
+  sm:   40,
+  md:   56,
+  lg:   80,
+  full: 112,
 };
 
-// Subtle background pattern per character using their gradient
-function CharacterCard({
-  char,
-  expression,
+function CroppedCharacter({
+  characterId,
   size,
-  imgSrc,
-  onImgError,
 }: {
-  char: ReturnType<typeof CHARACTERS['find']> & object;
-  expression: AvatarExpression;
+  characterId: CharacterId;
   size: NonNullable<BestieAvatarProps['size']>;
-  imgSrc: string | null;
-  onImgError: () => void;
 }) {
   const dim = PORTRAIT_DIM[size];
-  const isFull = size === 'full';
-  const fontSize = isFull ? 'text-4xl' : size === 'lg' ? 'text-3xl' : size === 'md' ? 'text-2xl' : 'text-lg';
-  const initialsSize = isFull ? 'text-xl' : size === 'lg' ? 'text-lg' : 'text-base';
+  const crop = CROPS[characterId];
+  const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
+
+  // Scale the crop offsets proportionally to the container size
+  // Base crop was designed for lg (80px); scale accordingly
+  const scale = dim / 80;
+  const imgH = crop.imgH * scale;
+  const x = crop.x * scale;
+  const y = crop.y * scale;
 
   return (
     <div
-      className={`relative ${dim} rounded-full shrink-0 overflow-hidden`}
       style={{
-        background: `linear-gradient(135deg, ${char.primaryColor}33 0%, ${char.primaryColor}88 50%, ${char.primaryColor}cc 100%)`,
+        width: dim,
+        height: dim,
+        borderRadius: '50%',
+        overflow: 'hidden',
         boxShadow: `0 0 0 3px ${char.primaryColor}44, 0 4px 12px ${char.primaryColor}33`,
+        flexShrink: 0,
+        position: 'relative',
+        backgroundColor: `${char.primaryColor}22`,
       }}
     >
-      {imgSrc ? (
-        <img
-          src={imgSrc}
-          alt={char.name}
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={onImgError}
-          draggable={false}
-        />
-      ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
-          {/* Decorative top arc */}
-          <div
-            className="absolute top-0 inset-x-0 h-1/2 opacity-30"
-            style={{ background: `radial-gradient(ellipse at 50% -20%, white, transparent 70%)` }}
-          />
-          {/* Character emoji expression */}
-          <span className={`${fontSize} leading-none select-none relative z-10`}>
-            {EXPRESSION_EMOJI[expression]}
-          </span>
-          {/* Character name initial chip */}
-          <div
-            className="relative z-10 px-1.5 py-0.5 rounded-full mt-0.5"
-            style={{ backgroundColor: `${char.primaryColor}cc` }}
-          >
-            <span className={`${initialsSize} font-black text-white leading-none`}>
-              {char.name[0]}
-            </span>
-          </div>
-        </div>
-      )}
+      <img
+        src={referenceSheet}
+        alt={char.name}
+        draggable={false}
+        style={{
+          height: imgH,
+          width: 'auto',
+          position: 'absolute',
+          left: x,
+          top: y,
+          userSelect: 'none',
+        }}
+      />
     </div>
   );
 }
@@ -119,23 +127,40 @@ export default function BestieAvatar({
 
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
 
-  // Resolve real asset path if available
-  let imgSrc: string | null = null;
+  // Check for a dedicated per-character asset (drops in via manifest)
+  let dedicatedSrc: string | null = null;
   if (!imgFailed) {
     const manifest = getManifest(characterId);
     if (manifest.hasPortrait) {
-      imgSrc = getAssetPath(characterId, 'portrait', expression, outfit);
+      dedicatedSrc = getAssetPath(characterId, 'portrait', expression, outfit);
     }
   }
 
-  const avatarEl = (
-    <CharacterCard
-      char={char}
-      expression={expression}
-      size={size}
-      imgSrc={imgSrc}
-      onImgError={() => setImgFailed(true)}
-    />
+  const dim = PORTRAIT_DIM[size];
+
+  const avatarEl = dedicatedSrc ? (
+    // Once a real per-character PNG exists, use it
+    <div
+      style={{
+        width: dim,
+        height: dim,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        boxShadow: `0 0 0 3px ${char.primaryColor}44`,
+        flexShrink: 0,
+      }}
+    >
+      <img
+        src={dedicatedSrc}
+        alt={char.name}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onError={() => setImgFailed(true)}
+        draggable={false}
+      />
+    </div>
+  ) : (
+    // Crop from the reference sheet — works for all four characters
+    <CroppedCharacter characterId={characterId} size={size} />
   );
 
   if (!showSpeechBubble && !message) {
@@ -145,9 +170,7 @@ export default function BestieAvatar({
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       {avatarEl}
-      {(showSpeechBubble || message) && message && (
-        <SpeechBubble message={message} primaryColor={char.primaryColor} />
-      )}
+      {message && <SpeechBubble message={message} primaryColor={char.primaryColor} />}
     </div>
   );
 }
