@@ -1,13 +1,13 @@
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
 
-// Files must exist at public/characters/{name}.png with real content.
-// Served as static assets — no Vite import needed, no bundler filename restrictions.
+const SUPABASE_STORAGE = 'https://kqdqqyvavdiqhxifuwug.supabase.co/storage/v1/object/public/character-images';
+
 const CHARACTER_IMAGES: Record<CharacterId, string> = {
-  emma: '/characters/emma.png',
-  ava:  '/characters/ava.png',
-  nora: '/characters/nora.png',
-  luna: '/characters/luna.png',
+  emma: `${SUPABASE_STORAGE}/emma.png`,
+  ava:  `${SUPABASE_STORAGE}/ava.png`,
+  nora: `${SUPABASE_STORAGE}/nora.png`,
+  luna: `${SUPABASE_STORAGE}/luna.png`,
 };
 
 export interface BestieAvatarProps {
