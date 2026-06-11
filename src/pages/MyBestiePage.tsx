@@ -5,7 +5,7 @@ import {
   ThemeId, BgSkinId, AvatarThemeId, CharacterId, ModuleId,
   LifeBestieMemory, MemoryCategory,
 } from '../lib/supabase';
-import LifeBestieAvatar from '../components/LifeBestieAvatar';
+import BestieAvatar from '../components/besties/BestieAvatar';
 import MemorySection from '../components/MemorySection';
 
 interface MyBestiePageProps {
@@ -78,11 +78,12 @@ export default function MyBestiePage({
       <div className="max-w-md mx-auto px-4 py-5 space-y-8">
 
         {/* ─── Greeting bubble ────────────────────────────────────────────── */}
-        <LifeBestieAvatar
-          size="md"
-          character={character}
+        <BestieAvatar
+          characterId={character}
           expression="encouraging"
-          bubble={
+          size="md"
+          showSpeechBubble
+          message={
             preferredName
               ? `Hey ${preferredName}! Here's everything I know about you 💛`
               : "Here's your LifeBestie profile 💛"
@@ -116,8 +117,8 @@ export default function MyBestiePage({
             </p>
           </div>
           {/* Character — anchored to bottom-right */}
-          <div className="absolute bottom-0 right-4">
-            <LifeBestieAvatar size="xl" variant="full-body" character={character} expression="proud" />
+          <div className="absolute bottom-0 right-4 pb-4">
+            <BestieAvatar characterId={character} expression="proud" size="full" />
           </div>
         </div>
 
@@ -141,7 +142,7 @@ export default function MyBestiePage({
                     borderColor: 'var(--theme-primary-mid)',
                   } : {}}
                 >
-                  <LifeBestieAvatar size="md" character={c.id} expression="happy" />
+                  <BestieAvatar characterId={c.id} expression="happy" size="md" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-gray-800 leading-none">{c.name}</p>
                     <p className="text-[10px] font-semibold mt-0.5 leading-tight" style={{ color: 'var(--theme-primary)' }}>{c.role}</p>
@@ -182,7 +183,7 @@ export default function MyBestiePage({
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-3 py-3 space-y-2">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Avatar</p>
-              <LifeBestieAvatar size="sm" character={character} expression="happy" />
+              <BestieAvatar characterId={character} expression="happy" size="sm" />
               <p className="text-xs font-semibold text-gray-700 leading-tight">{avatar.label}</p>
             </div>
           </div>

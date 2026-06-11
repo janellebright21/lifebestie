@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
+import BestieAvatar from '../components/besties/BestieAvatar';
 
 interface Message {
   id: string;
@@ -198,7 +199,11 @@ export default function ChatPage({
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
-        <LifeBestieAvatar size="xl" variant="portrait" avatarTheme={avatarTheme} expression={isTyping ? 'encouraging' : 'calm'} character={character} />
+        <BestieAvatar
+          characterId={character ?? 'emma'}
+          expression={isTyping ? 'encouraging' : 'calm'}
+          size="md"
+        />
         <div>
           <h1 className="text-sm font-bold text-gray-800">LifeBestie</h1>
           <p className="text-xs text-emerald-500 font-medium">Always here for you</p>

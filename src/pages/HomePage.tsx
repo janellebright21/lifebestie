@@ -7,7 +7,7 @@ import { useMovement, MOVEMENT_OPTIONS, EnergyLevel } from '../hooks/useMovement
 import LowStockBanner from '../components/LowStockBanner';
 import DailyPlanCard from '../components/DailyPlanCard';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
-import LifeBestieAvatar from '../components/LifeBestieAvatar';
+import BestieAvatar from '../components/besties/BestieAvatar';
 
 interface HomePageProps {
   tasks: Task[];
@@ -191,7 +191,6 @@ export default function HomePage({
   routineTemplates,
   enabledModules,
   preferredName,
-  avatarTheme,
   character,
 }: HomePageProps) {
   const today = new Date().toISOString().split('T')[0];
@@ -236,7 +235,11 @@ export default function HomePage({
     <div className="px-4 pt-6 pb-28 space-y-6 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-end gap-4">
-        <LifeBestieAvatar size="xl" variant="portrait" avatarTheme={avatarTheme} expression="happy" character={character} />
+        <BestieAvatar
+          characterId={character ?? 'emma'}
+          expression="happy"
+          size="lg"
+        />
         <div className="flex-1 min-w-0 pb-1">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
