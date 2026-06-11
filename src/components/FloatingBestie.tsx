@@ -1,9 +1,37 @@
 import { useEffect, useRef, useState } from 'react';
-import { MessageCircle, CalendarDays, Plus, ShoppingCart, X } from 'lucide-react';
+import { MessageCircle, CalendarDays, Plus, ShoppingCart } from 'lucide-react';
 import { CHARACTERS } from '../lib/supabase';
 import type { CharacterId, AvatarExpression } from '../lib/supabase';
 import { resolveExpressionSrc } from '../lib/characterAssets';
 import type { TabName } from './BottomNav';
+
+// ─── constants ────────────────────────────────────────────────────────────────
+
+// How many px of the character show from the right edge when idle
+const PEEK_WIDTH  = 72;
+// Full character image width (before clipping)
+const CHAR_WIDTH  = 110;
+// Character image height — shows head → upper torso
+const CHAR_HEIGHT = 140;
+// How far the nav bar is from the bottom
+const NAV_HEIGHT  = 64; // px — matches safe-bottom nav
+
+// Pages where the companion hides (has its own prominent bestie UI already)
+const HIDDEN_ON: Set<TabName> = new Set(['bestie', 'settings', 'add']);
+
+// ─── types ────────────────────────────────────────────────────────────────────
+
+type MotionState = 'idle' | 'wave' | 'rise' | 'rest';
+
+interface QuickAction {
+  icon: React.ReactNode;
+  label: string;
+  tab: TabName;
+  accent: string;    // bg color
+  textColor: string; // text + icon color
+}
+
+// ─── component ────────────────────────────────────────────────────────────────
 
 interface FloatingBestieProps {
   characterId: CharacterId;
@@ -12,170 +40,270 @@ interface FloatingBestieProps {
   onTabChange: (tab: TabName) => void;
 }
 
-interface QuickAction {
-  icon: React.ReactNode;
-  label: string;
-  tab: TabName;
-  color: string;
-}
-
-// Tabs where the floating button hides (those pages already have a prominent bestie header)
-const HIDDEN_ON: Set<TabName> = new Set(['bestie', 'settings', 'add']);
-
 export default function FloatingBestie({
   characterId,
   expression = 'happy',
   activeTab,
   onTabChange,
 }: FloatingBestieProps) {
-  const [open, setOpen] = useState(false);
-  const [waving, setWaving] = useState(false);
-  const prevTab = useRef<TabName>(activeTab);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
-  const src = resolveExpressionSrc(characterId, expression);
+  const [open, setOpen]           = useState(false);
+  const [motion, setMotion]       = useState<MotionState>('idle');
+  const prevTabRef                = useRef<TabName>(activeTab);
+  const wrapperRef                = useRef<HTMLDivElement>(null);
+  const char                      = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
+  const src                       = resolveExpressionSrc(characterId, expression);
 
-  // Trigger wave animation on tab switch
+  // ── Tab-switch wave ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (prevTab.current !== activeTab) {
-      prevTab.current = activeTab;
-      setOpen(false);
-      setWaving(true);
-    }
+    if (prevTabRef.current === activeTab) return;
+    prevTabRef.current = activeTab;
+    setOpen(false);
+    setMotion('wave');
   }, [activeTab]);
 
-  function handleWaveEnd() {
-    setWaving(false);
+  // After wave finishes, return to idle
+  function handleAnimEnd() {
+    if (motion === 'wave') setMotion('idle');
+    if (motion === 'rest') setMotion('idle');
+  }
+
+  // ── Tap ─────────────────────────────────────────────────────────────────────
+  function handleTap() {
+    if (!open) {
+      setOpen(true);
+      setMotion('rise');
+    } else {
+      setOpen(false);
+      setMotion('rest');
+    }
   }
 
   // Close panel when tapping outside
   useEffect(() => {
     if (!open) return;
-    function handleOutside(e: MouseEvent | TouchEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+    function onOutside(e: MouseEvent | TouchEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
+        setMotion('rest');
       }
     }
-    document.addEventListener('mousedown', handleOutside);
-    document.addEventListener('touchstart', handleOutside);
+    document.addEventListener('mousedown', onOutside);
+    document.addEventListener('touchstart', onOutside);
     return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('touchstart', handleOutside);
+      document.removeEventListener('mousedown', onOutside);
+      document.removeEventListener('touchstart', onOutside);
     };
   }, [open]);
 
   if (HIDDEN_ON.has(activeTab)) return null;
 
+  // ── Animation class ──────────────────────────────────────────────────────────
+  const motionClass: string = {
+    idle:  'floating-bestie-idle',
+    wave:  'floating-bestie-wave',
+    rise:  'floating-bestie-rise',
+    rest:  'floating-bestie-rest',
+  }[motion];
+
+  // ── Quick actions ────────────────────────────────────────────────────────────
   const actions: QuickAction[] = [
     {
-      icon: <MessageCircle size={16} />,
-      label: 'Chat with Bestie',
-      tab: 'chat',
-      color: 'bg-violet-50 text-violet-600 border-violet-100',
+      icon:      <MessageCircle size={15} />,
+      label:     'Chat with Bestie',
+      tab:       'chat',
+      accent:    '#f3f0ff',
+      textColor: '#7c3aed',
     },
     {
-      icon: <CalendarDays size={16} />,
-      label: 'Plan my day',
-      tab: 'planner',
-      color: 'bg-sky-50 text-sky-600 border-sky-100',
+      icon:      <CalendarDays size={15} />,
+      label:     'Plan my day',
+      tab:       'planner',
+      accent:    '#eff6ff',
+      textColor: '#2563eb',
     },
     {
-      icon: <Plus size={16} />,
-      label: 'Add a task',
-      tab: 'add',
-      color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      icon:      <Plus size={15} />,
+      label:     'Add a task',
+      tab:       'add',
+      accent:    '#f0fdf4',
+      textColor: '#16a34a',
     },
     {
-      icon: <ShoppingCart size={16} />,
-      label: 'Grocery help',
-      tab: 'grocery',
-      color: 'bg-amber-50 text-amber-600 border-amber-100',
+      icon:      <ShoppingCart size={15} />,
+      label:     'Grocery help',
+      tab:       'grocery',
+      accent:    '#fffbeb',
+      textColor: '#d97706',
     },
   ];
 
-  const motionClass = waving ? 'floating-bestie-wave' : 'floating-bestie-idle';
+  // ── Peek offset: character right edge is flush with screen right edge ─────────
+  // translate-x makes her slide out so only PEEK_WIDTH px are visible
+  const peekOffset = CHAR_WIDTH - PEEK_WIDTH; // how much to slide off-right
 
   return (
-    // Anchor: fixed, above bottom nav (nav ~56px + safe area), right gutter
     <div
-      ref={panelRef}
-      className="fixed z-40 flex flex-col items-end gap-2"
-      style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))', right: '16px' }}
+      ref={wrapperRef}
+      style={{
+        position:   'fixed',
+        bottom:     `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom, 0px))`,
+        right:      0,
+        zIndex:     40,
+        display:    'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        // Clip overflow so the character edge bleeds off-screen cleanly
+        overflow:   'visible',
+      }}
     >
-      {/* Quick-action panel */}
+
+      {/* ── Quick-action card ──────────────────────────────────────────────── */}
       {open && (
-        <div className="floating-panel-enter flex flex-col gap-2 items-end">
-          {/* Speech bubble greeting */}
+        <div
+          className="floating-panel-enter"
+          style={{
+            marginBottom:    8,
+            marginRight:     PEEK_WIDTH - 4,
+            display:         'flex',
+            flexDirection:   'column',
+            gap:             6,
+            alignItems:      'flex-end',
+          }}
+        >
+          {/* Speech bubble */}
           <div
-            className="rounded-2xl rounded-br-sm px-3 py-2 shadow-md max-w-[180px] text-right mb-1"
             style={{
-              backgroundColor: `${char.primaryColor}14`,
-              border: `1px solid ${char.primaryColor}33`,
+              background:   `${char.primaryColor}14`,
+              border:       `1px solid ${char.primaryColor}33`,
+              borderRadius:  '16px 16px 4px 16px',
+              padding:       '8px 12px',
+              maxWidth:      180,
+              marginBottom:  4,
             }}
           >
-            <p className="text-xs font-medium text-gray-700 leading-snug">
+            <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.45, margin: 0 }}>
               Hey! What do you need?
             </p>
           </div>
 
           {/* Action buttons */}
-          {actions.map((action) => (
+          {actions.map((a) => (
             <button
-              key={action.tab}
-              onClick={() => { onTabChange(action.tab); setOpen(false); }}
-              className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl border text-sm font-semibold shadow-sm active:scale-95 transition-transform whitespace-nowrap ${action.color}`}
+              key={a.tab}
+              onClick={() => { onTabChange(a.tab); setOpen(false); setMotion('rest'); }}
+              style={{
+                display:       'flex',
+                alignItems:    'center',
+                gap:           8,
+                padding:       '9px 14px',
+                borderRadius:  14,
+                background:    a.accent,
+                color:         a.textColor,
+                border:        `1px solid ${a.textColor}22`,
+                fontSize:      13,
+                fontWeight:    600,
+                whiteSpace:    'nowrap',
+                cursor:        'pointer',
+                boxShadow:     '0 2px 8px rgba(0,0,0,0.07)',
+                WebkitTapHighlightColor: 'transparent',
+              }}
             >
-              {action.icon}
-              {action.label}
+              {a.icon}
+              {a.label}
             </button>
           ))}
         </div>
       )}
 
-      {/* Floating button */}
+      {/* ── Character peek ─────────────────────────────────────────────────── */}
       <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? 'Close quick actions' : 'Open quick actions'}
-        className="relative active:scale-95 transition-transform focus:outline-none"
-        style={{ WebkitTapHighlightColor: 'transparent' }}
+        aria-label={open ? 'Close bestie menu' : 'Open bestie menu'}
+        onClick={handleTap}
+        style={{
+          position:   'relative',
+          width:      CHAR_WIDTH,
+          height:     CHAR_HEIGHT,
+          // Slide the character so only PEEK_WIDTH shows from the right edge
+          transform:  `translateX(${peekOffset}px)`,
+          cursor:     'pointer',
+          background: 'none',
+          border:     'none',
+          padding:    0,
+          WebkitTapHighlightColor: 'transparent',
+          // Clip right edge flush — characters bleed off the screen, not off a box
+          clipPath: `inset(0 0 0 0)`,
+        }}
       >
-        {/* Close icon overlay */}
-        {open && (
-          <div
-            className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full flex items-center justify-center shadow-sm"
-            style={{ backgroundColor: char.primaryColor }}
-          >
-            <X size={10} className="text-white" strokeWidth={3} />
-          </div>
-        )}
-
-        {/* Avatar */}
+        {/* Animated image wrapper */}
         <div
           className={motionClass}
-          onAnimationEnd={waving ? handleWaveEnd : undefined}
+          onAnimationEnd={handleAnimEnd}
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            overflow: 'hidden',
-            boxShadow: open
-              ? `0 0 0 3px ${char.primaryColor}, 0 8px 24px ${char.primaryColor}44`
-              : `0 0 0 2.5px ${char.primaryColor}88, 0 6px 18px ${char.primaryColor}33`,
-            transition: 'box-shadow 0.2s ease',
+            width:  '100%',
+            height: '100%',
+            transformOrigin: 'bottom center',
           }}
         >
+          {/* Soft glow behind character so she pops off the page */}
+          <div
+            style={{
+              position:     'absolute',
+              inset:        0,
+              borderRadius: '50% 50% 0 0',
+              background:   `radial-gradient(ellipse at 40% 80%, ${char.primaryColor}22 0%, transparent 70%)`,
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Character image — portrait crop showing head/shoulders/torso */}
           <img
             src={src}
             alt={char.name}
             draggable={false}
             style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center 30%',
-              display: 'block',
+              width:          '100%',
+              height:         '100%',
+              objectFit:      'cover',
+              objectPosition: 'center 15%',
+              display:        'block',
+              // Subtle drop shadow so character reads against any background
+              filter:         'drop-shadow(0 4px 12px rgba(0,0,0,0.18))',
+              userSelect:     'none',
             }}
           />
+
+          {/* Blink overlay — thin bar that briefly darkens the eye zone */}
+          <div
+            className="floating-bestie-blink"
+            style={{
+              position:       'absolute',
+              top:            '18%',
+              left:           '15%',
+              right:          '15%',
+              height:         '8%',
+              background:     char.primaryColor,
+              opacity:        0,
+              borderRadius:   4,
+              pointerEvents:  'none',
+              mixBlendMode:   'multiply',
+            }}
+          />
+
+          {/* Tap indicator ring — only shown when open */}
+          {open && (
+            <div
+              style={{
+                position:     'absolute',
+                top:          4,
+                left:         8,
+                right:        8,
+                bottom:       0,
+                borderRadius: '50% 50% 0 0',
+                border:       `2px solid ${char.primaryColor}55`,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
         </div>
       </button>
     </div>

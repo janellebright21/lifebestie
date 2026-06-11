@@ -150,20 +150,39 @@
 
 /* ─── Floating Bestie button animations ───────────────────────────────────── */
 
-/* idle breathe for the floating button — slower and softer than bestie-breathe */
+/* idle breathe — gentle float */
 @keyframes floating-idle {
-  0%, 100% { transform: translateY(0) scale(1);     }
-  50%       { transform: translateY(-3px) scale(1.02); }
+  0%, 100% { transform: translateY(0);    }
+  50%       { transform: translateY(-4px); }
 }
 
-/* entrance wave on tab switch */
+/* rise up when tapped */
+@keyframes peek-rise {
+  0%   { transform: translateY(0);     }
+  60%  { transform: translateY(-14px); }
+  100% { transform: translateY(-12px); }
+}
+
+/* return to rest */
+@keyframes peek-rest {
+  0%   { transform: translateY(-12px); }
+  100% { transform: translateY(0);     }
+}
+
+/* entrance wave on tab switch — applied to the whole character */
 @keyframes floating-wave {
-  0%   { transform: rotate(0deg)   scale(1);    }
-  20%  { transform: rotate(-12deg) scale(1.08); }
-  45%  { transform: rotate(10deg)  scale(1.05); }
-  65%  { transform: rotate(-7deg)  scale(1.03); }
-  80%  { transform: rotate(5deg)   scale(1.01); }
-  100% { transform: rotate(0deg)   scale(1);    }
+  0%   { transform: translateY(0)     rotate(0deg);   }
+  20%  { transform: translateY(-6px)  rotate(-5deg);  }
+  45%  { transform: translateY(-10px) rotate(3deg);   }
+  65%  { transform: translateY(-6px)  rotate(-2deg);  }
+  80%  { transform: translateY(-3px)  rotate(1deg);   }
+  100% { transform: translateY(0)     rotate(0deg);   }
+}
+
+/* blink: an overlay that covers the eyes region briefly */
+@keyframes peek-blink {
+  0%, 92%, 96%, 100% { opacity: 0; }
+  93%, 95%           { opacity: 1; }
 }
 
 /* quick-action panel slide up */
@@ -172,18 +191,25 @@
   to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
-/* quick-action panel slide down on close */
-@keyframes panel-slide-down {
-  from { opacity: 1; transform: translateY(0)    scale(1);    }
-  to   { opacity: 0; transform: translateY(12px) scale(0.96); }
-}
-
 .floating-bestie-idle {
   animation: floating-idle 3.8s ease-in-out infinite;
 }
 
+.floating-bestie-rise {
+  animation: peek-rise 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.floating-bestie-rest {
+  animation: peek-rest 0.24s ease-in-out forwards;
+}
+
 .floating-bestie-wave {
-  animation: floating-wave 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: floating-wave 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* blink overlay — driven by a 5s loop so she blinks every ~5s */
+.floating-bestie-blink {
+  animation: peek-blink 5s ease-in-out infinite;
 }
 
 .floating-panel-enter {
@@ -192,8 +218,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .floating-bestie-idle,
+  .floating-bestie-rise,
+  .floating-bestie-rest,
   .floating-bestie-wave,
+  .floating-bestie-blink,
   .floating-panel-enter {
     animation: none;
   }
 }
+
