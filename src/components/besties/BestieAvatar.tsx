@@ -1,10 +1,14 @@
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
 
-import emmaImg from '../../assets/characters/emma.png';
-import avaImg  from '../../assets/characters/ava.png';
-import noraImg from '../../assets/characters/nora.png';
-import lunaImg from '../../assets/characters/luna.png';
+// Files must exist at public/characters/{name}.png with real content.
+// Served as static assets — no Vite import needed, no bundler filename restrictions.
+const CHARACTER_IMAGES: Record<CharacterId, string> = {
+  emma: '/characters/emma.png',
+  ava:  '/characters/ava.png',
+  nora: '/characters/nora.png',
+  luna: '/characters/luna.png',
+};
 
 export interface BestieAvatarProps {
   characterId: CharacterId;
@@ -16,16 +20,6 @@ export interface BestieAvatarProps {
   className?: string;
 }
 
-const CHARACTER_IMAGES: Record<CharacterId, string> = {
-  emma: emmaImg,
-  ava:  avaImg,
-  nora: noraImg,
-  luna: lunaImg,
-};
-
-// Each image is a square illustration with the character inside a colored circle,
-// speech bubble in the top-right corner.
-// object-fit: cover in a circular container naturally frames the portrait.
 const SIZES: Record<NonNullable<BestieAvatarProps['size']>, number> = {
   sm:   40,
   md:   56,
