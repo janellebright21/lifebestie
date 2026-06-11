@@ -1,7 +1,7 @@
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
 
-const SUPABASE_STORAGE = 'https://kqdqqyvavdiqhxifuwug.supabase.co/storage/v1/object/public/character-images';
+const SUPABASE_STORAGE = 'https://gepozsoziwgroeieudzg.supabase.co/storage/v1/object/public/character-images';
 
 const CHARACTER_IMAGES: Record<CharacterId, string> = {
   emma: `${SUPABASE_STORAGE}/emma.png`,
