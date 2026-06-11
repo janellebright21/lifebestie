@@ -16,8 +16,11 @@ import { useUserProfile } from './hooks/useUserProfile';
 import { usePersonalization } from './hooks/usePersonalization';
 import { useLifeBestieMemory } from './hooks/useLifeBestieMemory';
 import { useBestiePersonalization } from './hooks/useBestiePersonalization';
+import { getBestieExpression } from './lib/bestieExpression';
+import type { BestieContext } from './lib/bestieExpression';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
+import FloatingBestie from './components/FloatingBestie';
 import HomePage from './pages/HomePage';
 import PlannerPage from './pages/PlannerPage';
 import AddPage from './pages/AddPage';
@@ -167,6 +170,18 @@ export default function App() {
   const userId = session.user.id;
   const preferredName = userProfile.profile?.preferred_name || undefined;
   const selectedCharacter = (userProfile.profile?.character_id ?? 'emma') as import('./lib/supabase').CharacterId;
+
+  // Derive a context-aware expression for the floating Bestie
+  const TAB_CONTEXT: Partial<Record<TabName, BestieContext>> = {
+    home:      'home',
+    planner:   'home',
+    grocery:   'grocery-loading',
+    movement:  'movement',
+    chat:      'chat-idle',
+    routines:  'home',
+    goals:     'home',
+  };
+  const floatingExpression = getBestieExpression(TAB_CONTEXT[activeTab] ?? 'default');
 
   // ── Action handlers ────────────────────────────────────────────────────────
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
@@ -586,6 +601,13 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         enabledModules={enabledModules}
+      />
+
+      <FloatingBestie
+        characterId={selectedCharacter}
+        expression={floatingExpression}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
 
       {userMemory.confirmingCandidate && (
