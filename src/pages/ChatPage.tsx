@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory } from '../lib/supabase';
-import LifeBestieAvatar from '../components/LifeBestieAvatar';
 import BestieAvatar from '../components/besties/BestieAvatar';
 
 interface Message {
@@ -201,7 +200,7 @@ export default function ChatPage({
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
         <BestieAvatar
           characterId={character ?? 'emma'}
-          expression={isTyping ? 'encouraging' : 'calm'}
+          expression={isTyping ? 'thinking' : 'happy'}
           size="md"
         />
         <div>
@@ -218,7 +217,7 @@ export default function ChatPage({
             className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
             {msg.role === 'assistant' && (
-              <LifeBestieAvatar size="sm" className="mb-0.5" avatarTheme={avatarTheme} expression="calm" character={character} />
+              <BestieAvatar characterId={character ?? 'emma'} expression="calm" size="sm" className="mb-0.5" />
             )}
             <div className={`max-w-[78%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
               <div
@@ -238,7 +237,7 @@ export default function ChatPage({
 
         {isTyping && (
           <div className="flex items-end gap-2">
-            <LifeBestieAvatar size="sm" avatarTheme={avatarTheme} expression="encouraging" character={character} />
+            <BestieAvatar characterId={character ?? 'emma'} expression="thinking" size="sm" />
             <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-50">
               <div className="flex gap-1 items-center h-4">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />

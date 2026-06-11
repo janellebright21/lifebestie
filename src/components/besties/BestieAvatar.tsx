@@ -1,17 +1,6 @@
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
-
-import emmaImg from '../../assets/characters/Public/Character/emma.png';
-import avaImg  from '../../assets/characters/Public/Character/ava.png';
-import noraImg from '../../assets/characters/Public/Character/nora.png';
-import lunaImg from '../../assets/characters/Public/Character/luna.png';
-
-const CHARACTER_IMAGES: Record<CharacterId, string> = {
-  emma: emmaImg,
-  ava:  avaImg,
-  nora: noraImg,
-  luna: lunaImg,
-};
+import { resolveExpressionSrc } from '../../lib/characterAssets';
 
 export interface BestieAvatarProps {
   characterId: CharacterId;
@@ -46,14 +35,15 @@ function SpeechBubble({ message, primaryColor }: { message: string; primaryColor
 
 export default function BestieAvatar({
   characterId,
-  size      = 'md',
+  expression = 'happy',
+  size       = 'md',
   showSpeechBubble = false,
   message,
-  className = '',
+  className  = '',
 }: BestieAvatarProps) {
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
   const dim  = SIZES[size];
-  const src  = CHARACTER_IMAGES[characterId];
+  const src  = resolveExpressionSrc(characterId, expression);
 
   const avatarEl = (
     <div
@@ -68,7 +58,7 @@ export default function BestieAvatar({
     >
       <img
         src={src}
-        alt={char.name}
+        alt={`${char.name} ${expression}`}
         draggable={false}
         style={{
           width:          '100%',
