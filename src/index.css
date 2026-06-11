@@ -56,3 +56,110 @@
     border-color: var(--theme-primary-mid);
   }
 }
+
+/* ─── Bestie avatar motion ────────────────────────────────────────────────────
+   All animations are CSS-only and respect prefers-reduced-motion.
+   Classes are applied by BestieAvatar based on the active expression.
+   --------------------------------------------------------------------------- */
+
+/* happy: friendly entrance bounce */
+@keyframes bestie-bounce {
+  0%   { transform: translateY(0);    }
+  30%  { transform: translateY(-8px); }
+  55%  { transform: translateY(-4px); }
+  70%  { transform: translateY(-7px); }
+  85%  { transform: translateY(-2px); }
+  100% { transform: translateY(0);    }
+}
+
+/* idle breathe: subtle scale that never stops */
+@keyframes bestie-breathe {
+  0%, 100% { transform: scale(1);     }
+  50%       { transform: scale(1.025); }
+}
+
+/* thinking: slow soft pulse */
+@keyframes bestie-pulse-soft {
+  0%, 100% { transform: scale(1);     opacity: 1;    }
+  50%       { transform: scale(0.965); opacity: 0.85; }
+}
+
+/* encouraging: gentle left-right sway */
+@keyframes bestie-sway {
+  0%, 100% { transform: rotate(0deg);   }
+  25%       { transform: rotate(-2.5deg); }
+  75%       { transform: rotate(2.5deg);  }
+}
+
+/* proud: celebration bounce (runs once then holds) */
+@keyframes bestie-celebrate {
+  0%   { transform: translateY(0)     scale(1);    }
+  15%  { transform: translateY(-12px) scale(1.05); }
+  30%  { transform: translateY(0)     scale(0.97); }
+  45%  { transform: translateY(-7px)  scale(1.03); }
+  60%  { transform: translateY(0)     scale(0.99); }
+  75%  { transform: translateY(-3px)  scale(1.01); }
+  100% { transform: translateY(0)     scale(1);    }
+}
+
+/* calm: slow float up and down */
+@keyframes bestie-float {
+  0%, 100% { transform: translateY(0);   }
+  50%       { transform: translateY(-5px); }
+}
+
+/* sparkle dots that appear on proud */
+@keyframes bestie-sparkle {
+  0%   { opacity: 0; transform: scale(0)   translateY(0); }
+  40%  { opacity: 1; transform: scale(1.2) translateY(-8px); }
+  100% { opacity: 0; transform: scale(0.6) translateY(-16px); }
+}
+
+.bestie-happy {
+  animation: bestie-bounce 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+             bestie-breathe 4s ease-in-out 0.7s infinite;
+}
+
+.bestie-thinking {
+  animation: bestie-pulse-soft 2.2s ease-in-out infinite;
+}
+
+.bestie-encouraging {
+  animation: bestie-sway 2.8s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.bestie-proud {
+  animation: bestie-celebrate 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.bestie-calm {
+  animation: bestie-float 4.5s ease-in-out infinite;
+}
+
+/* Sparkle element shown on proud */
+.bestie-sparkle-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--theme-primary);
+  animation: bestie-sparkle 0.8s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Honour reduced-motion: collapse all movement to a plain fade */
+@media (prefers-reduced-motion: reduce) {
+  .bestie-happy,
+  .bestie-thinking,
+  .bestie-encouraging,
+  .bestie-proud,
+  .bestie-calm {
+    animation: none;
+  }
+
+  .bestie-sparkle-dot {
+    display: none;
+  }
+}
+
