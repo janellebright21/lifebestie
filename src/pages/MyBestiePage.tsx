@@ -162,6 +162,24 @@ export default function MyBestiePage({
           </div>
         </div>
 
+        {/* ─── Expression preview ─────────────────────────────────────────── */}
+        <div>
+          <SectionHeading>Expressions</SectionHeading>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4">
+            <p className="text-xs text-gray-400 mb-3">How your Bestie looks in different moments</p>
+            <div className="grid grid-cols-5 gap-2">
+              {([ 'happy', 'thinking', 'encouraging', 'proud', 'calm' ] as const).map((expr) => (
+                <div key={expr} className="flex flex-col items-center gap-1.5">
+                  <BestieAvatar characterId={character} expression={expr} size="sm" />
+                  <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide text-center leading-tight">
+                    {expr}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* ─── Style snapshot ─────────────────────────────────────────────── */}
         <div>
           <SectionHeading>Your Style</SectionHeading>

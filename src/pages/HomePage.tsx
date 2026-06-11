@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
 import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
@@ -193,6 +194,18 @@ export default function HomePage({
   preferredName,
   character,
 }: HomePageProps) {
+  const [proudFlash, setProudFlash] = useState(false);
+  const proudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleToggleTask = useCallback((id: string, completed: boolean) => {
+    if (completed) {
+      setProudFlash(true);
+      if (proudTimer.current) clearTimeout(proudTimer.current);
+      proudTimer.current = setTimeout(() => setProudFlash(false), 2000);
+    }
+    onToggleTask(id, completed);
+  }, [onToggleTask]);
+
   const today = new Date().toISOString().split('T')[0];
   const tomorrowDate = (() => {
     const d = new Date();
@@ -237,7 +250,7 @@ export default function HomePage({
       <div className="flex items-end gap-4">
         <BestieAvatar
           characterId={character ?? 'emma'}
-          expression="happy"
+          expression={proudFlash ? 'proud' : 'happy'}
           size="lg"
         />
         <div className="flex-1 min-w-0 pb-1">
@@ -515,7 +528,7 @@ export default function HomePage({
             {todayTasks.map((task) => (
               <button
                 key={task.id}
-                onClick={() => onToggleTask(task.id, !task.completed)}
+                onClick={() => handleToggleTask(task.id, !task.completed)}
                 className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-50 active:scale-[0.99] transition-transform text-left"
               >
                 {task.completed ? (
