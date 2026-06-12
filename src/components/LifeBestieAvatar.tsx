@@ -3,7 +3,7 @@ import {
   AVATAR_THEMES, CHARACTERS,
   AvatarThemeId, AvatarExpression, CharacterId, CharacterVariant, OutfitId,
 } from '../lib/supabase';
-import { getManifest, getAssetPath, resolveExpression, resolveOutfit } from '../lib/characterAssets';
+import { resolveExpressionSrc } from '../lib/characterAssets';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -273,15 +273,11 @@ export default function LifeBestieAvatar({
   }
 
   // ── Asset resolution ─────────────────────────────────────────────────────────
+  // Use the same bundled-import pipeline as BestieAvatar — resolveExpressionSrc
+  // returns Vite-bundled hashed URLs that are always valid.
   let assetSrc: string | null = null;
   if (character && !imgFailed) {
-    const manifest    = getManifest(character);
-    const hasAsset    = variant === 'full-body' ? manifest.hasFullBody : manifest.hasPortrait;
-    const resolvedExp = resolveExpression(character, expression);
-    const resolvedOut = resolveOutfit(character, outfit);
-    if (hasAsset && resolvedExp && resolvedOut) {
-      assetSrc = getAssetPath(character, variant, resolvedExp, resolvedOut);
-    }
+    assetSrc = resolveExpressionSrc(character, expression);
   }
 
   // ── Sizing ───────────────────────────────────────────────────────────────────

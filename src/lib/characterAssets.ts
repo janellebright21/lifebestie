@@ -110,10 +110,10 @@ const ALL_EXPRESSIONS: AvatarExpression[] = ['happy', 'encouraging', 'proud', 'c
 const ALL_OUTFITS: OutfitId[]             = ['classic', 'cozy', 'professional', 'wellness'];
 
 const MANIFESTS: Record<CharacterId, CharacterAssetManifest> = {
-  emma: { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
-  ava:  { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
-  nora: { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
-  luna: { hasPortrait: false, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  emma: { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  ava:  { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  nora: { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  luna: { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
 };
 
 export function getManifest(id: CharacterId): CharacterAssetManifest {

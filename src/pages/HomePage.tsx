@@ -1,5 +1,5 @@
 import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks } from 'lucide-react';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
@@ -9,6 +9,7 @@ import LowStockBanner from '../components/LowStockBanner';
 import DailyPlanCard from '../components/DailyPlanCard';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
 import BestieAvatar from '../components/besties/BestieAvatar';
+import type { BestieMotionState } from '../components/besties/BestieAvatar';
 import { getHomeExpression } from '../lib/bestieExpression';
 import type { BestieNotes } from '../hooks/useBestiePersonalization';
 
@@ -210,11 +211,19 @@ export default function HomePage({
   const [proudFlash, setProudFlash] = useState(false);
   const proudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Fire a wave on first mount (home screen entrance)
+  const [motionOverride, setMotionOverride] = useState<BestieMotionState | undefined>('wave');
+  useEffect(() => { setMotionOverride('wave'); }, []);
+
   const handleToggleTask = useCallback((id: string, completed: boolean) => {
     if (completed) {
       setProudFlash(true);
+      setMotionOverride('celebrating');
       if (proudTimer.current) clearTimeout(proudTimer.current);
-      proudTimer.current = setTimeout(() => setProudFlash(false), 2000);
+      proudTimer.current = setTimeout(() => {
+        setProudFlash(false);
+        setMotionOverride(undefined);
+      }, 2000);
     }
     onToggleTask(id, completed);
   }, [onToggleTask]);
@@ -285,6 +294,8 @@ export default function HomePage({
           characterId={character ?? 'emma'}
           expression={homeExpression}
           size="lg"
+          motionOverride={motionOverride}
+          onMotionEnd={() => setMotionOverride(undefined)}
         />
         <div className="flex-1 min-w-0 pb-1">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>

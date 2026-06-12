@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase, dbError, Task, Event, GroceryItem, GroceryCategory, MealIngredient, TaskCategory, TaskPriority, EventCategory } from './lib/supabase';
 import { useUserMemory } from './hooks/useUserMemory';
@@ -43,6 +43,8 @@ export default function App() {
   const [events, setEvents] = useState<Event[]>([]);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
   const [session, setSession] = useState<Session | null>(null);
+  const [appProudFlash, setAppProudFlash] = useState(false);
+  const appProudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const memoryId = localStorage.getItem(MEMORY_ID_KEY);
 
@@ -181,7 +183,9 @@ export default function App() {
     routines:  'home',
     goals:     'home',
   };
-  const floatingExpression = getBestieExpression(TAB_CONTEXT[activeTab] ?? 'default');
+  const floatingExpression = appProudFlash
+    ? 'proud' as const
+    : getBestieExpression(TAB_CONTEXT[activeTab] ?? 'default');
 
   // ── Action handlers ────────────────────────────────────────────────────────
   async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
@@ -217,7 +221,13 @@ export default function App() {
 
     const task = tasks.find((t) => t.id === id);
     if (task) {
-      if (completed) await userMemory.addHistoryAction(`Completed task: ${task.title}`);
+      if (completed) {
+        await userMemory.addHistoryAction(`Completed task: ${task.title}`);
+        // Signal the floating bestie to celebrate
+        setAppProudFlash(true);
+        if (appProudTimer.current) clearTimeout(appProudTimer.current);
+        appProudTimer.current = setTimeout(() => setAppProudFlash(false), 2200);
+      }
       if (task.linked_goal_id) {
         await goalsHook.recalculateGoalProgress(task.linked_goal_id, updatedTasks);
       }
