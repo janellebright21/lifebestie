@@ -16,6 +16,7 @@ import { useUserProfile } from './hooks/useUserProfile';
 import { usePersonalization } from './hooks/usePersonalization';
 import { useLifeBestieMemory } from './hooks/useLifeBestieMemory';
 import { useBestiePersonalization } from './hooks/useBestiePersonalization';
+import { useBestieRelationship } from './hooks/useBestieRelationship';
 import { getBestieExpression } from './lib/bestieExpression';
 import type { BestieContext } from './lib/bestieExpression';
 import BottomNav, { TabName } from './components/BottomNav';
@@ -63,6 +64,7 @@ export default function App() {
   const personalization = usePersonalization();
   const lifeBestieMemory = useLifeBestieMemory();
   const bestiePersonalization = useBestiePersonalization();
+  const bestieRelationship = useBestieRelationship();
 
   const routines = userMemory.memory?.routines ?? [];
 
@@ -208,6 +210,7 @@ export default function App() {
       const task = data as Task;
       setTasks((prev) => [task, ...prev]);
       await userMemory.addHistoryAction(`Added task: ${title}`);
+      bestieRelationship.addScore(5);
       if (linkedGoalId) {
         await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
       }
@@ -278,6 +281,7 @@ export default function App() {
     if (data) {
       setEvents((prev) => [...prev, data].sort((a, b) => a.event_date.localeCompare(b.event_date)));
       await userMemory.addHistoryAction(`Added event: ${title} on ${date}`);
+      bestieRelationship.addScore(category === 'Movement' ? 10 : 5);
     }
   }
 
@@ -302,6 +306,7 @@ export default function App() {
       setGroceryItems((prev) => [...prev, data]);
       await userMemory.addHistoryAction(`Added grocery: ${name}`);
       await userMemory.upsertGroceryHabit(name, category);
+      bestieRelationship.addScore(5);
     }
   }
 
@@ -318,6 +323,7 @@ export default function App() {
   async function addWeeklyItem(name: string, category: GroceryCategory, source: import('./lib/supabase').WeeklyGrocerySource) {
     await weeklyGrocery.addWeeklyItem(name, category, source);
     await userMemory.upsertGroceryHabit(name, category);
+    bestieRelationship.addScore(5);
   }
 
   async function skipWeeklyItem(name: string) {
@@ -349,7 +355,9 @@ export default function App() {
   }
 
   async function addMealFull(opts: { name: string; meal_type: import('./lib/supabase').MealType; meal_date: string; ingredients: MealIngredient[] }) {
-    return await mealPlanner.addMealFull(opts);
+    const result = await mealPlanner.addMealFull(opts);
+    bestieRelationship.addScore(8);
+    return result;
   }
 
   async function linkMealToEvent(eventId: string, meal: import('./lib/supabase').Meal) {
@@ -587,6 +595,7 @@ export default function App() {
           onDeleteMemory={lifeBestieMemory.deleteMemory}
           bestieNotes={bestiePersonalization.notes}
           onSaveNotes={bestiePersonalization.saveNotes}
+          relationship={bestieRelationship}
         />
       )}
       {activeTab === 'settings' && (
