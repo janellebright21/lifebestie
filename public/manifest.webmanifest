@@ -1,0 +1,18 @@
+{
+  "name": "LifeBestie",
+  "short_name": "LifeBestie",
+  "description": "A supportive life planning app with meals, groceries, routines, movement, goals, and an AI bestie.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f3ff",
+  "theme_color": "#a78bfa",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
