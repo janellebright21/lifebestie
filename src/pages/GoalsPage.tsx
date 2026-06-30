@@ -523,7 +523,7 @@ export default function GoalsPage({
   }
 
   return (
-    <div className="px-4 pt-6 pb-28 space-y-5 max-w-md mx-auto">
+    <div className="px-4 sm:px-6 pt-6 pb-32 space-y-5 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

@@ -21,7 +21,33 @@ export function useUserProfile() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // Initial load — handles app-start when a session already exists
+    load();
+
+    // Re-fetch profile whenever the user signs in (handles login after mount).
+    // We use the session object from the event to avoid calling getUser() inside
+    // the callback, which can cause deadlocks on some platforms.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, authSession) => {
+      if (event === 'SIGNED_IN' && authSession?.user) {
+        setLoading(true);
+        supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', authSession.user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            setProfile(data as UserProfile | null);
+            setLoading(false);
+          });
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [load]);
 
   async function saveProfile(patch: ProfilePatch): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();

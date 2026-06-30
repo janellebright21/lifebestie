@@ -21,10 +21,10 @@ import { getBestieExpression } from './lib/bestieExpression';
 import type { BestieContext } from './lib/bestieExpression';
 import BottomNav, { TabName } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
+import QuickAddSheet from './components/QuickAddSheet';
 import FloatingBestie from './components/FloatingBestie';
 import HomePage from './pages/HomePage';
 import PlannerPage from './pages/PlannerPage';
-import AddPage from './pages/AddPage';
 import GroceryPage from './pages/GroceryPage';
 import GoalsPage from './pages/GoalsPage';
 import ChatPage from './pages/ChatPage';
@@ -44,6 +44,10 @@ export default function App() {
   const [events, setEvents] = useState<Event[]>([]);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
   const [session, setSession] = useState<Session | null>(null);
+  // True once the initial getSession() call resolves — prevents a flash of
+  // the wrong screen while we confirm whether the user is signed in.
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [appProudFlash, setAppProudFlash] = useState(false);
   const appProudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,6 +92,7 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      setSessionChecked(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
@@ -105,6 +110,7 @@ export default function App() {
   // ── Data fetch ─────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     if (!session) return;
+    const uid = session.user.id;
 
     const [
       { data: t },
@@ -114,19 +120,19 @@ export default function App() {
       supabase
         .from('tasks')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', uid)
         .order('created_at', { ascending: false }),
 
       supabase
         .from('events')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', uid)
         .order('event_date', { ascending: true }),
 
       supabase
         .from('grocery_items')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', uid)
         .order('created_at', { ascending: true }),
     ]);
 
@@ -161,12 +167,28 @@ export default function App() {
     saveSnapshot(weekStart, items, weeklyBudgetValue);
   }, [activeTab, weeklyGrocery.weeklyList, weeklyBudgetValue, saveSnapshot]);
 
-  // ── Guard: show auth page if not signed in (after all hooks) ──────────────
+  // ── Guard: loading screen while we confirm auth + profile status ───────────
+  // We must wait for:
+  //   1. sessionChecked  — getSession() has resolved so we know if logged in
+  //   2. userProfile.loading false — profile has been fetched (when a session exists)
+  // Without this, a briefly-null profile after login would incorrectly trigger onboarding.
+  if (!sessionChecked || (session !== null && userProfile.loading)) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center theme-app-bg">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-9 h-9 rounded-full border-[3px] border-gray-200 border-t-rose-400 animate-spin" />
+          <p className="text-sm text-gray-400">Getting everything ready…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Guard: show auth page if not signed in ─────────────────────────────────
   if (!session) {
     return <AuthPage />;
   }
 
-  // ── Guard: show onboarding if profile not yet complete ────────────────────
+  // ── Guard: show onboarding only when profile is confirmed incomplete ────────
   if (userProfile.needsOnboarding) {
     return <OnboardingPage onComplete={userProfile.completeOnboarding} />;
   }
@@ -422,7 +444,10 @@ export default function App() {
           dailyPlanGenerating={dailyPlanner.generating}
           onToggleTask={toggleTask}
           onAddGrocery={addGrocery}
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => {
+            if (tab === 'add') { setQuickAddOpen(true); return; }
+            setActiveTab(tab);
+          }}
           onOpenRoutineSheet={userMemory.openRoutineSheet}
           onDismissRoutine={userMemory.dismissRoutineSuggestion}
           getProactiveSuggestions={userMemory.getProactiveSuggestions}
@@ -485,14 +510,7 @@ export default function App() {
           onRefreshTomorrowReminders={prepareForTomorrow.refresh}
         />
       )}
-      {activeTab === 'add' && (
-        <AddPage
-          onAddTask={addTask}
-          onAddEvent={addEvent}
-          onAddGrocery={addGrocery}
-          goals={goalsHook.goals}
-        />
-      )}
+
       {activeTab === 'grocery' && enabledModules.has('grocery') && (
         <GroceryPage
           items={groceryItems}
@@ -618,7 +636,10 @@ export default function App() {
 
       <BottomNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          if (tab === 'add') { setQuickAddOpen(true); return; }
+          setActiveTab(tab);
+        }}
         enabledModules={enabledModules}
       />
 
@@ -626,7 +647,18 @@ export default function App() {
         characterId={selectedCharacter}
         expression={floatingExpression}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          if (tab === 'add') { setQuickAddOpen(true); return; }
+          setActiveTab(tab);
+        }}
+      />
+
+      <QuickAddSheet
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onAddTask={addTask}
+        onAddEvent={addEvent}
+        onAddGrocery={addGrocery}
       />
 
       {userMemory.confirmingCandidate && (

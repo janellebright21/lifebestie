@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
-import { resolveExpressionSrc } from '../../lib/characterAssets';
+import { resolveExpressionSrc, getDefaultSrc } from '../../lib/characterAssets';
 
 export type BestieMotionState = 'idle' | 'wave' | 'lean' | 'thinking' | 'celebrating' | 'calm';
 
@@ -25,15 +25,18 @@ const SIZES: Record<NonNullable<BestieAvatarProps['size']>, number> = {
 };
 
 const MOTION_BY_EXPRESSION: Record<AvatarExpression, BestieMotionState> = {
-  happy:        'idle',
+  happy:       'idle',
   encouraging: 'lean',
-  proud:        'celebrating',
-  calm:         'calm',
-  thinking:     'thinking',
-  tired:        'calm',
+  proud:       'celebrating',
+  calm:        'calm',
+  thinking:    'thinking',
+  tired:       'calm',
 };
 
 const ONE_SHOT_MOTIONS = new Set<BestieMotionState>(['wave', 'celebrating']);
+
+// Two-step error fallback: expression → default → initials
+type FallbackState = 'expression' | 'default' | 'initials';
 
 function SpeechBubble({ message, primaryColor }: { message: string; primaryColor: string }) {
   return (
@@ -71,24 +74,40 @@ export default function BestieAvatar({
 }: BestieAvatarProps) {
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
   const dim  = SIZES[size];
-  const src  = resolveExpressionSrc(characterId, expression);
-  const [failed, setFailed] = useState(false);
 
-  const motion = motionOverride ?? MOTION_BY_EXPRESSION[expression] ?? 'idle';
+  const [fallback, setFallback] = useState<FallbackState>('expression');
+  const [src, setSrc]           = useState(() => resolveExpressionSrc(characterId, expression));
+
+  // Reset when character or expression changes
+  useEffect(() => {
+    setFallback('expression');
+    setSrc(resolveExpressionSrc(characterId, expression));
+  }, [characterId, expression]);
+
+  const handleError = () => {
+    if (fallback === 'expression') {
+      setFallback('default');
+      setSrc(getDefaultSrc(characterId));
+    } else {
+      setFallback('initials');
+    }
+  };
+
+  const motion     = motionOverride ?? MOTION_BY_EXPRESSION[expression] ?? 'idle';
   const stateClass = `ba-state-${motion}`;
 
   const blinkStyle = useMemo<React.CSSProperties>(() => ({
-    position: 'absolute',
-    left: '24%',
-    right: '24%',
-    top: '39%',
-    height: Math.max(2, Math.round(dim * 0.035)),
-    borderRadius: 999,
-    background: 'rgba(55, 65, 81, 0.85)',
+    position:        'absolute',
+    left:            '24%',
+    right:           '24%',
+    top:             '39%',
+    height:          Math.max(2, Math.round(dim * 0.035)),
+    borderRadius:    999,
+    background:      'rgba(55, 65, 81, 0.85)',
     transformOrigin: 'center',
-    transform: 'scaleY(0)',
-    opacity: 0,
-    pointerEvents: 'none',
+    transform:       'scaleY(0)',
+    opacity:         0,
+    pointerEvents:   'none',
   }), [dim]);
 
   const handleAnimationEnd = (event: React.AnimationEvent<HTMLDivElement>) => {
@@ -102,54 +121,57 @@ export default function BestieAvatar({
         className="ba-body relative"
         onAnimationEnd={handleAnimationEnd}
         style={{
-          width:        dim,
-          height:       dim,
-          borderRadius: '50%',
-          overflow:     'hidden',
-          boxShadow:    `0 0 0 2px ${char.primaryColor}55, 0 4px 14px ${char.primaryColor}22`,
-          background:   `${char.primaryColor}22`,
+          width:           dim,
+          height:          dim,
+          borderRadius:    '50%',
+          overflow:        'hidden',
+          boxShadow:       `0 0 0 2px ${char.primaryColor}55, 0 4px 14px ${char.primaryColor}22`,
+          background:      `${char.primaryColor}22`,
           transformOrigin: 'bottom center',
-          position: 'relative',
+          position:        'relative',
         }}
       >
         <div className="ba-head" style={{ width: '100%', height: '100%', transformOrigin: 'bottom center' }}>
-          {!failed ? (
+          {fallback === 'initials' ? (
+            <div
+              style={{
+                width:          '100%',
+                height:         '100%',
+                display:        'flex',
+                alignItems:     'center',
+                justifyContent: 'center',
+                fontSize:       Math.round(dim * 0.36),
+                fontWeight:     700,
+                color:          char.primaryColor,
+                userSelect:     'none',
+              }}
+              aria-label={`${char.name} avatar`}
+            >
+              {char.name[0]}
+            </div>
+          ) : (
             <img
               src={src}
-              alt={`${char.name} ${expression}`}
+              alt={`${char.name} ${expression} expression`}
+              loading="lazy"
+              decoding="async"
               draggable={false}
-              onError={() => setFailed(true)}
+              onError={handleError}
               style={{
                 width:      '100%',
                 height:     '100%',
-                objectFit:  'cover',
+                objectFit:  'contain',
                 display:    'block',
                 userSelect: 'none',
               }}
             />
-          ) : (
-            <div
-              style={{
-                width: '100%', height: '100%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, color: '#ef4444', textAlign: 'center', padding: 4,
-              }}
-            >
-              Failed
-            </div>
           )}
         </div>
 
-        {!failed && <div className="ba-blink" style={blinkStyle} />}
+        <div className="ba-blink" style={blinkStyle} />
       </div>
 
       {motion === 'celebrating' && <Sparkles primaryColor={char.primaryColor} />}
-
-      {import.meta.env.DEV && (
-        <div style={{ fontSize: 8, color: '#6b7280', marginTop: 2, maxWidth: dim, wordBreak: 'break-all' }}>
-          {failed ? `FAILED: ${src}` : src.slice(-30)}
-        </div>
-      )}
     </div>
   );
 

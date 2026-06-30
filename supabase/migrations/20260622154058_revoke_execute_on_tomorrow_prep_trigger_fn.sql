@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.update_tomorrow_prep_checklist_updated_at() FROM anon, authenticated;

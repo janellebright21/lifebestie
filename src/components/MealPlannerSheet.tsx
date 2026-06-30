@@ -170,7 +170,8 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addRow()}
-            className="flex-1 text-xs bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
+            className="flex-1 bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
+            style={{ fontSize: 16 }}
           />
           <input
             type="text"
@@ -178,7 +179,8 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addRow()}
-            className="w-14 text-xs bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors text-center"
+            className="w-14 bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors text-center"
+            style={{ fontSize: 16 }}
           />
           <input
             type="text"
@@ -186,7 +188,8 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addRow()}
-            className="w-16 text-xs bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
+            className="w-16 bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
+            style={{ fontSize: 16 }}
           />
         </div>
         <div className="flex gap-1.5">
@@ -302,12 +305,15 @@ export default function MealPlannerSheet({
         onClick={onClose}
       />
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-w-md mx-auto animate-in slide-in-from-bottom duration-300">
-        <div className="flex justify-center pt-3 pb-1">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-w-md mx-auto animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[92dvh]">
+        <div className="shrink-0 flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-gray-200" />
         </div>
 
-        <div className="px-5 pb-8 pt-2 max-h-[82dvh] overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain px-5 pt-2"
+          style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2.5">
@@ -350,7 +356,8 @@ export default function MealPlannerSheet({
                   value={newMealName}
                   onChange={(e) => setNewMealName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddMeal()}
-                  className="flex-1 text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-amber-200 transition-colors"
+                  className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-amber-200 transition-colors"
+                  style={{ fontSize: 16 }}
                 />
                 <button
                   onClick={handleAddMeal}

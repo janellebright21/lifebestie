@@ -1,44 +1,20 @@
 import { CharacterId, CharacterVariant, AvatarExpression, OutfitId } from './supabase';
 
+// ─── Public URL helpers ───────────────────────────────────────────────────────
+// Images live in /public/characters/ and are served as static files.
+// No bundling — the browser fetches them lazily on first render.
+
+function charUrl(name: string)       { return `/characters/${name}.webp`; }
+function exprUrl(name: string)       { return `/characters/expression/${name}.webp`; }
+
 // ─── Default character images ─────────────────────────────────────────────────
 
-import emmaDefault from '../assets/characters/Public/Character/emma.png';
-import avaDefault  from '../assets/characters/Public/Character/ava.png';
-import noraDefault from '../assets/characters/Public/Character/nora.png';
-import lunaDefault from '../assets/characters/Public/Character/luna.png';
-
-// ─── Emma expressions ─────────────────────────────────────────────────────────
-
-import emmaHappy       from '../assets/characters/Public/Character/expression/emma_happy.png.png';
-import emmaThinking    from '../assets/characters/Public/Character/expression/emma_thinking.png.png';
-import emmaEncouraging from '../assets/characters/Public/Character/expression/emma_encouraging.png';
-import emmaProud       from '../assets/characters/Public/Character/expression/emma_proud.png.png';
-import emmaCalm        from '../assets/characters/Public/Character/expression/emma_calm.png.png';
-
-// ─── Ava expressions ──────────────────────────────────────────────────────────
-// ava_confident → encouraging  |  ava_focused → calm  |  ava_planning → fallback
-
-import avaHappy      from '../assets/characters/Public/Character/expression/Ava_Happy.png.png';
-import avaThinking   from '../assets/characters/Public/Character/expression/ava_thinking.png.png';
-import avaConfident  from '../assets/characters/Public/Character/expression/ava_confident.png.png';
-import avaProud      from '../assets/characters/Public/Character/expression/ava_proud.png.png';
-import avaFocused    from '../assets/characters/Public/Character/expression/ava_focused.png.png';
-
-// ─── Nora expressions ─────────────────────────────────────────────────────────
-// nora_helpful → thinking + encouraging  |  nora_cooking → calm
-
-import noraHappy    from '../assets/characters/Public/Character/expression/nora_happy.png.png';
-import noraHelpful  from '../assets/characters/Public/Character/expression/nora_helpful.png.png';
-import noraProud    from '../assets/characters/Public/Character/expression/nora_proud.png.png';
-import noraCooking  from '../assets/characters/Public/Character/expression/nora_cooking.png.png';
-
-// ─── Luna expressions ─────────────────────────────────────────────────────────
-// luna_motivating → encouraging  |  luna_calm → calm + thinking
-
-import lunaHappy      from '../assets/characters/Public/Character/expression/luna_happy.png.png';
-import lunaMotivating from '../assets/characters/Public/Character/expression/luna_motivating.png.png';
-import lunaProud      from '../assets/characters/Public/Character/expression/luna_proud.png.png';
-import lunaCalm       from '../assets/characters/Public/Character/expression/luna_calm.png.png';
+const DEFAULT_IMAGES: Record<CharacterId, string> = {
+  emma: charUrl('emma'),
+  ava:  charUrl('ava'),
+  nora: charUrl('nora'),
+  luna: charUrl('luna'),
+};
 
 // ─── Expression registry ──────────────────────────────────────────────────────
 
@@ -46,40 +22,33 @@ type ExpressionMap = Partial<Record<AvatarExpression, string>>;
 
 const EXPRESSION_REGISTRY: Record<CharacterId, ExpressionMap> = {
   emma: {
-    happy:       emmaHappy,
-    thinking:    emmaThinking,
-    encouraging: emmaEncouraging,
-    proud:       emmaProud,
-    calm:        emmaCalm,
+    happy:       exprUrl('emma_happy'),
+    thinking:    exprUrl('emma_thinking'),
+    encouraging: exprUrl('emma_encouraging'),
+    proud:       exprUrl('emma_proud'),
+    calm:        exprUrl('emma_calm'),
   },
   ava: {
-    happy:       avaHappy,
-    thinking:    avaThinking,
-    encouraging: avaConfident,
-    proud:       avaProud,
-    calm:        avaFocused,
+    happy:       exprUrl('ava_happy'),
+    thinking:    exprUrl('ava_thinking'),
+    encouraging: exprUrl('ava_confident'),
+    proud:       exprUrl('ava_proud'),
+    calm:        exprUrl('ava_focused'),
   },
   nora: {
-    happy:       noraHappy,
-    thinking:    noraHelpful,
-    encouraging: noraHelpful,
-    proud:       noraProud,
-    calm:        noraCooking,
+    happy:       exprUrl('nora_happy'),
+    thinking:    exprUrl('nora_helpful'),
+    encouraging: exprUrl('nora_helpful'),
+    proud:       exprUrl('nora_proud'),
+    calm:        exprUrl('nora_cooking'),
   },
   luna: {
-    happy:       lunaHappy,
-    thinking:    lunaCalm,
-    encouraging: lunaMotivating,
-    proud:       lunaProud,
-    calm:        lunaCalm,
+    happy:       exprUrl('luna_happy'),
+    thinking:    exprUrl('luna_calm'),
+    encouraging: exprUrl('luna_motivating'),
+    proud:       exprUrl('luna_proud'),
+    calm:        exprUrl('luna_calm'),
   },
-};
-
-const DEFAULT_IMAGES: Record<CharacterId, string> = {
-  emma: emmaDefault,
-  ava:  avaDefault,
-  nora: noraDefault,
-  luna: lunaDefault,
 };
 
 /**

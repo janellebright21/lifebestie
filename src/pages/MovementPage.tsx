@@ -243,10 +243,10 @@ export default function MovementPage({ events, character, onAddEvent, onUpdateEv
   const levels: EnergyLevel[] = ['low', 'moderate', 'high'];
 
   return (
-    <div className="min-h-[100dvh] theme-app-bg pb-24">
+    <div className="min-h-[100dvh] theme-app-bg pb-32">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
-        <div className="max-w-md mx-auto flex items-center gap-3">
+        <div className="max-w-2xl mx-auto flex items-center gap-3">
           <BestieAvatar characterId={character ?? 'emma'} expression="calm" size="sm" />
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-800 leading-none">Movement</h1>
@@ -260,13 +260,13 @@ export default function MovementPage({ events, character, onAddEvent, onUpdateEv
           )}
         </div>
         {streakResult.streak > 0 && (
-          <div className="max-w-md mx-auto mt-2 px-0.5">
+          <div className="max-w-2xl mx-auto mt-2 px-0.5">
             <p className="text-xs text-amber-600 font-medium">{streakResult.message}</p>
           </div>
         )}
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-5 space-y-4">
+      <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         {/* Today summary */}
         <TodaySummary todayMovements={todayMovements} />
 

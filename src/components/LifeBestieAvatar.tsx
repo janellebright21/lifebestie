@@ -219,7 +219,9 @@ function CharacterImage({
     <img
       src={src}
       alt={alt}
-      className={`absolute inset-0 w-full h-full object-cover rounded-${rounded}`}
+      loading="lazy"
+      decoding="async"
+      className={`absolute inset-0 w-full h-full object-contain rounded-${rounded}`}
       onError={onFail}
       draggable={false}
     />
@@ -246,7 +248,7 @@ export default function LifeBestieAvatar({
   avatarTheme = 'classic',
   expression  = 'happy',
   character,
-  outfit      = 'classic' as OutfitId,
+  outfit: _outfit = 'classic' as OutfitId,
   bubble,
 }: LifeBestieAvatarProps) {
   const [imgFailed, setImgFailed] = useState(false);

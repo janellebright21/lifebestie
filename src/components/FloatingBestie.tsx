@@ -5,8 +5,8 @@ import type { CharacterId, AvatarExpression } from '../lib/supabase';
 import BestieAvatar from './besties/BestieAvatar';
 import type { TabName } from './BottomNav';
 
-const PEEK_OFFSET = 40;
-const NAV_HEIGHT  = 64;
+// Keep the floating avatar well above the nav + plus button (which extends ~20px above nav top)
+const NAV_CLEARANCE = 88;
 
 const HIDDEN_ON: Set<TabName> = new Set(['bestie', 'settings', 'add']);
 
@@ -61,8 +61,8 @@ export default function FloatingBestie({
       ref={wrapperRef}
       style={{
         position:      'fixed',
-        bottom:        `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom, 0px))`,
-        right:         0,
+        bottom:        `calc(${NAV_CLEARANCE}px + env(safe-area-inset-bottom, 0px))`,
+        right:         12,
         zIndex:        40,
         display:       'flex',
         flexDirection: 'column',
@@ -129,7 +129,6 @@ export default function FloatingBestie({
         aria-label={open ? 'Close bestie menu' : 'Open bestie menu'}
         onClick={() => setOpen((v) => !v)}
         style={{
-          transform:   `translateX(${PEEK_OFFSET}px)`,
           cursor:      'pointer',
           background:  'none',
           border:      'none',

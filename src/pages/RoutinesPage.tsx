@@ -359,7 +359,7 @@ export default function RoutinesPage({
     <div className="min-h-[100dvh] theme-app-bg pb-24">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
-        <div className="max-w-md mx-auto flex items-center justify-between">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--theme-primary-light)' }}>
               <ListChecks size={18} style={{ color: 'var(--theme-primary)' }} />
@@ -380,7 +380,7 @@ export default function RoutinesPage({
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-5 space-y-4">
+      <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         {/* Create form */}
         {mode === 'create' && (
           <RoutineForm

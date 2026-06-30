@@ -103,7 +103,7 @@ export default function ChatPage({
   onUpdateMemory,
   getProactiveSuggestions,
   preferredName,
-  avatarTheme,
+  avatarTheme: _avatarTheme,
   character,
 }: ChatPageProps) {
   const initMessage: Message = {

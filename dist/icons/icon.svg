@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background circle -->
+  <rect width="512" height="512" rx="115" fill="#f5f3ff"/>
+  <!-- Heart -->
+  <path d="M256 370
+    C256 370 112 280 112 180
+    C112 138 146 108 184 108
+    C208 108 232 122 256 148
+    C280 122 304 108 328 108
+    C366 108 400 138 400 180
+    C400 280 256 370 256 370Z"
+    fill="#a78bfa"/>
+  <!-- Subtle sparkle dots -->
+  <circle cx="168" cy="148" r="8" fill="#ddd6fe" opacity="0.8"/>
+  <circle cx="344" cy="148" r="6" fill="#ddd6fe" opacity="0.6"/>
+  <circle cx="158" cy="200" r="5" fill="#ddd6fe" opacity="0.5"/>
+</svg>

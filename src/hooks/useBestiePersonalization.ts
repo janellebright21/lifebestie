@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { supabase, dbError, UserProfile } from '../lib/supabase';
+import { UserProfile } from '../lib/supabase';
 import { useUserProfile, ProfilePatch } from './useUserProfile';
 
 export interface BestieNotes {

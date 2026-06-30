@@ -1354,122 +1354,133 @@ function MealPlannerModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-8 space-y-5 animate-slide-up">
-        {/* Handle */}
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto -mt-1 mb-1" />
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-50 flex items-center justify-center">
-              <UtensilsCrossed size={18} className="text-emerald-500" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-gray-800">Plan a Meal</h2>
-              <p className="text-xs text-gray-400">Ingredients go straight to your grocery list</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 transition-colors">
-            <X size={15} />
-          </button>
-        </div>
-
-        {done ? (
-          <div className="flex flex-col items-center gap-2 py-6">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-              <Check size={22} className="text-emerald-500" />
-            </div>
-            <p className="text-sm font-semibold text-gray-700">Meal saved!</p>
-            <p className="text-xs text-gray-400">Ingredients added to your grocery list</p>
-          </div>
-        ) : (
-          <>
-            {/* Meal name */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meal Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Pasta Bolognese"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
-                autoFocus
-              />
-              {error && <p className="text-xs text-rose-500">{error}</p>}
-            </div>
-
-            {/* Meal type */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meal Type</label>
-              <div className="flex gap-2 flex-wrap">
-                {MEAL_TYPES.map((type) => {
-                  const colors = MEAL_TYPE_COLORS[type];
-                  const active = mealType === type;
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => setMealType(type)}
-                      className={`text-xs font-semibold px-3.5 py-2 rounded-full transition-all ${
-                        active
-                          ? `${colors.bg} ${colors.text} ring-1 ring-current`
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  );
-                })}
+      {/* Sheet: fixed height shell so the inner area can scroll independently of keyboard */}
+      <div className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl animate-slide-up flex flex-col max-h-[92dvh]">
+        {/* Handle + sticky header — never scrolls away */}
+        <div className="shrink-0 px-5 pt-4 pb-3">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                <UtensilsCrossed size={18} className="text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-800">Plan a Meal</h2>
+                <p className="text-xs text-gray-400">Ingredients go straight to your grocery list</p>
               </div>
             </div>
-
-            {/* Date */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</label>
-              <input
-                type="date"
-                value={mealDate}
-                onChange={(e) => setMealDate(e.target.value)}
-                className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
-              />
-            </div>
-
-            {/* Ingredients */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Ingredients
-                <span className="ml-1 font-normal text-gray-300 normal-case">(one per line or comma-separated)</span>
-              </label>
-              <textarea
-                rows={4}
-                placeholder={"Pasta\nGround beef\nTomato sauce\nOnion, Garlic"}
-                value={ingredientsRaw}
-                onChange={(e) => setIngredientsRaw(e.target.value)}
-                className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all resize-none"
-              />
-              {ingredientsRaw.trim() && (
-                <p className="text-xs text-gray-400">
-                  {parseIngredients(ingredientsRaw).length} ingredient{parseIngredients(ingredientsRaw).length !== 1 ? 's' : ''} will be added to your grocery list
-                </p>
-              )}
-            </div>
-
-            {/* Save */}
-            <button
-              onClick={handleSave}
-              disabled={saving || !name.trim()}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-semibold text-sm shadow-sm shadow-emerald-200 hover:bg-emerald-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Check size={15} />
-                  Save Meal & Add to Grocery List
-                </>
-              )}
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 transition-colors">
+              <X size={15} />
             </button>
-          </>
-        )}
+          </div>
+        </div>
+
+        {/* Scrollable form body — grows to fill remaining sheet height */}
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain px-5 space-y-5"
+          style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          {done ? (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                <Check size={22} className="text-emerald-500" />
+              </div>
+              <p className="text-sm font-semibold text-gray-700">Meal saved!</p>
+              <p className="text-xs text-gray-400">Ingredients added to your grocery list</p>
+            </div>
+          ) : (
+            <>
+              {/* Meal name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meal Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Pasta Bolognese"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
+                  style={{ fontSize: 16 }}
+                  autoFocus
+                />
+                {error && <p className="text-xs text-rose-500">{error}</p>}
+              </div>
+
+              {/* Meal type */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meal Type</label>
+                <div className="flex gap-2 flex-wrap">
+                  {MEAL_TYPES.map((type) => {
+                    const colors = MEAL_TYPE_COLORS[type];
+                    const active = mealType === type;
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => setMealType(type)}
+                        className={`text-xs font-semibold px-3.5 py-2 rounded-full transition-all ${
+                          active
+                            ? `${colors.bg} ${colors.text} ring-1 ring-current`
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</label>
+                <input
+                  type="date"
+                  value={mealDate}
+                  onChange={(e) => setMealDate(e.target.value)}
+                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
+                  style={{ fontSize: 16 }}
+                />
+              </div>
+
+              {/* Ingredients */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Ingredients
+                  <span className="ml-1 font-normal text-gray-300 normal-case">(one per line or comma-separated)</span>
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder={"Pasta\nGround beef\nTomato sauce\nOnion, Garlic"}
+                  value={ingredientsRaw}
+                  onChange={(e) => setIngredientsRaw(e.target.value)}
+                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all resize-none"
+                  style={{ fontSize: 16, touchAction: 'pan-y' }}
+                />
+                {ingredientsRaw.trim() && (
+                  <p className="text-xs text-gray-400">
+                    {parseIngredients(ingredientsRaw).length} ingredient{parseIngredients(ingredientsRaw).length !== 1 ? 's' : ''} will be added to your grocery list
+                  </p>
+                )}
+              </div>
+
+              {/* Save */}
+              <button
+                onClick={handleSave}
+                disabled={saving || !name.trim()}
+                className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-semibold text-sm shadow-sm shadow-emerald-200 hover:bg-emerald-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Check size={15} />
+                    Save Meal & Add to Grocery List
+                  </>
+                )}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1746,7 +1757,7 @@ const existingNames = new Set(
   const lowStockSuggestions = getLowStockSuggestions(habits, 3);
 
   return (
-    <div className="px-4 pt-6 pb-28 space-y-5 max-w-md mx-auto">
+    <div className="px-4 sm:px-6 pt-6 pb-32 space-y-5 max-w-2xl mx-auto">
       {/* Shopping mode overlays */}
       {shoppingMode === 'today' && (
         <ShoppingMode

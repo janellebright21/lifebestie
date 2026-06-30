@@ -2883,7 +2883,7 @@ export default function PlannerPage({
 
   return (
     <CatColorCtx.Provider value={getColor}>
-    <div className="px-4 pt-6 pb-28 max-w-md mx-auto">
+    <div className="px-4 sm:px-6 pt-6 pb-32 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">

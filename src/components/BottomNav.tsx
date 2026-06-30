@@ -37,49 +37,60 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
   });
 
   return (
+    // position: relative so the absolutely-positioned Plus button is anchored here.
+    // The nav is fixed full-width, so left: 50% always equals the true screen center.
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-white safe-bottom"
       style={{ borderTop: `1px solid ${THEME_PRIMARY_MID}` }}
     >
-      <div className="flex items-center justify-around px-1 py-2 max-w-md mx-auto">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isAdd    = tab.id === 'add';
-          const isActive = activeTab === tab.id;
+      {/* Plus button — lifted out of the flex row and pinned to true screen center.
+          left: 50% on a full-viewport-width element is always the horizontal midpoint,
+          matching the max-w-md mx-auto content container on every screen size. */}
+      <button
+        onClick={() => onTabChange('add')}
+        aria-label="Add"
+        className="absolute left-1/2 -translate-x-1/2 -top-5 flex items-center justify-center w-12 h-12 rounded-full shadow-lg active:scale-95 transition-transform z-10"
+        style={{ backgroundColor: THEME_PRIMARY, boxShadow: `0 4px 16px ${THEME_PRIMARY_MID}` }}
+      >
+        <Plus size={22} className="text-white" strokeWidth={2.5} />
+      </button>
 
-          if (isAdd) {
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className="relative -top-3 flex items-center justify-center w-11 h-11 rounded-full shadow-lg active:scale-95 transition-transform"
-                style={{ backgroundColor: THEME_PRIMARY, boxShadow: `0 4px 14px ${THEME_PRIMARY_MID}` }}
-                aria-label="Add"
-              >
-                <Plus size={20} className="text-white" strokeWidth={2.5} />
-              </button>
-            );
+      <div className="flex items-center justify-around px-0.5 pt-3 pb-1 max-w-2xl mx-auto">
+        {tabs.map((tab) => {
+          // Replace the "add" slot with a same-width invisible spacer so the
+          // surrounding tabs split evenly to either side of the floating button.
+          if (tab.id === 'add') {
+            return <div key="add-spacer" className="w-12 shrink-0" aria-hidden="true" />;
           }
+
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
 
           return (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px]"
+              className="flex flex-col items-center justify-center gap-0.5 min-w-[36px] min-h-[44px] px-1"
               aria-label={tab.label}
             >
               <Icon
-                size={18}
+                size={20}
                 style={{ color: isActive ? THEME_PRIMARY : undefined }}
                 className={isActive ? '' : 'text-gray-400'}
                 strokeWidth={isActive ? 2.2 : 1.8}
               />
               <span
-                className={`text-[8px] font-medium leading-none ${isActive ? '' : 'text-gray-400'}`}
+                className={`text-[9px] font-medium leading-none ${isActive ? '' : 'text-gray-400'}`}
                 style={{ color: isActive ? THEME_PRIMARY : undefined }}
               >
                 {tab.label}
               </span>
+              {isActive && (
+                <span
+                  className="block w-1 h-1 rounded-full mt-0.5"
+                  style={{ backgroundColor: THEME_PRIMARY }}
+                />
+              )}
             </button>
           );
         })}
@@ -87,41 +98,47 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
         {/* My Bestie — always visible */}
         <button
           onClick={() => onTabChange('bestie')}
-          className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px]"
+          className="flex flex-col items-center justify-center gap-0.5 min-w-[36px] min-h-[44px] px-1"
           aria-label="My Bestie"
         >
           <Heart
-            size={18}
+            size={20}
             style={{ color: activeTab === 'bestie' ? THEME_PRIMARY : undefined }}
             className={activeTab === 'bestie' ? '' : 'text-gray-400'}
             strokeWidth={activeTab === 'bestie' ? 2.2 : 1.8}
           />
           <span
-            className={`text-[8px] font-medium leading-none ${activeTab === 'bestie' ? '' : 'text-gray-400'}`}
+            className={`text-[9px] font-medium leading-none ${activeTab === 'bestie' ? '' : 'text-gray-400'}`}
             style={{ color: activeTab === 'bestie' ? THEME_PRIMARY : undefined }}
           >
             Bestie
           </span>
+          {activeTab === 'bestie' && (
+            <span className="block w-1 h-1 rounded-full mt-0.5" style={{ backgroundColor: THEME_PRIMARY }} />
+          )}
         </button>
 
         {/* Settings gear — always visible */}
         <button
           onClick={() => onTabChange('settings')}
-          className="flex flex-col items-center gap-0.5 px-1 py-1 min-w-[32px]"
+          className="flex flex-col items-center justify-center gap-0.5 min-w-[36px] min-h-[44px] px-1"
           aria-label="Settings"
         >
           <Settings
-            size={18}
+            size={20}
             style={{ color: activeTab === 'settings' ? THEME_PRIMARY : undefined }}
             className={activeTab === 'settings' ? '' : 'text-gray-400'}
             strokeWidth={activeTab === 'settings' ? 2.2 : 1.8}
           />
           <span
-            className={`text-[8px] font-medium leading-none ${activeTab === 'settings' ? '' : 'text-gray-400'}`}
+            className={`text-[9px] font-medium leading-none ${activeTab === 'settings' ? '' : 'text-gray-400'}`}
             style={{ color: activeTab === 'settings' ? THEME_PRIMARY : undefined }}
           >
             Settings
           </span>
+          {activeTab === 'settings' && (
+            <span className="block w-1 h-1 rounded-full mt-0.5" style={{ backgroundColor: THEME_PRIMARY }} />
+          )}
         </button>
       </div>
     </nav>
