@@ -170,7 +170,7 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addRow()}
-            className="flex-1 bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
+            className="flex-1 text-xs bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
             style={{ fontSize: 16 }}
           />
           <input
@@ -179,7 +179,7 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addRow()}
-            className="w-14 bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors text-center"
+            className="w-14 text-xs bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors text-center"
             style={{ fontSize: 16 }}
           />
           <input
@@ -188,7 +188,7 @@ function IngredientEditor({ meal, onSave, onClose }: IngredientEditorProps) {
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addRow()}
-            className="w-16 bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
+            className="w-16 text-xs bg-gray-50 rounded-lg px-2.5 py-2 outline-none border border-transparent focus:border-amber-200 transition-colors"
             style={{ fontSize: 16 }}
           />
         </div>
@@ -356,7 +356,7 @@ export default function MealPlannerSheet({
                   value={newMealName}
                   onChange={(e) => setNewMealName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddMeal()}
-                  className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-amber-200 transition-colors"
+                  className="flex-1 text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-amber-200 transition-colors"
                   style={{ fontSize: 16 }}
                 />
                 <button

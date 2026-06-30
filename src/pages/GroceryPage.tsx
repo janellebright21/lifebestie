@@ -1399,7 +1399,7 @@ function MealPlannerModal({
                   placeholder="e.g. Pasta Bolognese"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
+                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
                   style={{ fontSize: 16 }}
                   autoFocus
                 />
@@ -1437,7 +1437,7 @@ function MealPlannerModal({
                   type="date"
                   value={mealDate}
                   onChange={(e) => setMealDate(e.target.value)}
-                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-gray-700 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
+                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-emerald-300 transition-all"
                   style={{ fontSize: 16 }}
                 />
               </div>
@@ -1453,7 +1453,7 @@ function MealPlannerModal({
                   placeholder={"Pasta\nGround beef\nTomato sauce\nOnion, Garlic"}
                   value={ingredientsRaw}
                   onChange={(e) => setIngredientsRaw(e.target.value)}
-                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all resize-none"
+                  className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 outline-none focus:ring-2 focus:ring-emerald-300 transition-all resize-none"
                   style={{ fontSize: 16, touchAction: 'pan-y' }}
                 />
                 {ingredientsRaw.trim() && (
