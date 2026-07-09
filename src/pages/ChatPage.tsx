@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, Component } from 'react';
 import type { ReactNode } from 'react';
 import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
-import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META } from '../lib/supabase';
+import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
 
 const CHAT_MESSAGES_KEY = 'lifebestie_chat_messages';
@@ -11,6 +11,7 @@ interface Message {
   role: 'user' | 'assistant';
   text: string;
   timestamp: Date;
+  isError?: boolean;
 }
 
 interface SerializedMessage {
@@ -62,7 +63,6 @@ const VALID_CATEGORIES: MemoryCategory[] = [
 ];
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 // ── Message sessionStorage persistence ────────────────────────────────────────
 
@@ -82,13 +82,29 @@ function loadMessagesFromSession(): Message[] | null {
   try {
     const raw = sessionStorage.getItem(CHAT_MESSAGES_KEY);
     if (!raw) return null;
-    const parsed: SerializedMessage[] = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
-    return parsed.map((m) => ({
-      ...m,
-      timestamp: new Date(m.timestamp),
-    }));
+    const messages: Message[] = [];
+    for (const m of parsed) {
+      if (
+        m &&
+        typeof m === 'object' &&
+        typeof (m as Record<string, unknown>).id === 'string' &&
+        ((m as Record<string, unknown>).role === 'user' || (m as Record<string, unknown>).role === 'assistant') &&
+        typeof (m as Record<string, unknown>).text === 'string'
+      ) {
+        const ts = new Date((m as Record<string, unknown>).timestamp as string);
+        messages.push({
+          id:        (m as Record<string, unknown>).id as string,
+          role:      (m as Record<string, unknown>).role as 'user' | 'assistant',
+          text:      (m as Record<string, unknown>).text as string,
+          timestamp: isNaN(ts.getTime()) ? new Date() : ts,
+        });
+      }
+    }
+    return messages.length > 0 ? messages : null;
   } catch {
+    try { sessionStorage.removeItem(CHAT_MESSAGES_KEY); } catch { /* ignore */ }
     return null;
   }
 }
@@ -103,7 +119,7 @@ async function callChatFunction(
   memory: UserMemory | null,
   proactiveSuggestions: string[],
   relevantMemories: LifeBestieMemory[],
-): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
+): Promise<{ text: string; memory_suggestion?: MemorySuggestion; lastUserText?: string }> {
   const today = new Date().toISOString().split('T')[0];
   const pending = tasks.filter((t) => !t.completed);
   const todayEvents = events.filter((e) => e.event_date === today);
@@ -136,13 +152,19 @@ async function callChatFunction(
     .filter((m) => m.id !== 'init')
     .map((m) => ({ role: m.role, content: m.text }));
 
+  // Use the authenticated user's JWT so the Edge Function can verify identity.
+  // Falling back to the anon key only if no session exists (should not happen in practice).
+  const { data: { session: authSession } } = await supabase.auth.getSession();
+  const bearerToken = authSession?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
   let response: Response;
   try {
     response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${bearerToken}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       },
       body: JSON.stringify({ messages: apiMessages, context }),
     });
@@ -154,7 +176,7 @@ async function callChatFunction(
   if (!response.ok) {
     let detail = '';
     try { detail = await response.text(); } catch { /* ignore */ }
-    console.error(`[Chat] Edge function error ${response.status}:`, detail);
+    console.error(`[Chat] Edge function HTTP ${response.status}:`, detail);
     throw new Error(`http:${response.status}`);
   }
 
@@ -277,16 +299,26 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
         <div className="flex flex-col h-[100dvh] max-w-md mx-auto items-center justify-center px-8 gap-4">
           <p className="text-4xl">💛</p>
           <p className="text-base font-semibold text-gray-700 text-center">
-            Emma had trouble responding. Your chat is still here.
+            Emma ran into a problem, but your conversation is still here.
           </p>
-          <p className="text-sm text-gray-400 text-center">Please try again.</p>
-          <button
-            onClick={() => this.setState({ hasError: false })}
-            className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold active:scale-95 transition-all theme-bg-primary"
-          >
-            <RefreshCw size={14} />
-            Try Again
-          </button>
+          <div className="flex flex-col gap-2 mt-2 w-full max-w-xs">
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold active:scale-95 transition-all theme-bg-primary"
+            >
+              <RefreshCw size={14} />
+              Try Again
+            </button>
+            <button
+              onClick={() => {
+                try { sessionStorage.removeItem(CHAT_MESSAGES_KEY); } catch { /* ignore */ }
+                this.setState({ hasError: false });
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-gray-100 active:scale-95 transition-all"
+            >
+              Clear temporary chat error
+            </button>
+          </div>
         </div>
       );
     }
@@ -330,6 +362,7 @@ function ChatPageInner({
   const [isTyping, setIsTyping]                   = useState(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
   const [savingMemory, setSavingMemory]           = useState(false);
+  const [lastUserText, setLastUserText]           = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -347,10 +380,13 @@ function ChatPageInner({
 
     setPendingSuggestion(null);
 
+    const trimmedText = text.trim();
+    setLastUserText(trimmedText);
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      text: text.trim(),
+      text: trimmedText,
       timestamp: new Date(),
     };
     const updatedMessages = [...messages, userMsg];
@@ -430,28 +466,33 @@ function ChatPageInner({
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      let friendlyText = "Oops, I lost my train of thought for a second 💛 Try asking me again!";
-
-      if (errMsg === 'network') {
-        friendlyText = "I couldn't reach my server. Please check your connection and try again 💛";
-      } else if (errMsg.startsWith('http:4')) {
-        friendlyText = "I had an authentication issue. Try refreshing the app 💛";
-      } else if (errMsg.startsWith('http:5')) {
-        friendlyText = "Something went wrong on my end. Please try again in a moment 💛";
-      }
-
+      console.error('[Chat] sendMessage failed:', errMsg);
       setMessages((prev) => [
         ...prev,
         {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          text: friendlyText,
+          id:        (Date.now() + 1).toString(),
+          role:      'assistant',
+          text:      "I'm sorry—I had trouble responding. Please try again.",
           timestamp: new Date(),
+          isError:   true,
         },
       ]);
     } finally {
       setIsTyping(false);
     }
+  }
+
+  function retryLastMessage() {
+    if (!lastUserText || isTyping) return;
+    // Remove the last error message before retrying so we don't duplicate it
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === 'assistant' && last.isError) {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+    sendMessage(lastUserText);
   }
 
   async function handleConfirmMemory() {
@@ -476,7 +517,12 @@ function ChatPageInner({
   }
 
   function formatTime(date: Date) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    try {
+      if (!(date instanceof Date) || isNaN(date.getTime())) return '';
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch {
+      return '';
+    }
   }
 
   return (
@@ -516,28 +562,36 @@ function ChatPageInner({
             key={msg.id}
             className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
-            {msg.role === 'assistant' && (
-              <BestieAvatar characterId={character ?? 'emma'} expression="calm" size="sm" className="mb-0.5" />
-            )}
-            <div className={`max-w-[78%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+            <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
               <div
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                   msg.role === 'user'
                     ? 'text-white rounded-br-sm'
-                    : 'bg-white text-gray-700 shadow-sm border border-gray-50 rounded-bl-sm'
+                    : msg.isError
+                      ? 'bg-red-50 text-red-600 shadow-sm border border-red-100 rounded-bl-sm'
+                      : 'bg-white text-gray-700 shadow-sm border border-gray-50 rounded-bl-sm'
                 }`}
                 style={msg.role === 'user' ? { backgroundColor: 'var(--theme-primary)' } : {}}
               >
                 {msg.text}
               </div>
+              {msg.isError && (
+                <button
+                  onClick={retryLastMessage}
+                  disabled={isTyping}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-red-400 px-1 mt-0.5 disabled:opacity-40"
+                >
+                  <RefreshCw size={10} />
+                  Retry
+                </button>
+              )}
               <span className="text-[10px] text-gray-300 px-1">{formatTime(msg.timestamp)}</span>
             </div>
           </div>
         ))}
 
         {isTyping && (
-          <div className="flex items-end gap-2">
-            <BestieAvatar characterId={character ?? 'emma'} expression="thinking" size="sm" />
+          <div className="flex items-start gap-2">
             <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-50">
               <div className="flex gap-1 items-center h-4">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />

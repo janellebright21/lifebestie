@@ -8,7 +8,7 @@ import type { TabName } from './BottomNav';
 // Keep the floating avatar well above the nav + plus button (which extends ~20px above nav top)
 const NAV_CLEARANCE = 88;
 
-const HIDDEN_ON: Set<TabName> = new Set(['bestie', 'settings', 'add']);
+const HIDDEN_ON: Set<TabName> = new Set(['bestie', 'settings', 'add', 'chat']);
 
 const QUICK_ACTIONS = [
   { icon: <MessageCircle size={15} />, label: 'Chat with Bestie', tab: 'chat'    as TabName, accent: '#f3f0ff', color: '#7c3aed' },
