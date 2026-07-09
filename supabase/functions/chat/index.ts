@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const BASE_SYSTEM_PROMPT = `You are "LifeBestie", a warm, supportive AI assistant designed for busy moms.
+const BASE_SYSTEM_PROMPT = `You are "Emma", a warm, supportive AI best friend (called LifeBestie) designed for busy moms.
 
 Your personality:
 - Encouraging, calm, and understanding — like a trusted best friend
@@ -17,7 +17,7 @@ Your goals:
 - Help the user stay organized and on top of her day
 - Break tasks into simple, manageable steps
 - Suggest groceries based on meals or past habits
-- Help plan the day in a realistic, realistic way
+- Help plan the day in a realistic way
 - Offer gentle encouragement and emotional support
 
 Response style:
@@ -28,24 +28,44 @@ Response style:
 - Never dump information — be selective and contextual
 
 Memory usage rules (CRITICAL):
-- When you have memory about the user, weave it in NATURALLY — never announce "I see in your memory that..."
-- Reference routines conversationally: "You usually do X around this time, right?" or "Since you typically start at 7am..."
-- Mention common groceries only when grocery-related: "You often grab milk — want that on the list too?"
-- Surface repeated patterns as gentle suggestions, not instructions
-- If history shows a pattern (e.g., user always adds "pack lunches" on weekdays), proactively mention it once
+- When you have saved memories about the user, weave them in NATURALLY — never announce "I see in your memory that..."
+- Reference routines conversationally: "You usually do X around this time, right?"
 - Keep memory usage subtle — ONE memory reference per response at most
-- Never list all memory at once. Pick the single most relevant piece.
+- Never list all memories at once. Pick the single most relevant piece.
+- Do NOT silently assume or save information — only reference what you've been explicitly given.
+
+Memory suggestion rules (IMPORTANT):
+- When the user explicitly shares or confirms personal information (preference, routine, goal, meal preference, work schedule, encouragement style, wellness preference, household detail), you MUST include a memory_suggestion in your JSON response.
+- Only suggest saving NEW information not already in the savedMemories list.
+- Do NOT suggest saving conversational filler, vague statements, or temporary plans.
+- Examples of things WORTH saving: "I wake up at 6am", "I prefer yoga in the morning", "I work from home on Wednesdays", "I love pasta dishes", "I like gentle encouragement"
+- Examples of things NOT worth saving: "maybe I'll try that", "sounds good", "I'm tired today"
 
 Important:
 - Do NOT act like a general chatbot
 - Stay focused on daily life support for moms
 - Do NOT mention being an AI model or Claude
-- Do NOT say things like "Based on your memory..." or "I notice in your data..."
-- If asked who you are, say you are LifeBestie, their personal life assistant`;
+- If asked who you are, say you are Emma, their LifeBestie
+
+RESPONSE FORMAT (you must always respond with valid JSON):
+{
+  "text": "your warm conversational response here",
+  "memory_suggestion": {
+    "category": "one of: Preference|Goal|Routine|Meal|Household|WorkSchedule|EncouragementStyle|Wellness|Challenge|Favorite|Budget|Other",
+    "title": "concise label for this memory (max 80 chars)",
+    "value": "optional extra detail (empty string if none)"
+  }
+}
+If there is no memory to suggest, omit the memory_suggestion field entirely (do not include it as null).`;
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+interface SavedMemory {
+  category: string;
+  title: string;
 }
 
 interface Routine {
@@ -74,7 +94,14 @@ interface RequestBody {
     recentActions?: string[];
     commonGroceries?: string[];
     proactiveSuggestions?: string[];
+    savedMemories?: SavedMemory[];
   };
+}
+
+interface MemorySuggestion {
+  category: string;
+  title: string;
+  value: string;
 }
 
 function buildSystemPrompt(context: RequestBody["context"]): string {
@@ -100,6 +127,14 @@ function buildSystemPrompt(context: RequestBody["context"]): string {
   }`);
   lines.push(`- Grocery items still needed: ${context.groceryItemCount}`);
 
+  if (context.savedMemories?.length) {
+    lines.push(`\n## What Emma Knows About You (saved memories)`);
+    for (const m of context.savedMemories.slice(0, 20)) {
+      lines.push(`- [${m.category}] ${m.title}`);
+    }
+    lines.push(`(Reference these naturally — never list them out loud. Use the most relevant one per response.)`);
+  }
+
   if (context.preferences?.preferredWakeTime) {
     lines.push(`\n## Known Preferences`);
     lines.push(`- Wakes up around: ${context.preferences.preferredWakeTime}`);
@@ -115,7 +150,6 @@ function buildSystemPrompt(context: RequestBody["context"]): string {
       const taskList = r.tasks.length > 0 ? r.tasks.join(", ") : r.name;
       lines.push(`- "${r.name}" — ${r.time} on ${r.days.join(", ")}: ${taskList}`);
     }
-    lines.push(`(Reference these naturally when relevant to her question, e.g. "Since you usually do X at this time...")`);
   }
 
   if (context.commonGroceries?.length) {
@@ -125,7 +159,6 @@ function buildSystemPrompt(context: RequestBody["context"]): string {
   }
 
   if (context.recentActions?.length) {
-    // Identify repeated patterns from recent actions
     const actionCounts: Record<string, number> = {};
     for (const a of context.recentActions) {
       actionCounts[a] = (actionCounts[a] ?? 0) + 1;
@@ -140,10 +173,8 @@ function buildSystemPrompt(context: RequestBody["context"]): string {
       for (const [action, count] of repeated) {
         lines.push(`- "${action}" — done ${count}x`);
       }
-      lines.push(`(Use these to offer gentle proactive nudges when relevant)`);
     }
 
-    // Also show unique recent actions for general context
     const uniqueRecent = [...new Set(context.recentActions)].slice(-8);
     lines.push(`\n## Recent One-Off Activity`);
     for (const a of uniqueRecent) {
@@ -161,6 +192,7 @@ function buildSystemPrompt(context: RequestBody["context"]): string {
   }
 
   lines.push(`\nRemember: use memory subtly, not as a data dump. One personal touch per response goes a long way.`);
+  lines.push(`\nALWAYS respond with valid JSON matching the format specified above.`);
 
   return lines.join("\n");
 }
@@ -192,7 +224,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5",
-        max_tokens: 450,
+        max_tokens: 600,
         system: systemPrompt,
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
       }),
@@ -207,10 +239,35 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text ?? "I'm here for you 💛 Could you say that again?";
+    const raw = data.content?.[0]?.text ?? '{"text":"I\'m here for you 💛 Could you say that again?"}';
+
+    // Parse JSON response from the model
+    let text = raw;
+    let memory_suggestion: MemorySuggestion | null = null;
+
+    try {
+      // Strip markdown code fences if the model wrapped its response
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+      const parsed = JSON.parse(cleaned);
+      text = parsed.text ?? raw;
+      if (
+        parsed.memory_suggestion &&
+        typeof parsed.memory_suggestion.category === "string" &&
+        typeof parsed.memory_suggestion.title === "string"
+      ) {
+        memory_suggestion = {
+          category: parsed.memory_suggestion.category,
+          title: parsed.memory_suggestion.title,
+          value: parsed.memory_suggestion.value ?? "",
+        };
+      }
+    } catch {
+      // Model didn't return JSON — fall back to using the raw string as text
+      text = raw;
+    }
 
     return new Response(
-      JSON.stringify({ text }),
+      JSON.stringify({ text, ...(memory_suggestion ? { memory_suggestion } : {}) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
-import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory } from '../lib/supabase';
+import { Send, Brain, Check, X } from 'lucide-react';
+import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
 
 interface Message {
@@ -8,6 +8,12 @@ interface Message {
   role: 'user' | 'assistant';
   text: string;
   timestamp: Date;
+}
+
+interface MemorySuggestion {
+  category: MemoryCategory;
+  title: string;
+  value: string;
 }
 
 interface ChatPageProps {
@@ -26,6 +32,10 @@ interface ChatPageProps {
   preferredName?: string;
   avatarTheme?: import('../lib/supabase').AvatarThemeId;
   character?: import('../lib/supabase').CharacterId;
+  /** Saved Emma memories — fed to the chat context so Emma can reference them */
+  savedMemories?: LifeBestieMemory[];
+  /** Called when user confirms a memory suggestion from chat */
+  onSaveMemory?: (category: MemoryCategory, title: string, value: string) => Promise<LifeBestieMemory | null>;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -33,6 +43,12 @@ const SUGGESTED_PROMPTS = [
   'Plan my day',
   'Add groceries',
   'Help me stay organized',
+];
+
+const VALID_CATEGORIES: MemoryCategory[] = [
+  'Preference','Goal','Routine','Meal','Household',
+  'WorkSchedule','EncouragementStyle','Wellness',
+  'Challenge','Favorite','Budget','Other',
 ];
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -44,8 +60,9 @@ async function callChatFunction(
   events: Event[],
   groceryItems: GroceryItem[],
   memory: UserMemory | null,
-  proactiveSuggestions: string[]
-): Promise<string> {
+  proactiveSuggestions: string[],
+  savedMemories: LifeBestieMemory[],
+): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
   const today = new Date().toISOString().split('T')[0];
   const pending = tasks.filter((t) => !t.completed);
   const todayEvents = events.filter((e) => e.event_date === today);
@@ -59,6 +76,7 @@ async function callChatFunction(
     todayEventTitles: todayEvents
       .slice(0, 5)
       .map((e) => `${e.event_time ? e.event_time + ' ' : ''}${e.title}`),
+    savedMemories: savedMemories.map((m) => ({ category: m.category, title: m.title })),
   };
 
   if (memory) {
@@ -66,7 +84,6 @@ async function callChatFunction(
     context.preferences = memory.preferences;
     const recentHistory = memory.history.slice(-7);
     context.recentActions = recentHistory.flatMap((h) => h.actions).slice(-20);
-    // Pass top groceries sorted by frequency so the AI can suggest them naturally
     context.commonGroceries = [...memory.common_groceries]
       .sort((a, b) => b.frequency - a.frequency)
       .slice(0, 10)
@@ -90,7 +107,67 @@ async function callChatFunction(
   if (!response.ok) throw new Error('Chat request failed');
 
   const data = await response.json();
-  return data.text ?? "I'm here for you 💛 Could you say that again?";
+  return {
+    text: data.text ?? "I'm here for you 💛 Could you say that again?",
+    memory_suggestion: data.memory_suggestion ?? undefined,
+  };
+}
+
+// ── Memory confirmation banner ─────────────────────────────────────────────────
+
+function MemoryConfirmBanner({
+  suggestion,
+  onConfirm,
+  onDismiss,
+  saving,
+}: {
+  suggestion: MemorySuggestion;
+  onConfirm: () => void;
+  onDismiss: () => void;
+  saving: boolean;
+}) {
+  const meta = MEMORY_CATEGORY_META[suggestion.category] ?? MEMORY_CATEGORY_META['Other'];
+  return (
+    <div
+      className="mx-4 mb-3 rounded-2xl px-4 py-3 border flex items-start gap-3"
+      style={{ backgroundColor: meta.bg, borderColor: `${meta.color}44` }}
+    >
+      <div
+        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base"
+        style={{ backgroundColor: `${meta.color}22` }}
+      >
+        {meta.emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-0.5" style={{ color: meta.color }}>
+          <Brain size={9} className="inline mr-1 -mt-px" />
+          Would you like me to remember that?
+        </p>
+        <p className="text-sm font-semibold text-gray-800 leading-snug">{suggestion.title}</p>
+        {suggestion.value && (
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{suggestion.value}</p>
+        )}
+        <div className="flex gap-2 mt-2.5">
+          <button
+            onClick={onConfirm}
+            disabled={saving}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full text-white disabled:opacity-50 active:scale-95 transition-all"
+            style={{ backgroundColor: meta.color }}
+          >
+            <Check size={11} />
+            {saving ? 'Saving…' : 'Yes, remember it'}
+          </button>
+          <button
+            onClick={onDismiss}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/70 text-gray-500 border border-gray-200 active:scale-95 transition-all"
+          >
+            <X size={11} />
+            No thanks
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ChatPage({
@@ -105,6 +182,8 @@ export default function ChatPage({
   preferredName,
   avatarTheme: _avatarTheme,
   character,
+  savedMemories = [],
+  onSaveMemory,
 }: ChatPageProps) {
   const initMessage: Message = {
     id: 'init',
@@ -114,18 +193,22 @@ export default function ChatPage({
       : "Hey 💛 I'm here to help you stay on track today. What do you need?",
     timestamp: new Date(),
   };
-  const [messages, setMessages] = useState<Message[]>([initMessage]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [messages, setMessages]                   = useState<Message[]>([initMessage]);
+  const [input, setInput]                         = useState('');
+  const [isTyping, setIsTyping]                   = useState(false);
+  const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
+  const [savingMemory, setSavingMemory]           = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, pendingSuggestion]);
 
   async function sendMessage(text: string) {
     if (!text.trim() || isTyping) return;
+
+    setPendingSuggestion(null);
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -139,9 +222,17 @@ export default function ChatPage({
     setIsTyping(true);
 
     try {
-      const replyText = await callChatFunction(updatedMessages, tasks, events, groceryItems, memory, getProactiveSuggestions?.() ?? []);
+      const result = await callChatFunction(
+        updatedMessages,
+        tasks,
+        events,
+        groceryItems,
+        memory,
+        getProactiveSuggestions?.() ?? [],
+        savedMemories,
+      );
 
-      // Parse for implicit action intents based on user input + reply
+      const replyText = result.text;
       const lowerInput = text.toLowerCase();
       const lowerReply = replyText.toLowerCase();
 
@@ -159,22 +250,28 @@ export default function ChatPage({
         if (match) await onAddTask(match[1].trim());
       }
 
-      // Detect wake time preference mentions
       const wakeMatch = lowerInput.match(/(?:wake up|get up|start my day) (?:at )?([\d:]+\s*(?:am|pm)?)/i);
       if (wakeMatch && memory) {
-        await onUpdateMemory({
-          ...memory.preferences,
-          preferredWakeTime: wakeMatch[1],
-        });
+        await onUpdateMemory({ ...memory.preferences, preferredWakeTime: wakeMatch[1] });
       }
 
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        text: replyText,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          text: replyText,
+          timestamp: new Date(),
+        },
+      ]);
+
+      // Show confirmation banner only for valid categories and when save is available
+      if (result.memory_suggestion && onSaveMemory) {
+        const cat = result.memory_suggestion.category as MemoryCategory;
+        if (VALID_CATEGORIES.includes(cat)) {
+          setPendingSuggestion({ ...result.memory_suggestion, category: cat });
+        }
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -188,6 +285,23 @@ export default function ChatPage({
     } finally {
       setIsTyping(false);
     }
+  }
+
+  async function handleConfirmMemory() {
+    if (!pendingSuggestion || !onSaveMemory) return;
+    setSavingMemory(true);
+    await onSaveMemory(pendingSuggestion.category, pendingSuggestion.title, pendingSuggestion.value);
+    setSavingMemory(false);
+    setPendingSuggestion(null);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        role: 'assistant',
+        text: "Got it! I'll keep that in mind 💛",
+        timestamp: new Date(),
+      },
+    ]);
   }
 
   function formatTime(date: Date) {
@@ -204,9 +318,18 @@ export default function ChatPage({
           size="md"
         />
         <div>
-          <h1 className="text-sm font-bold text-gray-800">LifeBestie</h1>
-          <p className="text-xs text-emerald-500 font-medium">Always here for you</p>
+          <h1 className="text-sm font-bold text-gray-800">Emma</h1>
+          <p className="text-xs font-medium" style={{ color: 'var(--theme-primary)' }}>Always here for you</p>
         </div>
+        {savedMemories.length > 0 && (
+          <div
+            className="ml-auto flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full"
+            style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
+          >
+            <Brain size={9} />
+            {savedMemories.length} {savedMemories.length === 1 ? 'memory' : 'memories'}
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -250,8 +373,18 @@ export default function ChatPage({
         <div ref={bottomRef} />
       </div>
 
+      {/* Memory confirmation banner — sits between messages and input */}
+      {pendingSuggestion && (
+        <MemoryConfirmBanner
+          suggestion={pendingSuggestion}
+          onConfirm={handleConfirmMemory}
+          onDismiss={() => setPendingSuggestion(null)}
+          saving={savingMemory}
+        />
+      )}
+
       {/* Suggested Prompts */}
-      {messages.length <= 2 && (
+      {messages.length <= 2 && !pendingSuggestion && (
         <div className="shrink-0 px-4 pb-3">
           <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {SUGGESTED_PROMPTS.map((p) => (
@@ -279,6 +412,7 @@ export default function ChatPage({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400 py-1"
+            style={{ fontSize: 16 }}
           />
           <button
             onClick={() => sendMessage(input)}

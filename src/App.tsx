@@ -576,6 +576,8 @@ export default function App() {
           preferredName={preferredName}
           avatarTheme={personalization.avatarTheme}
           character={selectedCharacter}
+          savedMemories={lifeBestieMemory.memories}
+          onSaveMemory={lifeBestieMemory.addMemory}
         />
       )}
       {activeTab === 'movement' && enabledModules.has('movement') && (

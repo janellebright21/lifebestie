@@ -143,7 +143,7 @@ function MemoryCard({
               className="text-[10px] font-bold uppercase tracking-widest"
               style={{ color: meta.color }}
             >
-              {memory.category}
+              {meta.label ?? memory.category}
             </span>
           </div>
           <p className="text-sm font-semibold text-gray-800 leading-snug">{memory.title}</p>
@@ -292,7 +292,7 @@ export default function MemorySection({
                       : { backgroundColor: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
                     }
                   >
-                    {meta.emoji} {cat} ({count})
+                    {meta.emoji} {meta.label ?? cat} ({count})
                   </button>
                 );
               })}

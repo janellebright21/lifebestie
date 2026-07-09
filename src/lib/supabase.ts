@@ -638,8 +638,9 @@ export const DEFAULT_PERSONALIZATION = {
 // ─── LifeBestie Memory ────────────────────────────────────────────────────────
 
 export const MEMORY_CATEGORIES = [
-  'Preference', 'Goal', 'Challenge', 'Routine',
-  'Favorite', 'Household', 'Wellness', 'Budget', 'Other',
+  'Preference', 'Goal', 'Routine', 'Meal',
+  'Household', 'WorkSchedule', 'EncouragementStyle', 'Wellness',
+  'Challenge', 'Favorite', 'Budget', 'Other',
 ] as const;
 
 export type MemoryCategory = typeof MEMORY_CATEGORIES[number];
@@ -656,16 +657,19 @@ export interface LifeBestieMemory {
 }
 
 /** emoji + color for each memory category */
-export const MEMORY_CATEGORY_META: Record<MemoryCategory, { emoji: string; color: string; bg: string }> = {
-  Preference: { emoji: '💜', color: '#a78bfa', bg: '#f5f3ff' },
-  Goal:       { emoji: '🎯', color: '#34d399', bg: '#ecfdf5' },
-  Challenge:  { emoji: '⚡', color: '#fbbf24', bg: '#fffbeb' },
-  Routine:    { emoji: '🔁', color: '#60a5fa', bg: '#eff6ff' },
-  Favorite:   { emoji: '⭐', color: '#f59e0b', bg: '#fef3c7' },
-  Household:  { emoji: '🏠', color: '#6ee7b7', bg: '#d1fae5' },
-  Wellness:   { emoji: '🌿', color: '#34d399', bg: '#ecfdf5' },
-  Budget:     { emoji: '💰', color: '#fb923c', bg: '#fff7ed' },
-  Other:      { emoji: '📝', color: '#9ca3af', bg: '#f3f4f6' },
+export const MEMORY_CATEGORY_META: Record<MemoryCategory, { emoji: string; color: string; bg: string; label: string }> = {
+  Preference:        { emoji: '💜', color: '#a78bfa', bg: '#f5f3ff', label: 'Preferences' },
+  Goal:              { emoji: '🎯', color: '#34d399', bg: '#ecfdf5', label: 'Goals' },
+  Routine:           { emoji: '🔁', color: '#60a5fa', bg: '#eff6ff', label: 'Routines' },
+  Meal:              { emoji: '🍽️', color: '#f97316', bg: '#fff7ed', label: 'Meals & Food' },
+  Household:         { emoji: '🏠', color: '#6ee7b7', bg: '#d1fae5', label: 'Household' },
+  WorkSchedule:      { emoji: '💼', color: '#818cf8', bg: '#eef2ff', label: 'Work Schedule' },
+  EncouragementStyle:{ emoji: '💛', color: '#eab308', bg: '#fefce8', label: 'Encouragement Style' },
+  Wellness:          { emoji: '🌿', color: '#22c55e', bg: '#f0fdf4', label: 'Wellness' },
+  Challenge:         { emoji: '⚡', color: '#fbbf24', bg: '#fffbeb', label: 'Challenges' },
+  Favorite:          { emoji: '⭐', color: '#f59e0b', bg: '#fef3c7', label: 'Favorites' },
+  Budget:            { emoji: '💰', color: '#fb923c', bg: '#fff7ed', label: 'Budget' },
+  Other:             { emoji: '📝', color: '#9ca3af', bg: '#f3f4f6', label: 'Other' },
 };
 
 // ─── User Profile ─────────────────────────────────────────────────────────────
