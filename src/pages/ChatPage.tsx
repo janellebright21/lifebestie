@@ -421,9 +421,20 @@ function ChatPageInner({
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error('[Chat] sendMessage failed:', errMsg);
 
-      const friendlyText = errMsg === 'not_configured'
-        ? "Emma's AI isn't connected yet. An admin needs to add the AI_API_KEY secret in Supabase."
-        : "I'm sorry—I had trouble responding. Please try again.";
+      let friendlyText = "I'm sorry—I had trouble responding. Please try again.";
+      if (errMsg === 'not_configured' || errMsg === 'AI_NOT_CONFIGURED') {
+        friendlyText = "Emma's AI isn't set up yet. An admin needs to add the GROQ_API_KEY secret in Supabase.";
+      } else if (errMsg === 'AI_RATE_LIMIT') {
+        friendlyText = "Emma's getting a lot of messages right now. Please wait a moment and try again 💛";
+      } else if (errMsg === 'AI_QUOTA') {
+        friendlyText = "Emma has reached her usage limit for now. Please try again a little later 💛";
+      } else if (errMsg === 'AI_INVALID_KEY') {
+        friendlyText = "Emma's AI key needs to be updated. Please contact support.";
+      } else if (errMsg === 'AI_INVALID_MODEL') {
+        friendlyText = "Emma's AI model isn't available. An admin needs to update the GROQ_MODEL secret in Supabase.";
+      } else if (errMsg === 'AI_UNAVAILABLE' || errMsg === 'AI_OVERLOADED') {
+        friendlyText = "Emma's AI is unavailable right now. Please try again in a moment 💛";
+      }
 
       setMessages((prev) => [
         ...prev,

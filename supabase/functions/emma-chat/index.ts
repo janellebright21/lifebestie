@@ -14,12 +14,19 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-const SYSTEM_PROMPT = `You are Emma, a warm and supportive AI Life Bestie designed for busy moms and women managing daily life.
+// Groq base URL (OpenAI-compatible)
+const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+
+// Safe production fallback — openai/gpt-oss-20b is a stable Groq production model
+// recommended as the replacement for llama-3.1-8b-instant (deprecated Aug 2026)
+const DEFAULT_MODEL = "openai/gpt-oss-20b";
+
+const SYSTEM_PROMPT = `You are Emma, a warm and supportive AI Life Bestie for busy moms and women managing daily life.
 
 Your personality:
 - Warm, encouraging, and nonjudgmental — like a trusted best friend
 - Practical and grounded in real daily life
-- Conversational and concise unless the user asks for detail
+- Conversational and concise unless the user asks for more detail
 - Never preachy, never overwhelming
 
 You help with:
@@ -29,24 +36,25 @@ You help with:
 - Meals and grocery planning
 - Wellness and self-care
 - Motivation and emotional support
-- Household organization and life balance
+- Household organization
+- Work-life balance
 
-Important rules:
-- Never claim you completed an action (like adding a task or grocery item) unless the app actually performed it
-- Never claim you remember something unless it was provided in the confirmed memories list
-- Keep responses short — 2 to 4 sentences unless a list is genuinely needed
-- Use bullet points for lists, numbered only when order matters
-- Occasionally use warm phrases like "you've got this" or "you're doing great" — but sparingly
-- Do NOT announce that you are reading memory or context — weave it in naturally
-- Do NOT identify yourself as an AI model or Claude — you are Emma, their LifeBestie
+Critical rules:
+- Never claim you completed an app action (adding a task, grocery item, etc.) unless the application actually performed it
+- Never claim you remember something unless it appears in the confirmed user memory data provided to you
+- Keep responses to 2-4 sentences unless a list or more detail is genuinely needed
+- Use bullet points for lists; numbered only when order matters
+- Occasionally use warm phrases like "you've got this" or "you're doing great" — sparingly
+- Do NOT announce that you are reading context or memory — weave it in naturally
+- Do NOT identify as an AI model or claim to be Claude, GPT, or any specific AI — you are Emma, their LifeBestie
 - Stay focused on daily life support; do not act as a general-purpose chatbot
 
-Memory usage:
-- When confirmed memories are provided, use the most relevant ONE per response
-- Reference it naturally and conversationally, never list all memories at once
-- Do not invent or assume information that was not explicitly given
+Memory usage rules:
+- When confirmed memories about the user are provided, reference at most ONE per response
+- Use it naturally and conversationally — never list all memories at once
+- Do not invent or assume anything not explicitly given
 
-Response format — always respond with valid JSON:
+RESPONSE FORMAT — always respond with valid JSON only, no markdown, no code fences:
 {
   "text": "Emma's warm conversational response here",
   "memory_suggestion": {
@@ -56,7 +64,9 @@ Response format — always respond with valid JSON:
   }
 }
 
-Only include memory_suggestion when the user explicitly shares a clear personal fact worth saving (a preference, routine, goal, or similar). Omit the field entirely when there is nothing worth saving. Do not suggest saving conversational filler or temporary plans.`;
+Only include memory_suggestion when the user explicitly shares a clear personal fact worth saving.
+Omit the memory_suggestion field entirely when there is nothing worth saving.
+Do NOT include it as null — either include it with data or omit it completely.`;
 
 interface ConversationMessage {
   role: "user" | "assistant";
@@ -98,15 +108,15 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── API key check ──────────────────────────────────────────────────────────
-    const apiKey = Deno.env.get("AI_API_KEY");
-    if (!apiKey) {
+    const groqApiKey = Deno.env.get("GROQ_API_KEY");
+    if (!groqApiKey) {
       return jsonResponse({
         error: "AI_NOT_CONFIGURED",
-        message: "Emma's AI connection has not been configured.",
+        message: "Emma's AI connection has not been configured. Add GROQ_API_KEY to Supabase Edge Function secrets.",
       }, 503);
     }
 
-    const model = Deno.env.get("AI_MODEL") ?? "claude-haiku-4-5";
+    const model = Deno.env.get("GROQ_MODEL") || DEFAULT_MODEL;
 
     // ── Parse request ──────────────────────────────────────────────────────────
     let body: RequestBody;
@@ -122,7 +132,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "BAD_REQUEST", message: "message is required." }, 400);
     }
 
-    // ── Build system prompt with context ──────────────────────────────────────
+    // ── Build system prompt with confirmed memories ────────────────────────────
     let systemPrompt = SYSTEM_PROMPT;
 
     if (memories.length > 0) {
@@ -130,81 +140,104 @@ Deno.serve(async (req: Request) => {
         .slice(0, 20)
         .map((m) => `- [${m.category}] ${m.title}`)
         .join("\n");
-      systemPrompt += `\n\n## Confirmed memories about this user\n${memoryLines}\n(Use the single most relevant one naturally — never list them all at once.)`;
+      systemPrompt += `\n\n## Confirmed memories about this user\n${memoryLines}\n(Reference the single most relevant one naturally — never list them all at once.)`;
     }
 
-    // ── Build message history (cap at last 10 turns to limit payload) ──────────
-    const historyMessages: ConversationMessage[] = conversation
-      .filter((m) => m.role === "user" || m.role === "assistant")
+    // ── Build messages array (cap history at 10 turns to limit payload) ────────
+    const historyMessages: ConversationMessage[] = (Array.isArray(conversation) ? conversation : [])
+      .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
       .slice(-10)
-      .map((m) => ({ role: m.role, content: String(m.content ?? "") }));
+      .map((m) => ({ role: m.role, content: m.content }));
 
-    // Append the current user message
-    const apiMessages = [...historyMessages, { role: "user" as const, content: message.trim() }];
+    const apiMessages = [
+      ...historyMessages,
+      { role: "user" as const, content: message.trim() },
+    ];
 
-    // ── Call Anthropic Claude ──────────────────────────────────────────────────
-    let aiResponse: Response;
+    // ── Call Groq (OpenAI-compatible endpoint) ─────────────────────────────────
+    let groqResponse: Response;
     try {
-      aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      groqResponse = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
+          "Authorization": `Bearer ${groqApiKey}`,
         },
         body: JSON.stringify({
           model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...apiMessages,
+          ],
           max_tokens: 600,
-          system: systemPrompt,
-          messages: apiMessages,
+          temperature: 0.7,
+          // Request JSON output — supported by openai/gpt-oss-20b and compatible models
+          response_format: { type: "json_object" },
         }),
       });
     } catch (networkErr) {
-      console.error("[emma-chat] Network error calling AI provider:", networkErr);
+      console.error("[emma-chat] Network error reaching Groq:", networkErr);
       return jsonResponse({
         error: "AI_UNAVAILABLE",
         message: "Could not reach the AI provider. Please try again.",
       }, 502);
     }
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text().catch(() => "");
-      console.error(`[emma-chat] AI provider returned ${aiResponse.status}:`, errText);
+    // ── Handle Groq error responses ────────────────────────────────────────────
+    if (!groqResponse.ok) {
+      let errBody: Record<string, unknown> = {};
+      try { errBody = await groqResponse.json(); } catch { /* ignore */ }
+      const errCode = (errBody.error as Record<string, unknown> | undefined)?.code ?? "";
+      const errType = (errBody.error as Record<string, unknown> | undefined)?.type ?? "";
+      console.error(`[emma-chat] Groq returned HTTP ${groqResponse.status}:`, JSON.stringify(errBody));
 
-      if (aiResponse.status === 401) {
-        return jsonResponse({ error: "AI_INVALID_KEY", message: "The AI API key is invalid." }, 502);
+      if (groqResponse.status === 401) {
+        return jsonResponse({ error: "AI_INVALID_KEY", message: "The Groq API key is invalid." }, 502);
       }
-      if (aiResponse.status === 429) {
-        return jsonResponse({ error: "AI_RATE_LIMIT", message: "Emma is very busy right now. Please try again in a moment." }, 429);
+      if (groqResponse.status === 429) {
+        const isQuota = errCode === "rate_limit_exceeded" && String(errType).includes("tokens");
+        return jsonResponse({
+          error: isQuota ? "AI_QUOTA" : "AI_RATE_LIMIT",
+          message: isQuota
+            ? "Emma has reached her free-tier usage limit for now. Please try again later."
+            : "Emma is getting too many requests right now. Please wait a moment and try again.",
+        }, 429);
       }
-      if (aiResponse.status === 503 || aiResponse.status === 529) {
-        return jsonResponse({ error: "AI_OVERLOADED", message: "Emma's AI service is temporarily overloaded. Please try again." }, 503);
+      if (groqResponse.status === 400 && String(errCode).includes("model")) {
+        return jsonResponse({
+          error: "AI_INVALID_MODEL",
+          message: `The configured model "${model}" is not available on Groq. Update the GROQ_MODEL secret.`,
+        }, 502);
+      }
+      if (groqResponse.status === 503 || groqResponse.status === 502) {
+        return jsonResponse({ error: "AI_OVERLOADED", message: "Emma's AI is temporarily overloaded. Please try again." }, 503);
       }
       return jsonResponse({ error: "AI_ERROR", message: "Emma's AI service returned an unexpected error." }, 502);
     }
 
-    let aiData: Record<string, unknown>;
+    // ── Parse Groq response ────────────────────────────────────────────────────
+    let groqData: Record<string, unknown>;
     try {
-      aiData = await aiResponse.json();
+      groqData = await groqResponse.json();
     } catch {
-      return jsonResponse({ error: "AI_INVALID_RESPONSE", message: "Emma received an unexpected response from the AI service." }, 502);
+      return jsonResponse({ error: "AI_INVALID_RESPONSE", message: "Emma received an unreadable response from the AI service." }, 502);
     }
 
-    // Extract the text content from Anthropic's response shape
-    const contentBlock = (aiData.content as Array<{ type: string; text: string }> | undefined)?.[0];
-    const rawText = contentBlock?.type === "text" ? contentBlock.text : null;
+    const rawContent =
+      (groqData.choices as Array<{ message?: { content?: string } }> | undefined)
+        ?.[0]?.message?.content ?? null;
 
-    if (!rawText) {
+    if (!rawContent || typeof rawContent !== "string" || !rawContent.trim()) {
       return jsonResponse({ error: "AI_EMPTY_RESPONSE", message: "Emma's response was empty. Please try again." }, 502);
     }
 
     // ── Parse Emma's JSON response ─────────────────────────────────────────────
-    let emmaText = rawText;
+    let emmaText = rawContent;
     let memorySuggestion: { category: string; title: string; value: string } | null = null;
 
     try {
-      // Strip markdown code fences if the model wrapped its response
-      const cleaned = rawText
+      // Strip markdown fences in case the model ignored the no-fences rule
+      const cleaned = rawContent
         .replace(/^```(?:json)?\s*/i, "")
         .replace(/```\s*$/i, "")
         .trim();
@@ -223,15 +256,15 @@ Deno.serve(async (req: Request) => {
       ) {
         memorySuggestion = {
           category: parsed.memory_suggestion.category,
-          title: parsed.memory_suggestion.title.slice(0, 80),
+          title: String(parsed.memory_suggestion.title).slice(0, 80),
           value: typeof parsed.memory_suggestion.value === "string"
             ? parsed.memory_suggestion.value
             : "",
         };
       }
     } catch {
-      // Model didn't return valid JSON — use the raw string as-is
-      emmaText = rawText;
+      // Model returned plain text despite JSON instructions — use it as-is
+      emmaText = rawContent;
     }
 
     return jsonResponse({
