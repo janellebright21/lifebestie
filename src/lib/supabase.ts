@@ -633,6 +633,7 @@ export const DEFAULT_PERSONALIZATION = {
   theme: 'cozy-coffee' as ThemeId,
   bgSkin: 'solid' as BgSkinId,
   avatarTheme: 'classic' as AvatarThemeId,
+  memoryEnabled: true,
 };
 
 // ─── LifeBestie Memory ────────────────────────────────────────────────────────
@@ -640,7 +641,7 @@ export const DEFAULT_PERSONALIZATION = {
 export const MEMORY_CATEGORIES = [
   'Preference', 'Goal', 'Routine', 'Meal',
   'Household', 'WorkSchedule', 'EncouragementStyle', 'Wellness',
-  'Challenge', 'Favorite', 'Budget', 'Other',
+  'ImportantDate', 'Challenge', 'Favorite', 'Budget', 'Other',
 ] as const;
 
 export type MemoryCategory = typeof MEMORY_CATEGORIES[number];
@@ -666,6 +667,7 @@ export const MEMORY_CATEGORY_META: Record<MemoryCategory, { emoji: string; color
   WorkSchedule:      { emoji: '💼', color: '#818cf8', bg: '#eef2ff', label: 'Work Schedule' },
   EncouragementStyle:{ emoji: '💛', color: '#eab308', bg: '#fefce8', label: 'Encouragement Style' },
   Wellness:          { emoji: '🌿', color: '#22c55e', bg: '#f0fdf4', label: 'Wellness' },
+  ImportantDate:     { emoji: '📅', color: '#f43f5e', bg: '#fff1f2', label: 'Important Dates' },
   Challenge:         { emoji: '⚡', color: '#fbbf24', bg: '#fffbeb', label: 'Challenges' },
   Favorite:          { emoji: '⭐', color: '#f59e0b', bg: '#fef3c7', label: 'Favorites' },
   Budget:            { emoji: '💰', color: '#fb923c', bg: '#fff7ed', label: 'Budget' },

@@ -36,6 +36,13 @@ interface ChatPageProps {
   savedMemories?: LifeBestieMemory[];
   /** Called when user confirms a memory suggestion from chat */
   onSaveMemory?: (category: MemoryCategory, title: string, value: string) => Promise<LifeBestieMemory | null>;
+  /**
+   * When false, memory suggestions are suppressed and memories are excluded from context.
+   * Existing memories are not deleted.
+   */
+  memoryEnabled?: boolean;
+  /** Returns the memories most relevant to the given conversation text (max 6). */
+  getRelevantMemories?: (conversationText: string) => LifeBestieMemory[];
 }
 
 const SUGGESTED_PROMPTS = [
@@ -61,7 +68,7 @@ async function callChatFunction(
   groceryItems: GroceryItem[],
   memory: UserMemory | null,
   proactiveSuggestions: string[],
-  savedMemories: LifeBestieMemory[],
+  relevantMemories: LifeBestieMemory[],
 ): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
   const today = new Date().toISOString().split('T')[0];
   const pending = tasks.filter((t) => !t.completed);
@@ -76,7 +83,8 @@ async function callChatFunction(
     todayEventTitles: todayEvents
       .slice(0, 5)
       .map((e) => `${e.event_time ? e.event_time + ' ' : ''}${e.title}`),
-    savedMemories: savedMemories.map((m) => ({ category: m.category, title: m.title })),
+    // Only include memories relevant to the current conversation (max 6)
+    savedMemories: relevantMemories.map((m) => ({ category: m.category, title: m.title })),
   };
 
   if (memory) {
@@ -184,6 +192,8 @@ export default function ChatPage({
   character,
   savedMemories = [],
   onSaveMemory,
+  memoryEnabled = true,
+  getRelevantMemories,
 }: ChatPageProps) {
   const initMessage: Message = {
     id: 'init',
@@ -222,6 +232,15 @@ export default function ChatPage({
     setIsTyping(true);
 
     try {
+      // Build the conversation text for relevance scoring (last 4 messages)
+      const recentText = updatedMessages
+        .slice(-4)
+        .map((m) => m.text)
+        .join(' ');
+      const relevantMemories = memoryEnabled && getRelevantMemories
+        ? getRelevantMemories(recentText)
+        : [];
+
       const result = await callChatFunction(
         updatedMessages,
         tasks,
@@ -229,7 +248,7 @@ export default function ChatPage({
         groceryItems,
         memory,
         getProactiveSuggestions?.() ?? [],
-        savedMemories,
+        relevantMemories,
       );
 
       const replyText = result.text;
@@ -265,8 +284,8 @@ export default function ChatPage({
         },
       ]);
 
-      // Show confirmation banner only for valid categories and when save is available
-      if (result.memory_suggestion && onSaveMemory) {
+      // Show confirmation banner only when memory is enabled and the category is valid
+      if (result.memory_suggestion && onSaveMemory && memoryEnabled) {
         const cat = result.memory_suggestion.category as MemoryCategory;
         if (VALID_CATEGORIES.includes(cat)) {
           setPendingSuggestion({ ...result.memory_suggestion, category: cat });
@@ -321,13 +340,19 @@ export default function ChatPage({
           <h1 className="text-sm font-bold text-gray-800">Emma</h1>
           <p className="text-xs font-medium" style={{ color: 'var(--theme-primary)' }}>Always here for you</p>
         </div>
-        {savedMemories.length > 0 && (
+        {memoryEnabled && savedMemories.length > 0 && (
           <div
             className="ml-auto flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full"
             style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
           >
             <Brain size={9} />
             {savedMemories.length} {savedMemories.length === 1 ? 'memory' : 'memories'}
+          </div>
+        )}
+        {!memoryEnabled && (
+          <div className="ml-auto flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-400">
+            <Brain size={9} />
+            Memory off
           </div>
         )}
       </div>

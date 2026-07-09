@@ -592,7 +592,9 @@ export default function App() {
           avatarTheme={personalization.avatarTheme}
           character={selectedCharacter}
           savedMemories={lifeBestieMemory.memories}
-          onSaveMemory={lifeBestieMemory.addMemory}
+          onSaveMemory={personalization.memoryEnabled ? lifeBestieMemory.addMemory : undefined}
+          memoryEnabled={personalization.memoryEnabled}
+          getRelevantMemories={lifeBestieMemory.getRelevantMemories}
         />
       )}
       {activeTab === 'movement' && enabledModules.has('movement') && (
@@ -645,11 +647,8 @@ export default function App() {
           onSetTheme={personalization.setTheme}
           onSetBgSkin={personalization.setBgSkin}
           onSetAvatarTheme={personalization.setAvatarTheme}
-          memories={lifeBestieMemory.memories}
-          memoriesLoading={lifeBestieMemory.loading}
-          onAddMemory={lifeBestieMemory.addMemory}
-          onUpdateMemory={lifeBestieMemory.updateMemory}
-          onDeleteMemory={lifeBestieMemory.deleteMemory}
+          memoryEnabled={personalization.memoryEnabled}
+          onSetMemoryEnabled={personalization.setMemoryEnabled}
         />
       )}
 

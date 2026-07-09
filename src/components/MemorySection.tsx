@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, Plus, Pencil, Trash2, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Brain, Plus, Pencil, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   MEMORY_CATEGORIES,
   MEMORY_CATEGORY_META,
@@ -56,7 +56,7 @@ function MemoryForm({ initial, onSave, onCancel }: MemoryFormProps) {
                 }
               >
                 <span>{meta.emoji}</span>
-                {cat}
+                {meta.label}
               </button>
             );
           })}
@@ -65,7 +65,7 @@ function MemoryForm({ initial, onSave, onCancel }: MemoryFormProps) {
 
       {/* Title */}
       <div>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">What LifeBestie should know</p>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">What Emma should remember</p>
         <input
           type="text"
           placeholder="e.g. Prefers morning workouts"
@@ -123,7 +123,11 @@ function MemoryCard({
   onDelete: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const meta = MEMORY_CATEGORY_META[memory.category];
+  const meta = MEMORY_CATEGORY_META[memory.category] ?? MEMORY_CATEGORY_META['Other'];
+
+  const dateAdded = new Date(memory.created_at).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
@@ -143,34 +147,38 @@ function MemoryCard({
               className="text-[10px] font-bold uppercase tracking-widest"
               style={{ color: meta.color }}
             >
-              {meta.label ?? memory.category}
+              {meta.label}
             </span>
           </div>
           <p className="text-sm font-semibold text-gray-800 leading-snug">{memory.title}</p>
           {memory.value && (
             <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{memory.value}</p>
           )}
+          <p className="text-[10px] text-gray-300 mt-1.5">Added {dateAdded}</p>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-1 shrink-0">
           {confirmDelete ? (
-            <>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 bg-gray-50"
-                aria-label="Cancel delete"
-              >
-                <X size={13} />
-              </button>
-              <button
-                onClick={onDelete}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white bg-red-400"
-                aria-label="Confirm delete"
-              >
-                <Check size={13} />
-              </button>
-            </>
+            <div className="flex flex-col items-end gap-1.5">
+              <p className="text-[10px] font-semibold text-gray-500">Delete this memory?</p>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 active:scale-95 transition-transform"
+                >
+                  <X size={11} />
+                  Cancel
+                </button>
+                <button
+                  onClick={onDelete}
+                  className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-200 active:scale-95 transition-transform"
+                >
+                  <Trash2 size={11} />
+                  Delete
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               <button
@@ -200,9 +208,9 @@ function MemoryCard({
 export default function MemorySection({
   memories, loading, onAdd, onUpdate, onDelete,
 }: MemorySectionProps) {
-  const [showForm, setShowForm]       = useState(false);
-  const [editingId, setEditingId]     = useState<string | null>(null);
-  const [expanded, setExpanded]       = useState(true);
+  const [showForm, setShowForm]         = useState(false);
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [expanded, setExpanded]         = useState(true);
   const [activeFilter, setActiveFilter] = useState<MemoryCategory | 'All'>('All');
 
   const filtered = activeFilter === 'All'
@@ -221,6 +229,8 @@ export default function MemorySection({
     setEditingId(null);
   }
 
+  const memoryCount = memories.length;
+
   return (
     <div>
       {/* Section header */}
@@ -231,13 +241,13 @@ export default function MemorySection({
         <div className="flex items-center gap-2">
           <Brain size={14} className="text-gray-400" />
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-            What LifeBestie Knows About Me
+            Things Emma Remembers
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          {memories.length > 0 && (
+          {memoryCount > 0 && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-              {memories.length}
+              {memoryCount}
             </span>
           )}
           {expanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
@@ -246,6 +256,13 @@ export default function MemorySection({
 
       {expanded && (
         <div className="space-y-3">
+          {/* Memory count sentence */}
+          {memoryCount > 0 && !showForm && (
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Emma remembers <span className="font-semibold text-gray-600">{memoryCount} {memoryCount === 1 ? 'thing' : 'things'}</span> about you.
+            </p>
+          )}
+
           {/* Add button */}
           {!showForm && (
             <button
@@ -276,7 +293,7 @@ export default function MemorySection({
                   : { backgroundColor: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
                 }
               >
-                All ({memories.length})
+                All ({memoryCount})
               </button>
               {categoriesPresent.map((cat) => {
                 const meta = MEMORY_CATEGORY_META[cat];
@@ -292,7 +309,7 @@ export default function MemorySection({
                       : { backgroundColor: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
                     }
                   >
-                    {meta.emoji} {meta.label ?? cat} ({count})
+                    {meta.emoji} {meta.label} ({count})
                   </button>
                 );
               })}
@@ -307,9 +324,9 @@ export default function MemorySection({
           {!loading && memories.length === 0 && !showForm && (
             <div className="bg-white rounded-2xl border border-gray-100 px-4 py-6 text-center">
               <p className="text-2xl mb-2">🧠</p>
-              <p className="text-sm font-semibold text-gray-600 mb-1">No memories yet</p>
+              <p className="text-sm font-semibold text-gray-600 mb-1">Nothing saved yet</p>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Add things LifeBestie should know about you — your routines, preferences, goals, and more.
+                Chat with Emma and confirm when she suggests something to remember. You can also add memories manually above.
               </p>
             </div>
           )}

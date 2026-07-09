@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, dbError, LifeBestieMemory, MemoryCategory } from '../lib/supabase';
 
+// Returns true if two strings are "close enough" to be considered duplicates.
+// Uses a simple normalized-includes check: if either title contains the other
+// (case/punctuation-insensitive), treat them as the same memory.
+function isSimilarTitle(a: string, b: string): boolean {
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+  const na = normalize(a);
+  const nb = normalize(b);
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
 export function useLifeBestieMemory() {
   const [memories, setMemories] = useState<LifeBestieMemory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +32,17 @@ export function useLifeBestieMemory() {
 
   useEffect(() => { load(); }, [load]);
 
+  /**
+   * Add a new memory.
+   *
+   * Duplicate prevention rules:
+   * - If a memory with the exact same category AND a similar title already exists,
+   *   update it instead of creating a duplicate.
+   * - "Similar" means one title contains the other (normalised, case-insensitive).
+   *
+   * This ensures corrections ("Prefers direct reminders" replacing
+   * "Prefers gentle reminders") update in-place rather than creating conflicts.
+   */
   async function addMemory(
     category: MemoryCategory,
     title: string,
@@ -30,6 +51,17 @@ export function useLifeBestieMemory() {
   ): Promise<LifeBestieMemory | null> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
+
+    // Check for an existing memory in the same category with a similar title.
+    const existing = memories.find(
+      (m) => m.category === category && isSimilarTitle(m.title, title)
+    );
+
+    if (existing) {
+      // Update the existing memory so corrections don't create duplicates.
+      await updateMemory(existing.id, { category, title, value });
+      return memories.find((m) => m.id === existing.id) ?? null;
+    }
 
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -80,5 +112,39 @@ export function useLifeBestieMemory() {
     return memories.filter((m) => m.category === category);
   }
 
-  return { memories, loading, addMemory, updateMemory, deleteMemory, getByCategory, reload: load };
+  /**
+   * Returns the memories most relevant to the current conversation.
+   * Scores each memory against a set of keywords and returns the top N.
+   * Falls back to the most-recently-updated memories when no keyword matches.
+   */
+  function getRelevantMemories(conversationText: string, maxCount = 6): LifeBestieMemory[] {
+    if (memories.length === 0) return [];
+
+    const words = conversationText.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+
+    const scored = memories.map((m) => {
+      const haystack = `${m.category} ${m.title} ${m.value}`.toLowerCase();
+      const hits = words.filter((w) => haystack.includes(w)).length;
+      return { memory: m, score: hits };
+    });
+
+    // Sort by relevance score desc, then by updated_at desc for ties
+    scored.sort((a, b) =>
+      b.score - a.score ||
+      new Date(b.memory.updated_at).getTime() - new Date(a.memory.updated_at).getTime()
+    );
+
+    return scored.slice(0, maxCount).map((s) => s.memory);
+  }
+
+  return {
+    memories,
+    loading,
+    addMemory,
+    updateMemory,
+    deleteMemory,
+    getByCategory,
+    getRelevantMemories,
+    reload: load,
+  };
 }

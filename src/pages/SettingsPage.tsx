@@ -1,13 +1,11 @@
-import { Settings, CheckCircle2, Circle, Lock, LogOut, Palette } from 'lucide-react';
+import { Settings, CheckCircle2, Circle, Lock, LogOut, Palette, Brain } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
   MODULE_DEFS, ModuleId,
   THEMES, BG_SKINS, AVATAR_THEMES,
   ThemeId, BgSkinId, AvatarThemeId,
-  LifeBestieMemory, MemoryCategory,
 } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
-import MemorySection from '../components/MemorySection';
 
 interface SettingsPageProps {
   isEnabled: (id: ModuleId) => boolean;
@@ -18,11 +16,8 @@ interface SettingsPageProps {
   onSetTheme: (id: ThemeId) => Promise<void>;
   onSetBgSkin: (id: BgSkinId) => Promise<void>;
   onSetAvatarTheme: (id: AvatarThemeId) => Promise<void>;
-  memories: LifeBestieMemory[];
-  memoriesLoading: boolean;
-  onAddMemory: (category: MemoryCategory, title: string, value: string) => Promise<LifeBestieMemory | null>;
-  onUpdateMemory: (id: string, patch: Partial<Pick<LifeBestieMemory, 'category' | 'title' | 'value'>>) => Promise<void>;
-  onDeleteMemory: (id: string) => Promise<void>;
+  memoryEnabled: boolean;
+  onSetMemoryEnabled: (enabled: boolean) => Promise<void>;
 }
 
 // ─── Section header ───────────────────────────────────────────────────────────
@@ -72,7 +67,6 @@ function PersonalizationSection({
                 }`}
                 style={active ? { borderColor: t.primary } : {}}
               >
-                {/* Swatch */}
                 <div className="w-8 h-8 rounded-xl shrink-0 overflow-hidden flex">
                   <div className="flex-1" style={{ backgroundColor: t.swatch[0] }} />
                   <div className="flex-1" style={{ backgroundColor: t.swatch[1] }} />
@@ -152,13 +146,76 @@ function PersonalizationSection({
   );
 }
 
+// ─── Memory section ───────────────────────────────────────────────────────────
+
+function MemoryPrivacySection({
+  memoryEnabled,
+  onSetMemoryEnabled,
+}: {
+  memoryEnabled: boolean;
+  onSetMemoryEnabled: (enabled: boolean) => Promise<void>;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <Brain size={14} className="text-gray-400" />
+        <SectionHeading>Emma's Memory</SectionHeading>
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 space-y-3">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          When memory is on, Emma can remember things you share and use them to personalise her responses.
+          You stay in control — she only saves what you explicitly confirm.
+        </p>
+        <button
+          onClick={() => onSetMemoryEnabled(!memoryEnabled)}
+          className="w-full flex items-center gap-3 py-3 rounded-2xl border px-4 text-left active:scale-[0.98] transition-all"
+          style={memoryEnabled
+            ? { borderColor: 'var(--theme-primary)', backgroundColor: 'var(--theme-primary-light)' }
+            : { borderColor: '#e5e7eb', backgroundColor: '#f9fafb' }
+          }
+        >
+          <div className={`shrink-0 transition-colors ${memoryEnabled ? 'theme-text-primary' : 'text-gray-300'}`}>
+            {memoryEnabled ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold ${memoryEnabled ? 'text-gray-800' : 'text-gray-400'}`}>
+              Emma's memory is {memoryEnabled ? 'on' : 'off'}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5 leading-snug">
+              {memoryEnabled
+                ? 'Emma will suggest remembering personal info from chat.'
+                : 'Emma will not suggest or save new memories. Existing memories are kept.'}
+            </p>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+            memoryEnabled ? 'theme-bg-light theme-text-primary' : 'bg-gray-100 text-gray-400'
+          }`}>
+            {memoryEnabled ? 'ON' : 'OFF'}
+          </span>
+        </button>
+        {!memoryEnabled && (
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            Your existing memories are safe. Turn memory back on to allow new ones.
+            To view, edit or delete your memories, visit the My Bestie page.
+          </p>
+        )}
+        {memoryEnabled && (
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            To view, edit or delete your memories, visit the My Bestie page.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage({
   isEnabled, onSetEnabled,
   currentTheme, currentBgSkin, currentAvatarTheme,
   onSetTheme, onSetBgSkin, onSetAvatarTheme,
-  memories, memoriesLoading, onAddMemory, onUpdateMemory, onDeleteMemory,
+  memoryEnabled, onSetMemoryEnabled,
 }: SettingsPageProps) {
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -197,13 +254,10 @@ export default function SettingsPage({
         {/* Divider */}
         <div className="border-t border-gray-100" />
 
-        {/* Memory */}
-        <MemorySection
-          memories={memories}
-          loading={memoriesLoading}
-          onAdd={onAddMemory}
-          onUpdate={onUpdateMemory}
-          onDelete={onDeleteMemory}
+        {/* Memory privacy toggle */}
+        <MemoryPrivacySection
+          memoryEnabled={memoryEnabled}
+          onSetMemoryEnabled={onSetMemoryEnabled}
         />
 
         {/* Divider */}

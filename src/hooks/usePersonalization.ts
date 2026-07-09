@@ -9,6 +9,7 @@ export interface PersonalizationState {
   theme: ThemeId;
   bgSkin: BgSkinId;
   avatarTheme: AvatarThemeId;
+  memoryEnabled: boolean;
 }
 
 // CSS custom properties on :root — picked up by any component using var(--theme-*)
@@ -42,15 +43,16 @@ export function usePersonalization() {
 
     const { data } = await supabase
       .from('user_settings')
-      .select('theme, bg_skin, avatar_theme')
+      .select('theme, bg_skin, avatar_theme, memory_enabled')
       .eq('user_id', user.id)
       .maybeSingle();
 
     if (data) {
       const next: PersonalizationState = {
-        theme:       (data.theme        as ThemeId)       ?? DEFAULT_PERSONALIZATION.theme,
-        bgSkin:      (data.bg_skin      as BgSkinId)      ?? DEFAULT_PERSONALIZATION.bgSkin,
-        avatarTheme: (data.avatar_theme as AvatarThemeId) ?? DEFAULT_PERSONALIZATION.avatarTheme,
+        theme:         (data.theme        as ThemeId)       ?? DEFAULT_PERSONALIZATION.theme,
+        bgSkin:        (data.bg_skin      as BgSkinId)      ?? DEFAULT_PERSONALIZATION.bgSkin,
+        avatarTheme:   (data.avatar_theme as AvatarThemeId) ?? DEFAULT_PERSONALIZATION.avatarTheme,
+        memoryEnabled: data.memory_enabled ?? DEFAULT_PERSONALIZATION.memoryEnabled,
       };
       setState(next);
       applyToDOM(next);
@@ -91,7 +93,13 @@ export function usePersonalization() {
     await persist({ avatar_theme: avatarTheme });
   }
 
-  async function persist(patch: Record<string, string>): Promise<void> {
+  async function setMemoryEnabled(enabled: boolean): Promise<void> {
+    const next = { ...state, memoryEnabled: enabled };
+    setState(next);
+    await persist({ memory_enabled: String(enabled) });
+  }
+
+  async function persist(patch: Record<string, string | boolean>): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { error } = await supabase
@@ -103,5 +111,5 @@ export function usePersonalization() {
     dbError('user_settings (personalization upsert)', error);
   }
 
-  return { ...state, loaded, setTheme, setBgSkin, setAvatarTheme };
+  return { ...state, loaded, setTheme, setBgSkin, setAvatarTheme, setMemoryEnabled };
 }
