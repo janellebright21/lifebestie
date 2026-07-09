@@ -127,22 +127,20 @@ async function callEmmaChatFunction(
     body: { message: currentMessage, conversation, memories },
   });
 
+  // HTTP 401 → auth failure (supabase client puts it in `error`, not `data`)
   if (error) {
-    console.error('[Chat] Edge function error:', error);
-    throw new Error('invoke_error');
+    console.error('[Chat] Edge function invocation error:', error);
+    throw new Error('FUNCTION_NETWORK_ERROR');
   }
 
-  // data is the parsed JSON body from the function
+  // All other outcomes come through `data` (the function always returns HTTP 200 for business errors)
   const payload = data as Record<string, unknown>;
 
-  // Surface a configuration error so the user sees a helpful message
-  if (payload.error === 'AI_NOT_CONFIGURED') {
-    throw new Error('not_configured');
-  }
-
   if (payload.error) {
-    console.error('[Chat] Edge function returned error:', payload.error, payload.message);
-    throw new Error(String(payload.error));
+    const code = String(payload.error);
+    const msg  = typeof payload.message === 'string' ? payload.message : '';
+    console.error('[Chat] Emma-chat returned error:', code, '|', msg);
+    throw new Error(code);
   }
 
   const text = typeof payload.text === 'string' && payload.text.trim()
@@ -421,20 +419,19 @@ function ChatPageInner({
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error('[Chat] sendMessage failed:', errMsg);
 
-      let friendlyText = "I'm sorry—I had trouble responding. Please try again.";
-      if (errMsg === 'not_configured' || errMsg === 'AI_NOT_CONFIGURED') {
-        friendlyText = "Emma's AI isn't set up yet. An admin needs to add the GROQ_API_KEY secret in Supabase.";
-      } else if (errMsg === 'AI_RATE_LIMIT') {
-        friendlyText = "Emma's getting a lot of messages right now. Please wait a moment and try again 💛";
-      } else if (errMsg === 'AI_QUOTA') {
-        friendlyText = "Emma has reached her usage limit for now. Please try again a little later 💛";
-      } else if (errMsg === 'AI_INVALID_KEY') {
-        friendlyText = "Emma's AI key needs to be updated. Please contact support.";
-      } else if (errMsg === 'AI_INVALID_MODEL') {
-        friendlyText = "Emma's AI model isn't available. An admin needs to update the GROQ_MODEL secret in Supabase.";
-      } else if (errMsg === 'AI_UNAVAILABLE' || errMsg === 'AI_OVERLOADED') {
-        friendlyText = "Emma's AI is unavailable right now. Please try again in a moment 💛";
-      }
+      const FRIENDLY: Record<string, string> = {
+        AI_NOT_CONFIGURED:    "Emma's AI isn't connected yet. An admin needs to add GROQ_API_KEY in Supabase Edge Function secrets.",
+        GROQ_401:             "Emma's Groq API key is invalid. An admin needs to update GROQ_API_KEY in Supabase.",
+        GROQ_400:             "Emma received a bad request error from Groq. Please try again.",
+        GROQ_429:             "Emma's getting too many messages right now. Please wait a moment and try again 💛",
+        GROQ_QUOTA:           "Emma has hit her free-tier limit for now. Please try again later 💛",
+        GROQ_MODEL_ERROR:     "The configured Groq model isn't available. An admin needs to update GROQ_MODEL in Supabase.",
+        GROQ_INVALID_RESPONSE:"Emma got a response she couldn't read. Please try again.",
+        FUNCTION_NETWORK_ERROR:"Emma couldn't be reached right now. Please check your connection and try again.",
+        UNAUTHORIZED:         "Your session has expired. Please sign out and sign back in.",
+        INTERNAL_ERROR:       "Emma ran into an unexpected issue. Please try again.",
+      };
+      const friendlyText = FRIENDLY[errMsg] ?? "I'm sorry—I had trouble responding. Please try again.";
 
       setMessages((prev) => [
         ...prev,
