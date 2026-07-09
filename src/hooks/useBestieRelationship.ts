@@ -4,7 +4,7 @@ import { supabase, dbError } from '../lib/supabase';
 // ─── Level definitions ─────────────────────────────────────────────────────────
 
 interface LevelDef {
-  level: 1 | 2 | 3 | 4;
+  level: 1 | 2 | 3 | 4 | 5;
   label: string;
   minScore: number;
   maxScore: number | null;
@@ -14,29 +14,36 @@ interface LevelDef {
 const LEVELS: LevelDef[] = [
   {
     level:    1,
-    label:    'New Friend',
+    label:    'New Besties',
     minScore: 0,
-    maxScore: 99,
+    maxScore: 49,
     message:  "We're just getting started — I'm so excited to be here for you!",
   },
   {
     level:    2,
-    label:    'Supportive Friend',
-    minScore: 100,
-    maxScore: 299,
+    label:    'Getting to Know You',
+    minScore: 50,
+    maxScore: 149,
     message:  "I'm really getting to know you and I love every moment of it!",
   },
   {
     level:    3,
-    label:    'Trusted Bestie',
-    minScore: 300,
-    maxScore: 599,
+    label:    'Trusted Besties',
+    minScore: 150,
+    maxScore: 299,
     message:  "You can count on me for anything — we've got this together!",
   },
   {
     level:    4,
-    label:    'Life Bestie',
-    minScore: 600,
+    label:    'Close Besties',
+    minScore: 300,
+    maxScore: 499,
+    message:  "We're so close — you inspire me every single day!",
+  },
+  {
+    level:    5,
+    label:    'Life Besties',
+    minScore: 500,
     maxScore: null,
     message:  "We're inseparable! You're absolutely crushing it and I'm so proud.",
   },
@@ -44,16 +51,16 @@ const LEVELS: LevelDef[] = [
 
 function deriveLevel(score: number): LevelDef {
   for (let i = LEVELS.length - 1; i >= 0; i--) {
-    if (score >= LEVELS[i].minScore) return LEVELS[i];
+    if (score >= LEVELS[i]!.minScore) return LEVELS[i]!;
   }
-  return LEVELS[0];
+  return LEVELS[0]!;
 }
 
 // ─── Public types ──────────────────────────────────────────────────────────────
 
 export interface BestieRelationshipData {
   score:          number;
-  level:          1 | 2 | 3 | 4;
+  level:          1 | 2 | 3 | 4 | 5;
   levelLabel:     string;
   levelMessage:   string;
   progressToNext: number;        // 0–100
@@ -64,6 +71,8 @@ export interface BestieRelationshipData {
 
 export interface BestieRelationshipHook extends BestieRelationshipData {
   addScore: (points: number) => void;
+  /** Award points for a task completion only once per task id. */
+  awardTaskCompletion: (taskId: string, points?: number) => void;
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────
@@ -76,6 +85,11 @@ export function useBestieRelationship(): BestieRelationshipHook {
   const scoreRef    = useRef(0);
   const flushTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef  = useRef(0);
+
+  // Set of task IDs that have already been rewarded in this session.
+  // On load we also fetch the persisted set from Supabase so page refreshes
+  // are protected even before any interaction occurs.
+  const rewardedTaskIds = useRef<Set<string>>(new Set());
 
   const persistScore = useCallback(async (finalScore: number) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -99,12 +113,17 @@ export function useBestieRelationship(): BestieRelationshipHook {
 
     const { data } = await supabase
       .from('bestie_relationship')
-      .select('score, last_app_open_date')
+      .select('score, last_app_open_date, rewarded_task_ids')
       .eq('user_id', user.id)
       .maybeSingle();
 
     let current = data?.score ?? 0;
     const lastOpen = data?.last_app_open_date ?? null;
+
+    // Restore the set of already-rewarded task IDs so refreshing the page
+    // does not award duplicate points for previously completed tasks.
+    const persisted: string[] = data?.rewarded_task_ids ?? [];
+    rewardedTaskIds.current = new Set(persisted);
 
     if (lastOpen !== today) {
       current += 15;
@@ -131,8 +150,28 @@ export function useBestieRelationship(): BestieRelationshipHook {
     }, 2000);
   }, [persistScore]);
 
+  const awardTaskCompletion = useCallback((taskId: string, points = 10) => {
+    if (rewardedTaskIds.current.has(taskId)) return;
+    rewardedTaskIds.current.add(taskId);
+    addScore(points);
+
+    // Persist the updated rewarded set alongside the score.
+    // We do this asynchronously without blocking the UI.
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const ids = Array.from(rewardedTaskIds.current);
+      await supabase
+        .from('bestie_relationship')
+        .upsert(
+          { user_id: user.id, rewarded_task_ids: ids, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+    })();
+  }, [addScore]);
+
   const currentLevel  = deriveLevel(score);
-  const nextLevelDef  = LEVELS.find((l) => l.level === currentLevel.level + 1) ?? null;
+  const nextLevelDef  = LEVELS.find((l) => l.level === (currentLevel.level as number) + 1) ?? null;
 
   const progressToNext = nextLevelDef
     ? Math.min(
@@ -153,5 +192,6 @@ export function useBestieRelationship(): BestieRelationshipHook {
     nextLevelLabel: nextLevelDef?.label ?? null,
     loading,
     addScore,
+    awardTaskCompletion,
   };
 }

@@ -1,4 +1,4 @@
-import { Heart, CheckCircle2, Sparkles, Check, Pencil, X, Star, TrendingUp } from 'lucide-react';
+import { Heart, CheckCircle2, Sparkles, Pencil, X, Star, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import {
   THEMES, BG_SKINS, AVATAR_THEMES, CHARACTERS,
@@ -38,7 +38,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-const LEVEL_ICONS = ['', '🌱', '💛', '⭐', '💜'];
+const LEVEL_ICONS = ['', '🌱', '💛', '⭐', '💜', '✨'];
 
 interface RelationshipCardProps {
   charName:    string;
@@ -189,7 +189,6 @@ export default function MyBestiePage({
   currentBgSkin,
   currentAvatarTheme,
   character = 'emma',
-  onSetCharacter,
   isEnabled,
   memories,
   memoriesLoading,
@@ -287,46 +286,6 @@ export default function MyBestiePage({
           </div>
           <div className="absolute bottom-0 right-4 pb-4">
             <BestieAvatar characterId={character} expression="proud" size="full" />
-          </div>
-        </div>
-
-        {/* ─── Character picker ───────────────────────────────────────────── */}
-        <div>
-          <SectionHeading>Your Bestie</SectionHeading>
-          <div className="grid grid-cols-2 gap-3">
-            {CHARACTERS.map((c) => {
-              const isSelected = c.id === character;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => onSetCharacter?.(c.id)}
-                  className={`relative flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all active:scale-95 ${
-                    isSelected
-                      ? 'border-transparent shadow-sm'
-                      : 'bg-white border-gray-100 hover:border-gray-200'
-                  }`}
-                  style={isSelected ? {
-                    background: `linear-gradient(135deg, var(--theme-primary-light) 0%, white 100%)`,
-                    borderColor: 'var(--theme-primary-mid)',
-                  } : {}}
-                >
-                  <BestieAvatar characterId={c.id} expression="happy" size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-gray-800 leading-none">{c.name}</p>
-                    <p className="text-[10px] font-semibold mt-0.5 leading-tight" style={{ color: 'var(--theme-primary)' }}>{c.role}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5 leading-tight italic">{c.catchphrase}</p>
-                  </div>
-                  {isSelected && (
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: 'var(--theme-primary)' }}
-                    >
-                      <Check size={11} className="text-white" strokeWidth={3} />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
           </div>
         </div>
 

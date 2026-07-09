@@ -248,6 +248,8 @@ export default function App() {
     if (task) {
       if (completed) {
         await userMemory.addHistoryAction(`Completed task: ${task.title}`);
+        // Award points once per task — idempotent across unchecks/rechecks and refreshes
+        bestieRelationship.awardTaskCompletion(id);
         // Signal the floating bestie to celebrate
         setAppProudFlash(true);
         if (appProudTimer.current) clearTimeout(appProudTimer.current);
