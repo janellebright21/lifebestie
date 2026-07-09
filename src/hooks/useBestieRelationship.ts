@@ -1,5 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase, dbError } from '../lib/supabase';
+
+// ─── Reward constants ──────────────────────────────────────────────────────────
+
+/** Points awarded on the first app open of each calendar day. */
+export const DAILY_CHECKIN_POINTS = 5;
 
 // ─── Level definitions ─────────────────────────────────────────────────────────
 
@@ -70,9 +75,20 @@ export interface BestieRelationshipData {
 }
 
 export interface BestieRelationshipHook extends BestieRelationshipData {
-  addScore: (points: number) => void;
-  /** Award points for a task completion only once per task id. */
-  awardTaskCompletion: (taskId: string, points?: number) => void;
+  /**
+   * Award points atomically via the database function.
+   * Duplicate (same reward_type + source_id) returns silently with no score change.
+   * Score state is only updated after the DB confirms success.
+   */
+  awardPoints: (
+    rewardType: string,
+    sourceId:   string,
+    points:     number,
+    description?: string,
+  ) => Promise<void>;
+
+  /** Convenience wrapper: award task-completion points (reward_type = 'task_complete'). */
+  awardTaskCompletion: (taskId: string, points?: number) => Promise<void>;
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────
@@ -81,97 +97,85 @@ export function useBestieRelationship(): BestieRelationshipHook {
   const [score, setScore]     = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Refs so async flush always sees latest values without stale closures
-  const scoreRef    = useRef(0);
-  const flushTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRef  = useRef(0);
-
-  // Set of task IDs that have already been rewarded in this session.
-  // On load we also fetch the persisted set from Supabase so page refreshes
-  // are protected even before any interaction occurs.
-  const rewardedTaskIds = useRef<Set<string>>(new Set());
-
-  const persistScore = useCallback(async (finalScore: number) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const today = new Date().toISOString().split('T')[0];
-    const { error } = await supabase
-      .from('bestie_relationship')
-      .upsert(
-        { user_id: user.id, score: finalScore, last_app_open_date: today, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      );
-    dbError('bestie_relationship (persist)', error);
-  }, []);
-
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
-    const today = new Date().toISOString().split('T')[0];
-
+    // Load current score from the relationship row.
     const { data } = await supabase
       .from('bestie_relationship')
-      .select('score, last_app_open_date, rewarded_task_ids')
+      .select('score')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    let current = data?.score ?? 0;
-    const lastOpen = data?.last_app_open_date ?? null;
+    const current = data?.score ?? 0;
 
-    // Restore the set of already-rewarded task IDs so refreshing the page
-    // does not award duplicate points for previously completed tasks.
-    const persisted: string[] = data?.rewarded_task_ids ?? [];
-    rewardedTaskIds.current = new Set(persisted);
+    // Daily check-in reward: use today's date as the unique source_id.
+    // The DB function's unique constraint guarantees this only awards once per day
+    // regardless of how many times the page loads or how many tabs are open.
+    const today = new Date().toISOString().split('T')[0];
+    const { data: rpc, error: rpcErr } = await supabase.rpc('award_bestie_points', {
+      p_reward_type: 'daily_checkin',
+      p_source_id:   today,
+      p_points:      DAILY_CHECKIN_POINTS,
+      p_description: 'Daily check-in',
+    });
 
-    if (lastOpen !== today) {
-      current += 15;
-      await persistScore(current);
+    if (rpcErr) {
+      dbError('award_bestie_points (daily_checkin)', rpcErr);
+      // Fall back to the score we already loaded
+      setScore(current);
+    } else {
+      const result = rpc as { awarded: boolean; new_score: number };
+      setScore(result.new_score ?? current);
     }
 
-    scoreRef.current = current;
-    setScore(current);
     setLoading(false);
-  }, [persistScore]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const addScore = useCallback((points: number) => {
-    const next = scoreRef.current + points;
-    scoreRef.current = next;
-    pendingRef.current += points;
-    setScore(next);
+  // ── Core atomic award function ─────────────────────────────────────────────
+  // All score mutations go through here. No optimistic updates — the score
+  // state is only changed after the DB confirms the transaction succeeded.
 
-    if (flushTimer.current) clearTimeout(flushTimer.current);
-    flushTimer.current = setTimeout(() => {
-      pendingRef.current = 0;
-      persistScore(scoreRef.current);
-    }, 2000);
-  }, [persistScore]);
+  const awardPoints = useCallback(async (
+    rewardType:  string,
+    sourceId:    string,
+    points:      number,
+    description = '',
+  ): Promise<void> => {
+    const { data, error } = await supabase.rpc('award_bestie_points', {
+      p_reward_type: rewardType,
+      p_source_id:   sourceId,
+      p_points:      points,
+      p_description: description,
+    });
 
-  const awardTaskCompletion = useCallback((taskId: string, points = 10) => {
-    if (rewardedTaskIds.current.has(taskId)) return;
-    rewardedTaskIds.current.add(taskId);
-    addScore(points);
+    if (error) {
+      dbError(`award_bestie_points (${rewardType}:${sourceId})`, error);
+      return;
+    }
 
-    // Persist the updated rewarded set alongside the score.
-    // We do this asynchronously without blocking the UI.
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const ids = Array.from(rewardedTaskIds.current);
-      await supabase
-        .from('bestie_relationship')
-        .upsert(
-          { user_id: user.id, rewarded_task_ids: ids, updated_at: new Date().toISOString() },
-          { onConflict: 'user_id' }
-        );
-    })();
-  }, [addScore]);
+    const result = data as { awarded: boolean; new_score: number };
+    // Update React state only when the DB confirms the score changed.
+    if (result.awarded) {
+      setScore(result.new_score);
+    }
+    // If not awarded (duplicate), state is already correct — no change needed.
+  }, []);
 
-  const currentLevel  = deriveLevel(score);
-  const nextLevelDef  = LEVELS.find((l) => l.level === (currentLevel.level as number) + 1) ?? null;
+  const awardTaskCompletion = useCallback(async (
+    taskId: string,
+    points  = 10,
+  ): Promise<void> => {
+    await awardPoints('task_complete', taskId, points, 'Task completed');
+  }, [awardPoints]);
+
+  // ── Derived level data ─────────────────────────────────────────────────────
+
+  const currentLevel = deriveLevel(score);
+  const nextLevelDef = LEVELS.find((l) => l.level === (currentLevel.level as number) + 1) ?? null;
 
   const progressToNext = nextLevelDef
     ? Math.min(
@@ -191,7 +195,7 @@ export function useBestieRelationship(): BestieRelationshipHook {
     pointsToNext:   nextLevelDef ? Math.max(0, nextLevelDef.minScore - score) : null,
     nextLevelLabel: nextLevelDef?.label ?? null,
     loading,
-    addScore,
+    awardPoints,
     awardTaskCompletion,
   };
 }

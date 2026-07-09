@@ -232,7 +232,7 @@ export default function App() {
       const task = data as Task;
       setTasks((prev) => [task, ...prev]);
       await userMemory.addHistoryAction(`Added task: ${title}`);
-      bestieRelationship.addScore(5);
+      await bestieRelationship.awardPoints('add_task', task.id, 5, 'Added a task');
       if (linkedGoalId) {
         await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
       }
@@ -248,8 +248,8 @@ export default function App() {
     if (task) {
       if (completed) {
         await userMemory.addHistoryAction(`Completed task: ${task.title}`);
-        // Award points once per task — idempotent across unchecks/rechecks and refreshes
-        bestieRelationship.awardTaskCompletion(id);
+        // Award points once per task — DB unique constraint prevents duplicates
+        await bestieRelationship.awardTaskCompletion(id);
         // Signal the floating bestie to celebrate
         setAppProudFlash(true);
         if (appProudTimer.current) clearTimeout(appProudTimer.current);
@@ -305,7 +305,12 @@ export default function App() {
     if (data) {
       setEvents((prev) => [...prev, data].sort((a, b) => a.event_date.localeCompare(b.event_date)));
       await userMemory.addHistoryAction(`Added event: ${title} on ${date}`);
-      bestieRelationship.addScore(category === 'Movement' ? 10 : 5);
+      await bestieRelationship.awardPoints(
+        'add_event',
+        data.id,
+        category === 'Movement' ? 10 : 5,
+        `Added event: ${title}`,
+      );
     }
   }
 
@@ -330,7 +335,7 @@ export default function App() {
       setGroceryItems((prev) => [...prev, data]);
       await userMemory.addHistoryAction(`Added grocery: ${name}`);
       await userMemory.upsertGroceryHabit(name, category);
-      bestieRelationship.addScore(5);
+      await bestieRelationship.awardPoints('add_grocery', data.id, 5, `Added grocery: ${name}`);
     }
   }
 
@@ -347,7 +352,15 @@ export default function App() {
   async function addWeeklyItem(name: string, category: GroceryCategory, source: import('./lib/supabase').WeeklyGrocerySource) {
     await weeklyGrocery.addWeeklyItem(name, category, source);
     await userMemory.upsertGroceryHabit(name, category);
-    bestieRelationship.addScore(5);
+    // Use name + current week start as the unique source so same item in same week
+    // cannot earn duplicate points across retries or multiple tabs.
+    const weekStart = weeklyGrocery.weeklyList?.week_start_date ?? new Date().toISOString().split('T')[0];
+    await bestieRelationship.awardPoints(
+      'add_weekly_item',
+      `${name.toLowerCase()}:${weekStart}`,
+      5,
+      `Added weekly grocery: ${name}`,
+    );
   }
 
   async function skipWeeklyItem(name: string) {
@@ -380,7 +393,9 @@ export default function App() {
 
   async function addMealFull(opts: { name: string; meal_type: import('./lib/supabase').MealType; meal_date: string; ingredients: MealIngredient[] }) {
     const result = await mealPlanner.addMealFull(opts);
-    bestieRelationship.addScore(8);
+    if (result?.id) {
+      await bestieRelationship.awardPoints('add_meal', result.id, 8, `Added meal: ${opts.name}`);
+    }
     return result;
   }
 

@@ -5,7 +5,6 @@ import {
   MODULE_DEFS,
   ThemeId, BgSkinId, AvatarThemeId, CharacterId, ModuleId,
   LifeBestieMemory, MemoryCategory,
-  getRelationshipLevel, RELATIONSHIP_LABELS,
 } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
 import MemorySection from '../components/MemorySection';
@@ -211,9 +210,6 @@ export default function MyBestiePage({
     return acc;
   }, {});
 
-  const relationshipLevel = getRelationshipLevel(memories.length);
-  const relationshipLabel = RELATIONSHIP_LABELS[relationshipLevel];
-
   const greetingMessage = preferredName
     ? `Hey ${preferredName}! Here's everything I know about you.`
     : "Here's your LifeBestie profile.";
@@ -232,7 +228,7 @@ export default function MyBestiePage({
           <div>
             <h1 className="text-lg font-bold text-gray-800 leading-none">My Bestie</h1>
             <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--theme-primary)' }}>
-              {relationshipLabel}
+              {relationship.levelLabel}
             </p>
           </div>
         </div>
@@ -281,7 +277,7 @@ export default function MyBestiePage({
               style={{ backgroundColor: 'var(--theme-primary-mid)', color: 'var(--theme-primary)' }}
             >
               <Sparkles size={9} />
-              {relationshipLabel}
+              {relationship.levelLabel}
             </div>
           </div>
           <div className="absolute bottom-0 right-4 pb-4">
