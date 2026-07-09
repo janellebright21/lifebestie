@@ -37,9 +37,26 @@ import MyBestiePage from './pages/MyBestiePage';
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
 
+// Valid tabs that can be persisted and restored. We exclude 'add' since it opens
+// a sheet rather than a page, and should never be the restored landing tab.
+const VALID_PERSISTED_TABS: ReadonlySet<TabName> = new Set([
+  'home', 'planner', 'grocery', 'movement', 'routines', 'goals', 'chat', 'bestie', 'settings',
+]);
+const ACTIVE_TAB_KEY = 'lifebestie_active_tab';
+
+function getInitialTab(): TabName {
+  try {
+    const saved = sessionStorage.getItem(ACTIVE_TAB_KEY) as TabName | null;
+    if (saved && VALID_PERSISTED_TABS.has(saved)) return saved;
+  } catch {
+    // sessionStorage unavailable (private browsing quirks) — fall through
+  }
+  return 'home';
+}
+
 export default function App() {
   // ── State ──────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<TabName>('home');
+  const [activeTab, setActiveTabState] = useState<TabName>(getInitialTab);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
@@ -47,9 +64,24 @@ export default function App() {
   // True once the initial getSession() call resolves — prevents a flash of
   // the wrong screen while we confirm whether the user is signed in.
   const [sessionChecked, setSessionChecked] = useState(false);
+  // Tracks whether the app has fully loaded at least once. Prevents a
+  // background profile refresh from triggering the full-screen loading guard.
+  const hasLoadedRef = useRef(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [appProudFlash, setAppProudFlash] = useState(false);
   const appProudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Persists the tab to sessionStorage and updates state.
+  function setActiveTab(tab: TabName) {
+    setActiveTabState(tab);
+    try {
+      if (VALID_PERSISTED_TABS.has(tab)) {
+        sessionStorage.setItem(ACTIVE_TAB_KEY, tab);
+      }
+    } catch {
+      // sessionStorage write failed — state still updates, just won't survive remount
+    }
+  }
 
   const memoryId = localStorage.getItem(MEMORY_ID_KEY);
 
@@ -95,12 +127,21 @@ export default function App() {
       setSessionChecked(true);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (!nextSession) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // TOKEN_REFRESHED, INITIAL_SESSION, and USER_UPDATED are not sign-outs.
+      // Only clear user data on an explicit SIGNED_OUT event to avoid wiping state
+      // during background token refresh, which would navigate back to Home.
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
         setTasks([]);
         setEvents([]);
         setGroceryItems([]);
+        // Reset tab on real sign-out so next user starts at Home
+        setActiveTabState('home');
+        try { sessionStorage.removeItem(ACTIVE_TAB_KEY); } catch { /* ignore */ }
+      } else if (nextSession) {
+        // Update session for sign-in and token refresh — never null the session
+        setSession(nextSession);
       }
     });
 
@@ -168,11 +209,15 @@ export default function App() {
   }, [activeTab, weeklyGrocery.weeklyList, weeklyBudgetValue, saveSnapshot]);
 
   // ── Guard: loading screen while we confirm auth + profile status ───────────
-  // We must wait for:
-  //   1. sessionChecked  — getSession() has resolved so we know if logged in
-  //   2. userProfile.loading false — profile has been fetched (when a session exists)
-  // Without this, a briefly-null profile after login would incorrectly trigger onboarding.
-  if (!sessionChecked || (session !== null && userProfile.loading)) {
+  // Only show the full-screen loading guard on the INITIAL app load.
+  // - sessionChecked must be true (getSession() has resolved)
+  // - userProfile.loading must be false (profile fetched at least once)
+  //
+  // After hasLoadedRef is set, we never return this guard again — a background
+  // profile refresh (e.g. triggered by a TOKEN_REFRESHED event re-firing SIGNED_IN
+  // in useUserProfile) must not unmount the running app or navigate away from Chat.
+  const isInitialLoad = !hasLoadedRef.current;
+  if (isInitialLoad && (!sessionChecked || (session !== null && userProfile.loading))) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center theme-app-bg">
         <div className="flex flex-col items-center gap-3">
@@ -192,6 +237,10 @@ export default function App() {
   if (userProfile.needsOnboarding) {
     return <OnboardingPage onComplete={userProfile.completeOnboarding} />;
   }
+
+  // Mark initial load complete. From here on, background refreshes will not
+  // re-trigger the loading guard.
+  hasLoadedRef.current = true;
 
   const userId = session.user.id;
   const preferredName = userProfile.profile?.preferred_name || undefined;
@@ -445,6 +494,21 @@ export default function App() {
       .filter((id) => moduleSettings.isEnabled(id))
   );
 
+  // After modules have loaded, if the restored tab belongs to a now-disabled module,
+  // quietly reset to Home. Only do this once modules are confirmed loaded.
+  const TAB_MODULE_GATE: Partial<Record<TabName, import('./lib/supabase').ModuleId>> = {
+    grocery:  'grocery',
+    movement: 'movement',
+    routines: 'routines',
+    chat:     'ai-assistant',
+  };
+  if (moduleSettings.loaded) {
+    const gateModule = TAB_MODULE_GATE[activeTab];
+    if (gateModule && !enabledModules.has(gateModule)) {
+      setActiveTab('home');
+    }
+  }
+
   return (
     <div className="min-h-[100dvh] theme-app-bg font-sans">
       {activeTab === 'home' && (
@@ -575,7 +639,12 @@ export default function App() {
           onSetProgress={goalsHook.setProgress}
         />
       )}
-      {activeTab === 'chat' && enabledModules.has('ai-assistant') && (
+      {/* Chat is rendered whenever the tab is active, regardless of the transient
+          module-settings loading state. enabledModules may briefly report ai-assistant
+          as disabled during module settings load; guarding on it would unmount Chat
+          mid-conversation. The BottomNav already hides the tab when the module is
+          genuinely disabled, so reaching this tab implicitly means it was enabled. */}
+      {activeTab === 'chat' && (
         <ChatPage
           memory={userMemory.memory}
           tasks={tasks}

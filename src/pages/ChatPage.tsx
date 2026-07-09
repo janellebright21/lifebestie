@@ -1,13 +1,23 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, Brain, Check, X } from 'lucide-react';
+import { useState, useRef, useEffect, Component } from 'react';
+import type { ReactNode } from 'react';
+import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
 import { Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
+
+const CHAT_MESSAGES_KEY = 'lifebestie_chat_messages';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   timestamp: Date;
+}
+
+interface SerializedMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  timestamp: string; // ISO string
 }
 
 interface MemorySuggestion {
@@ -32,16 +42,9 @@ interface ChatPageProps {
   preferredName?: string;
   avatarTheme?: import('../lib/supabase').AvatarThemeId;
   character?: import('../lib/supabase').CharacterId;
-  /** Saved Emma memories — fed to the chat context so Emma can reference them */
   savedMemories?: LifeBestieMemory[];
-  /** Called when user confirms a memory suggestion from chat */
   onSaveMemory?: (category: MemoryCategory, title: string, value: string) => Promise<LifeBestieMemory | null>;
-  /**
-   * When false, memory suggestions are suppressed and memories are excluded from context.
-   * Existing memories are not deleted.
-   */
   memoryEnabled?: boolean;
-  /** Returns the memories most relevant to the given conversation text (max 6). */
   getRelevantMemories?: (conversationText: string) => LifeBestieMemory[];
 }
 
@@ -53,13 +56,44 @@ const SUGGESTED_PROMPTS = [
 ];
 
 const VALID_CATEGORIES: MemoryCategory[] = [
-  'Preference','Goal','Routine','Meal','Household',
-  'WorkSchedule','EncouragementStyle','Wellness',
-  'Challenge','Favorite','Budget','Other',
+  'Preference', 'Goal', 'Routine', 'Meal', 'Household',
+  'WorkSchedule', 'EncouragementStyle', 'Wellness',
+  'ImportantDate', 'Challenge', 'Favorite', 'Budget', 'Other',
 ];
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+// ── Message sessionStorage persistence ────────────────────────────────────────
+
+function saveMessagesToSession(messages: Message[]): void {
+  try {
+    const serialized: SerializedMessage[] = messages.map((m) => ({
+      ...m,
+      timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : String(m.timestamp),
+    }));
+    sessionStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(serialized));
+  } catch {
+    // sessionStorage write failed — fine, messages just won't survive a remount
+  }
+}
+
+function loadMessagesFromSession(): Message[] | null {
+  try {
+    const raw = sessionStorage.getItem(CHAT_MESSAGES_KEY);
+    if (!raw) return null;
+    const parsed: SerializedMessage[] = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed.map((m) => ({
+      ...m,
+      timestamp: new Date(m.timestamp),
+    }));
+  } catch {
+    return null;
+  }
+}
+
+// ── Edge Function call ─────────────────────────────────────────────────────────
 
 async function callChatFunction(
   messages: Message[],
@@ -83,7 +117,6 @@ async function callChatFunction(
     todayEventTitles: todayEvents
       .slice(0, 5)
       .map((e) => `${e.event_time ? e.event_time + ' ' : ''}${e.title}`),
-    // Only include memories relevant to the current conversation (max 6)
     savedMemories: relevantMemories.map((m) => ({ category: m.category, title: m.title })),
   };
 
@@ -103,22 +136,62 @@ async function callChatFunction(
     .filter((m) => m.id !== 'init')
     .map((m) => ({ role: m.role, content: m.text }));
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({ messages: apiMessages, context }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ messages: apiMessages, context }),
+    });
+  } catch (networkErr) {
+    console.error('[Chat] Network error:', networkErr);
+    throw new Error('network');
+  }
 
-  if (!response.ok) throw new Error('Chat request failed');
+  if (!response.ok) {
+    let detail = '';
+    try { detail = await response.text(); } catch { /* ignore */ }
+    console.error(`[Chat] Edge function error ${response.status}:`, detail);
+    throw new Error(`http:${response.status}`);
+  }
 
-  const data = await response.json();
-  return {
-    text: data.text ?? "I'm here for you 💛 Could you say that again?",
-    memory_suggestion: data.memory_suggestion ?? undefined,
-  };
+  let data: Record<string, unknown>;
+  try {
+    data = await response.json();
+  } catch (jsonErr) {
+    console.error('[Chat] Invalid JSON from edge function:', jsonErr);
+    throw new Error('invalid_json');
+  }
+
+  const text = typeof data.text === 'string' && data.text.trim()
+    ? data.text
+    : "I'm here for you 💛 Could you say that again?";
+
+  let memory_suggestion: MemorySuggestion | undefined;
+  try {
+    const ms = data.memory_suggestion;
+    if (
+      ms &&
+      typeof ms === 'object' &&
+      typeof (ms as Record<string, unknown>).category === 'string' &&
+      typeof (ms as Record<string, unknown>).title === 'string'
+    ) {
+      memory_suggestion = {
+        category: (ms as Record<string, unknown>).category as MemoryCategory,
+        title:    (ms as Record<string, unknown>).title as string,
+        value:    typeof (ms as Record<string, unknown>).value === 'string'
+          ? (ms as Record<string, unknown>).value as string
+          : '',
+      };
+    }
+  } catch {
+    // memory_suggestion parse failed — continue without it
+  }
+
+  return { text, memory_suggestion };
 }
 
 // ── Memory confirmation banner ─────────────────────────────────────────────────
@@ -178,7 +251,52 @@ function MemoryConfirmBanner({
   );
 }
 
-export default function ChatPage({
+// ── Error boundary ─────────────────────────────────────────────────────────────
+// Catches any unexpected React render error inside ChatPage and shows a friendly
+// in-chat recovery UI instead of crashing the whole application.
+
+interface ErrorBoundaryState { hasError: boolean }
+
+class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(err: Error) {
+    console.error('[Chat] Uncaught render error:', err);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col h-[100dvh] max-w-md mx-auto items-center justify-center px-8 gap-4">
+          <p className="text-4xl">💛</p>
+          <p className="text-base font-semibold text-gray-700 text-center">
+            Emma had trouble responding. Your chat is still here.
+          </p>
+          <p className="text-sm text-gray-400 text-center">Please try again.</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold active:scale-95 transition-all theme-bg-primary"
+          >
+            <RefreshCw size={14} />
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── Main chat component ────────────────────────────────────────────────────────
+
+function ChatPageInner({
   tasks,
   events,
   groceryItems,
@@ -195,21 +313,30 @@ export default function ChatPage({
   memoryEnabled = true,
   getRelevantMemories,
 }: ChatPageProps) {
-  const initMessage: Message = {
+  const buildInitMessage = (): Message => ({
     id: 'init',
     role: 'assistant',
     text: preferredName
       ? `Hey ${preferredName} 💛 I'm here to help you stay on top of things today. What do you need?`
       : "Hey 💛 I'm here to help you stay on track today. What do you need?",
     timestamp: new Date(),
-  };
-  const [messages, setMessages]                   = useState<Message[]>([initMessage]);
+  });
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = loadMessagesFromSession();
+    return saved ?? [buildInitMessage()];
+  });
   const [input, setInput]                         = useState('');
   const [isTyping, setIsTyping]                   = useState(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
   const [savingMemory, setSavingMemory]           = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
+
+  // Persist messages to sessionStorage whenever they change
+  useEffect(() => {
+    saveMessagesToSession(messages);
+  }, [messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -232,11 +359,7 @@ export default function ChatPage({
     setIsTyping(true);
 
     try {
-      // Build the conversation text for relevance scoring (last 4 messages)
-      const recentText = updatedMessages
-        .slice(-4)
-        .map((m) => m.text)
-        .join(' ');
+      const recentText = updatedMessages.slice(-4).map((m) => m.text).join(' ');
       const relevantMemories = memoryEnabled && getRelevantMemories
         ? getRelevantMemories(recentText)
         : [];
@@ -255,23 +378,33 @@ export default function ChatPage({
       const lowerInput = text.toLowerCase();
       const lowerReply = replyText.toLowerCase();
 
-      if (
-        (lowerReply.includes('grocery list') || lowerReply.includes("i'll add")) &&
-        lowerReply.includes('add')
-      ) {
-        const match = lowerInput.match(/(?:add|buy|get|need|pick up)\s+(.+)/i);
-        if (match) await onAddGrocery(match[1].trim(), 'Pantry');
-      } else if (
-        lowerReply.includes('task list') ||
-        (lowerReply.includes('added') && lowerReply.includes('task'))
-      ) {
-        const match = lowerInput.match(/(?:add|remind me to|i need to)\s+(.+)/i);
-        if (match) await onAddTask(match[1].trim());
+      // Side-effect: auto-add grocery / task from conversation — errors must not crash chat
+      try {
+        if (
+          (lowerReply.includes('grocery list') || lowerReply.includes("i'll add")) &&
+          lowerReply.includes('add')
+        ) {
+          const match = lowerInput.match(/(?:add|buy|get|need|pick up)\s+(.+)/i);
+          if (match) await onAddGrocery(match[1].trim(), 'Pantry');
+        } else if (
+          lowerReply.includes('task list') ||
+          (lowerReply.includes('added') && lowerReply.includes('task'))
+        ) {
+          const match = lowerInput.match(/(?:add|remind me to|i need to)\s+(.+)/i);
+          if (match) await onAddTask(match[1].trim());
+        }
+      } catch (sideErr) {
+        console.error('[Chat] Auto-add side effect failed:', sideErr);
       }
 
-      const wakeMatch = lowerInput.match(/(?:wake up|get up|start my day) (?:at )?([\d:]+\s*(?:am|pm)?)/i);
-      if (wakeMatch && memory) {
-        await onUpdateMemory({ ...memory.preferences, preferredWakeTime: wakeMatch[1] });
+      // Side-effect: save wake time — errors must not crash chat
+      try {
+        const wakeMatch = lowerInput.match(/(?:wake up|get up|start my day) (?:at )?([\d:]+\s*(?:am|pm)?)/i);
+        if (wakeMatch && memory) {
+          await onUpdateMemory({ ...memory.preferences, preferredWakeTime: wakeMatch[1] });
+        }
+      } catch (wakeErr) {
+        console.error('[Chat] Wake time save failed:', wakeErr);
       }
 
       setMessages((prev) => [
@@ -284,20 +417,35 @@ export default function ChatPage({
         },
       ]);
 
-      // Show confirmation banner only when memory is enabled and the category is valid
-      if (result.memory_suggestion && onSaveMemory && memoryEnabled) {
-        const cat = result.memory_suggestion.category as MemoryCategory;
-        if (VALID_CATEGORIES.includes(cat)) {
-          setPendingSuggestion({ ...result.memory_suggestion, category: cat });
+      // Show memory suggestion banner — errors here must not crash chat
+      try {
+        if (result.memory_suggestion && onSaveMemory && memoryEnabled) {
+          const cat = result.memory_suggestion.category as MemoryCategory;
+          if (VALID_CATEGORIES.includes(cat)) {
+            setPendingSuggestion({ ...result.memory_suggestion, category: cat });
+          }
         }
+      } catch (memErr) {
+        console.error('[Chat] Memory suggestion handling failed:', memErr);
       }
-    } catch {
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      let friendlyText = "Oops, I lost my train of thought for a second 💛 Try asking me again!";
+
+      if (errMsg === 'network') {
+        friendlyText = "I couldn't reach my server. Please check your connection and try again 💛";
+      } else if (errMsg.startsWith('http:4')) {
+        friendlyText = "I had an authentication issue. Try refreshing the app 💛";
+      } else if (errMsg.startsWith('http:5')) {
+        friendlyText = "Something went wrong on my end. Please try again in a moment 💛";
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          text: "Oops, I lost my train of thought for a second 💛 Try asking me again!",
+          text: friendlyText,
           timestamp: new Date(),
         },
       ]);
@@ -309,7 +457,11 @@ export default function ChatPage({
   async function handleConfirmMemory() {
     if (!pendingSuggestion || !onSaveMemory) return;
     setSavingMemory(true);
-    await onSaveMemory(pendingSuggestion.category, pendingSuggestion.title, pendingSuggestion.value);
+    try {
+      await onSaveMemory(pendingSuggestion.category, pendingSuggestion.title, pendingSuggestion.value);
+    } catch (err) {
+      console.error('[Chat] Memory save failed:', err);
+    }
     setSavingMemory(false);
     setPendingSuggestion(null);
     setMessages((prev) => [
@@ -398,7 +550,7 @@ export default function ChatPage({
         <div ref={bottomRef} />
       </div>
 
-      {/* Memory confirmation banner — sits between messages and input */}
+      {/* Memory confirmation banner */}
       {pendingSuggestion && (
         <MemoryConfirmBanner
           suggestion={pendingSuggestion}
@@ -408,7 +560,7 @@ export default function ChatPage({
         />
       )}
 
-      {/* Suggested Prompts */}
+      {/* Suggested prompts */}
       {messages.length <= 2 && !pendingSuggestion && (
         <div className="shrink-0 px-4 pb-3">
           <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -449,5 +601,14 @@ export default function ChatPage({
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap with error boundary so render errors stay inside Chat
+export default function ChatPage(props: ChatPageProps) {
+  return (
+    <ChatErrorBoundary>
+      <ChatPageInner {...props} />
+    </ChatErrorBoundary>
   );
 }

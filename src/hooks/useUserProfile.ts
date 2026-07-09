@@ -25,19 +25,30 @@ export function useUserProfile() {
     // Initial load — handles app-start when a session already exists
     load();
 
-    // Re-fetch profile whenever the user signs in (handles login after mount).
-    // We use the session object from the event to avoid calling getUser() inside
-    // the callback, which can cause deadlocks on some platforms.
+    // Re-fetch profile only on an actual sign-in (new authentication), not on
+    // TOKEN_REFRESHED or INITIAL_SESSION (which also fire SIGNED_IN on some builds).
+    // We track whether a profile has been loaded at least once so we don't call
+    // setLoading(true) during background token refresh — that would re-trigger the
+    // full-screen loading guard in App.tsx and navigate away from the active tab.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, authSession) => {
       if (event === 'SIGNED_IN' && authSession?.user) {
-        setLoading(true);
+        // Only set loading=true when we have no profile yet (first login).
+        // If we already have a profile, silently refresh in the background.
+        setLoading((prev) => {
+          if (prev) return true; // already loading — leave as-is
+          return false;          // already loaded once — don't show loading spinner
+        });
         supabase
           .from('user_profiles')
           .select('*')
           .eq('user_id', authSession.user.id)
           .maybeSingle()
           .then(({ data }) => {
-            setProfile(data as UserProfile | null);
+            setProfile((prev) => {
+              // If we already have a profile and data is null (no row yet), keep existing
+              if (prev && !data) return prev;
+              return data as UserProfile | null;
+            });
             setLoading(false);
           });
       } else if (event === 'SIGNED_OUT') {
