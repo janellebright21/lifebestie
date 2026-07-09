@@ -140,6 +140,7 @@ export default function FloatingBestie({
           characterId={characterId}
           expression={expression}
           size="lg"
+          enable3D
         />
       </button>
     </div>
