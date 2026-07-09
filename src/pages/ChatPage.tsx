@@ -62,8 +62,6 @@ const VALID_CATEGORIES: MemoryCategory[] = [
   'ImportantDate', 'Challenge', 'Favorite', 'Budget', 'Other',
 ];
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-
 // ── Message sessionStorage persistence ────────────────────────────────────────
 
 function saveMessagesToSession(messages: Message[]): void {
@@ -111,90 +109,49 @@ function loadMessagesFromSession(): Message[] | null {
 
 // ── Edge Function call ─────────────────────────────────────────────────────────
 
-async function callChatFunction(
+async function callEmmaChatFunction(
+  currentMessage: string,
   messages: Message[],
-  tasks: Task[],
-  events: Event[],
-  groceryItems: GroceryItem[],
-  memory: UserMemory | null,
-  proactiveSuggestions: string[],
   relevantMemories: LifeBestieMemory[],
-): Promise<{ text: string; memory_suggestion?: MemorySuggestion; lastUserText?: string }> {
-  const today = new Date().toISOString().split('T')[0];
-  const pending = tasks.filter((t) => !t.completed);
-  const todayEvents = events.filter((e) => e.event_date === today);
-  const uncheckedGrocery = groceryItems.filter((g) => !g.checked);
-
-  const context: Record<string, unknown> = {
-    pendingTaskCount: pending.length,
-    todayEventCount: todayEvents.length,
-    groceryItemCount: uncheckedGrocery.length,
-    pendingTaskTitles: pending.slice(0, 5).map((t) => t.title),
-    todayEventTitles: todayEvents
-      .slice(0, 5)
-      .map((e) => `${e.event_time ? e.event_time + ' ' : ''}${e.title}`),
-    savedMemories: relevantMemories.map((m) => ({ category: m.category, title: m.title })),
-  };
-
-  if (memory) {
-    context.routines = memory.routines;
-    context.preferences = memory.preferences;
-    const recentHistory = memory.history.slice(-7);
-    context.recentActions = recentHistory.flatMap((h) => h.actions).slice(-20);
-    context.commonGroceries = [...memory.common_groceries]
-      .sort((a, b) => b.frequency - a.frequency)
-      .slice(0, 10)
-      .map((g) => `${g.name} (${g.category}, x${g.frequency})`);
-    context.proactiveSuggestions = proactiveSuggestions;
-  }
-
-  const apiMessages = messages
-    .filter((m) => m.id !== 'init')
+): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
+  // Build conversation history from existing messages (exclude the init greeting,
+  // exclude the message we are about to send, cap at 10 turns).
+  const conversation = messages
+    .filter((m) => m.id !== 'init' && !m.isError)
+    .slice(-10)
     .map((m) => ({ role: m.role, content: m.text }));
 
-  // Use the authenticated user's JWT so the Edge Function can verify identity.
-  // Falling back to the anon key only if no session exists (should not happen in practice).
-  const { data: { session: authSession } } = await supabase.auth.getSession();
-  const bearerToken = authSession?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const memories = relevantMemories.map((m) => ({ category: m.category, title: m.title }));
 
-  let response: Response;
-  try {
-    response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${bearerToken}`,
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-      },
-      body: JSON.stringify({ messages: apiMessages, context }),
-    });
-  } catch (networkErr) {
-    console.error('[Chat] Network error:', networkErr);
-    throw new Error('network');
+  const { data, error } = await supabase.functions.invoke('emma-chat', {
+    body: { message: currentMessage, conversation, memories },
+  });
+
+  if (error) {
+    console.error('[Chat] Edge function error:', error);
+    throw new Error('invoke_error');
   }
 
-  if (!response.ok) {
-    let detail = '';
-    try { detail = await response.text(); } catch { /* ignore */ }
-    console.error(`[Chat] Edge function HTTP ${response.status}:`, detail);
-    throw new Error(`http:${response.status}`);
+  // data is the parsed JSON body from the function
+  const payload = data as Record<string, unknown>;
+
+  // Surface a configuration error so the user sees a helpful message
+  if (payload.error === 'AI_NOT_CONFIGURED') {
+    throw new Error('not_configured');
   }
 
-  let data: Record<string, unknown>;
-  try {
-    data = await response.json();
-  } catch (jsonErr) {
-    console.error('[Chat] Invalid JSON from edge function:', jsonErr);
-    throw new Error('invalid_json');
+  if (payload.error) {
+    console.error('[Chat] Edge function returned error:', payload.error, payload.message);
+    throw new Error(String(payload.error));
   }
 
-  const text = typeof data.text === 'string' && data.text.trim()
-    ? data.text
+  const text = typeof payload.text === 'string' && payload.text.trim()
+    ? payload.text
     : "I'm here for you 💛 Could you say that again?";
 
   let memory_suggestion: MemorySuggestion | undefined;
   try {
-    const ms = data.memory_suggestion;
+    const ms = payload.memory_suggestion;
     if (
       ms &&
       typeof ms === 'object' &&
@@ -329,14 +286,14 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
 // ── Main chat component ────────────────────────────────────────────────────────
 
 function ChatPageInner({
-  tasks,
-  events,
-  groceryItems,
+  tasks: _tasks,
+  events: _events,
+  groceryItems: _groceryItems,
   memory,
   onAddTask,
   onAddGrocery,
   onUpdateMemory,
-  getProactiveSuggestions,
+  getProactiveSuggestions: _getProactiveSuggestions,
   preferredName,
   avatarTheme: _avatarTheme,
   character,
@@ -400,18 +357,14 @@ function ChatPageInner({
         ? getRelevantMemories(recentText)
         : [];
 
-      const result = await callChatFunction(
+      const result = await callEmmaChatFunction(
+        trimmedText,
         updatedMessages,
-        tasks,
-        events,
-        groceryItems,
-        memory,
-        getProactiveSuggestions?.() ?? [],
         relevantMemories,
       );
 
       const replyText = result.text;
-      const lowerInput = text.toLowerCase();
+      const lowerInput = trimmedText.toLowerCase();
       const lowerReply = replyText.toLowerCase();
 
       // Side-effect: auto-add grocery / task from conversation — errors must not crash chat
@@ -446,9 +399,9 @@ function ChatPageInner({
       setMessages((prev) => [
         ...prev,
         {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          text: replyText,
+          id:        (Date.now() + 1).toString(),
+          role:      'assistant',
+          text:      replyText,
           timestamp: new Date(),
         },
       ]);
@@ -467,12 +420,17 @@ function ChatPageInner({
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error('[Chat] sendMessage failed:', errMsg);
+
+      const friendlyText = errMsg === 'not_configured'
+        ? "Emma's AI isn't connected yet. An admin needs to add the AI_API_KEY secret in Supabase."
+        : "I'm sorry—I had trouble responding. Please try again.";
+
       setMessages((prev) => [
         ...prev,
         {
           id:        (Date.now() + 1).toString(),
           role:      'assistant',
-          text:      "I'm sorry—I had trouble responding. Please try again.",
+          text:      friendlyText,
           timestamp: new Date(),
           isError:   true,
         },
