@@ -168,7 +168,8 @@ export default function App() {
         .from('events')
         .select('*')
         .eq('user_id', uid)
-        .order('event_date', { ascending: true }),
+        .order('event_date', { ascending: true })
+        .order('event_time', { ascending: true }),
 
       supabase
         .from('grocery_items')
@@ -335,7 +336,7 @@ export default function App() {
     }
   }
 
-  async function addEvent(title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) {
+  async function addEvent(title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string): Promise<Event> {
     const { data, error } = await supabase
       .from('events')
       .insert({
@@ -350,17 +351,36 @@ export default function App() {
       })
       .select()
       .single();
-    dbError('events (insert)', error);
-    if (data) {
-      setEvents((prev) => [...prev, data].sort((a, b) => a.event_date.localeCompare(b.event_date)));
-      await userMemory.addHistoryAction(`Added event: ${title} on ${date}`);
-      await bestieRelationship.awardPoints(
+    if (error) throw error;
+    const event = data as Event;
+
+    // Update events state immediately so the UI reflects the new event.
+    setEvents((prev) =>
+      [...prev, event].sort((a, b) => {
+        const dc = a.event_date.localeCompare(b.event_date);
+        return dc !== 0 ? dc : (a.event_time || '').localeCompare(b.event_time || '');
+      }),
+    );
+
+    // Bestie points and memory history are non-critical side-effects — run them
+    // in the background so the event save resolves immediately after the insert.
+    Promise.allSettled([
+      userMemory.addHistoryAction(`Added event: ${title} on ${date}`),
+      bestieRelationship.awardPoints(
         'add_event',
-        data.id,
+        event.id,
         category === 'Movement' ? 10 : 5,
         `Added event: ${title}`,
-      );
-    }
+      ),
+    ]).then((results) => {
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          console.warn('[addEvent] background side-effect failed:', r.reason);
+        }
+      }
+    });
+
+    return event;
   }
 
   async function deleteEvent(id: string) {

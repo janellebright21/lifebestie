@@ -34,7 +34,7 @@ interface HomePageProps {
   onGeneratePlan: () => void;
   onTogglePlanTask: (taskId: string, completed: boolean) => void;
   onDismissPlanAdaptation: (id: string) => void;
-  generationError: boolean;
+  generationError: string | null;
   tomorrowReminders: string[];
   tomorrowRemindersLoading: boolean;
   tomorrowRemindersError: boolean;

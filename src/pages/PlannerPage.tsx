@@ -26,7 +26,7 @@ interface PlannerPageProps {
   goals: Goal[];
   meals: Meal[];
   character?: CharacterId;
-  onAddEvent: (title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) => Promise<void>;
+  onAddEvent: (title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) => Promise<Event>;
   onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<void>;
   onToggleTask: (id: string, completed: boolean) => void;
   onUpdateTask: (id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) => Promise<void>;
@@ -573,15 +573,31 @@ function AddEventForm({
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
   const getCatColor = useCatColor();
 
   async function handleSave() {
-    if (!title.trim()) return;
+    if (!title.trim() || saving) return;
     setSaving(true);
-    await onAdd(title.trim(), date, time, category, location || undefined, notes || undefined);
-    setSaving(false);
-    onCancel();
+    setSaveError(null);
+    try {
+      const savePromise = onAdd(title.trim(), date, time, category, location || undefined, notes || undefined);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('__timeout__')), 12_000),
+      );
+      await Promise.race([savePromise, timeoutPromise]);
+      onCancel();
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === '__timeout__';
+      setSaveError(
+        isTimeout
+          ? 'Saving is taking longer than expected. Please try again.'
+          : "We couldn't save this event. Please check your connection and try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -593,7 +609,12 @@ function AddEventForm({
           placeholder="What's happening?"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSave();
+            }
+          }}
           className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-rose-200 transition-colors"
         />
 
@@ -605,6 +626,7 @@ function AddEventForm({
               <button
                 key={cat}
                 onClick={() => setCategory(cat)}
+                disabled={saving}
                 className={`text-xs font-medium px-2.5 py-1 rounded-full transition-all ${
                   category === cat ? `${cfg.bg} ${cfg.text} ring-1 ${cfg.border}` : 'bg-gray-50 text-gray-400'
                 }`}
@@ -623,6 +645,7 @@ function AddEventForm({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              disabled={saving}
               className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-rose-200 transition-colors"
             />
           </div>
@@ -632,6 +655,7 @@ function AddEventForm({
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
+              disabled={saving}
               className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-rose-200 transition-colors"
             />
           </div>
@@ -640,6 +664,7 @@ function AddEventForm({
         {/* Location + Notes toggle */}
         <button
           onClick={() => setShowMore((v) => !v)}
+          disabled={saving}
           className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
         >
           {showMore ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -655,6 +680,7 @@ function AddEventForm({
                 placeholder="Location (optional)"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+                disabled={saving}
                 className="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder:text-gray-300"
               />
             </div>
@@ -663,14 +689,25 @@ function AddEventForm({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
+              disabled={saving}
               className="w-full text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-rose-200 transition-colors resize-none"
             />
           </div>
         )}
+
+        {saveError && (
+          <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
+            {saveError}
+          </p>
+        )}
       </div>
 
       <div className="flex border-t border-gray-50">
-        <button onClick={onCancel} className="flex-1 text-sm text-gray-400 py-3 font-medium hover:bg-gray-50 transition-colors">
+        <button
+          onClick={onCancel}
+          disabled={saving}
+          className="flex-1 text-sm text-gray-400 py-3 font-medium hover:bg-gray-50 disabled:opacity-40 transition-colors"
+        >
           Cancel
         </button>
         <div className="w-px bg-gray-50" />

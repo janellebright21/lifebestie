@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { CheckSquare, Calendar, ShoppingCart, X } from 'lucide-react';
-import { GROCERY_CATEGORIES, GroceryCategory, getCategoryColors, Goal } from '../lib/supabase';
+import { GROCERY_CATEGORIES, GroceryCategory, getCategoryColors, Goal, Event } from '../lib/supabase';
 
 interface AddPageProps {
   onAddTask: (title: string, dueDate?: string) => Promise<void>;
-  onAddEvent: (title: string, date: string, time: string) => Promise<void>;
+  onAddEvent: (title: string, date: string, time: string) => Promise<Event>;
   onAddGrocery: (name: string, category: GroceryCategory) => Promise<void>;
   goals?: Goal[];
 }

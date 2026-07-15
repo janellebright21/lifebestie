@@ -22,7 +22,7 @@ interface MovementPageProps {
     category?: EventCategory,
     location?: string,
     notes?: string
-  ) => Promise<void>;
+  ) => Promise<Event>;
   onUpdateEvent: (
     id: string,
     patch: Partial<Pick<Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>

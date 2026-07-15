@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { CheckSquare, Calendar, ShoppingCart, X, ArrowLeft } from 'lucide-react';
-import { GROCERY_CATEGORIES, GroceryCategory, getCategoryColors } from '../lib/supabase';
+import { GROCERY_CATEGORIES, GroceryCategory, getCategoryColors, Event } from '../lib/supabase';
 
 type Mode = null | 'task' | 'event' | 'grocery';
 
@@ -8,7 +8,7 @@ interface QuickAddSheetProps {
   open: boolean;
   onClose: () => void;
   onAddTask: (title: string, dueDate?: string) => Promise<void>;
-  onAddEvent: (title: string, date: string, time: string) => Promise<void>;
+  onAddEvent: (title: string, date: string, time: string) => Promise<Event>;
   onAddGrocery: (name: string, category: GroceryCategory) => Promise<void>;
 }
 

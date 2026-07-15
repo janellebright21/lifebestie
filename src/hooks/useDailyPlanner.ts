@@ -91,13 +91,65 @@ function computeLoadHint(rates: number[]): LoadHint {
   return 'normal';
 }
 
+// ─── Local fallback plan (used when AI generation fails or times out) ────────
+function buildFallbackPlan(
+  incompleteTasks: Task[],
+  todaysEvents: Event[],
+  skippedYesterday: PlanTask[],
+): { high_impact: PlanTask[]; small_wins: PlanTask[]; message: string } {
+  const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const sorted = [...incompleteTasks].sort((a, b) => {
+    const pa = priorityRank[a.priority] ?? 1;
+    const pb = priorityRank[b.priority] ?? 1;
+    if (pa !== pb) return pa - pb;
+    return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
+  });
+
+  const toPlanTask = (t: Task, reason?: string): PlanTask => ({
+    id: t.id,
+    title: t.title,
+    type: 'high_impact',
+    completed: false,
+    duration: t.duration ?? undefined,
+    linked_goal_title: undefined,
+    reason: reason ?? '',
+  });
+
+  // High-impact = high-priority tasks + tasks due today + skipped from yesterday
+  const dueToday = sorted.filter((t) => t.due_date === new Date().toISOString().split('T')[0]);
+  const highPriority = sorted.filter((t) => (t.priority ?? 'medium') === 'high');
+  const rest = sorted.filter((t) => !dueToday.includes(t) && !highPriority.includes(t));
+
+  const highImpact = [
+    ...skippedYesterday.slice(0, 2).map((t) => ({ ...t, reason: 'Carried over from yesterday' })),
+    ...highPriority.slice(0, 2).map((t) => toPlanTask(t, 'High priority')),
+    ...dueToday.slice(0, 2).map((t) => toPlanTask(t, 'Due today')),
+  ].slice(0, 3);
+
+  const highIds = new Set(highImpact.map((t) => t.id));
+  const smallWins = rest
+    .filter((t) => !highIds.has(t.id))
+    .slice(0, 3)
+    .map((t) => toPlanTask(t));
+
+  const eventMsg = todaysEvents.length > 0
+    ? ` You have ${todaysEvents.length} event${todaysEvents.length > 1 ? 's' : ''} scheduled for today.`
+    : '';
+
+  return {
+    high_impact: highImpact,
+    small_wins: smallWins,
+    message: `Here's a quick plan based on your tasks.${eventMsg}`,
+  };
+}
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useDailyPlanner() {
   const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const memoryId = localStorage.getItem(MEMORY_ID_KEY); // kept for upsert payload; ownership is user_id
   const today = new Date().toISOString().split('T')[0];
   // Ref so callbacks always see latest plan without stale closure
@@ -121,31 +173,27 @@ export function useDailyPlanner() {
   useEffect(() => { load(); }, [load]);
 
   // ── Load yesterday's plan (for skipped tasks + rates) ────────────────────
-  async function loadYesterday(): Promise<DailyPlan | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+  async function loadYesterday(userId: string): Promise<DailyPlan | null> {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yDate = yesterday.toISOString().split('T')[0];
     const { data } = await supabase
       .from('daily_plans')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('plan_date', yDate)
       .maybeSingle();
     return data as DailyPlan | null;
   }
 
   // Load last N days for completion rates
-  async function loadRecentRates(days = 7): Promise<number[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+  async function loadRecentRates(userId: string, days = 7): Promise<number[]> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     const { data } = await supabase
       .from('daily_plans')
       .select('completion_rate, plan_date')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .gte('plan_date', cutoff.toISOString().split('T')[0])
       .order('plan_date', { ascending: true });
     if (!data) return [];
@@ -155,15 +203,13 @@ export function useDailyPlanner() {
   }
 
   // Load all completion timestamps from recent plans for focus-hour analysis
-  async function loadFocusHours(): Promise<number[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+  async function loadFocusHours(userId: string): Promise<number[]> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 14);
     const { data } = await supabase
       .from('daily_plans')
       .select('completion_timestamps')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .gte('plan_date', cutoff.toISOString().split('T')[0]);
     if (!data) return [];
     return (data as { completion_timestamps: number[] }[]).flatMap((r) => r.completion_timestamps ?? []);
@@ -193,15 +239,22 @@ export function useDailyPlanner() {
     if (plan && !force) return;
 
     setGenerating(true);
-    setGenerationError(false);
+    setGenerationError(null);
     try {
+      // Resolve the authenticated user once and reuse the ID throughout.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setGenerationError('Please sign in to generate a plan.');
+        return;
+      }
+
       const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-      // Gather adaptive context
+      // Gather adaptive context (all helpers now take the resolved userId)
       const [yesterday, recentRates, allFocusTimestamps] = await Promise.all([
-        loadYesterday(),
-        loadRecentRates(7),
-        loadFocusHours(),
+        loadYesterday(user.id),
+        loadRecentRates(user.id, 7),
+        loadFocusHours(user.id),
       ]);
 
       // Compute skipped from yesterday: tasks in yesterday's plan that were not completed
@@ -227,39 +280,53 @@ export function useDailyPlanner() {
       const loadHint = computeLoadHint(recentRates);
       const focusHoursFromHistory = topFocusHours(allFocusTimestamps);
 
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/daily-planner`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          memoryId,
-          goals: opts.goals,
-          tasks: opts.tasks.filter((t) => !t.completed),
-          events: opts.events,
-          routines: opts.routines,
-          preferences: opts.memory
-            ? {
-                preferredWakeTime: opts.memory.preferences?.preferredWakeTime,
-                busyDays: opts.memory.preferences?.busyDays,
-              }
-            : undefined,
-          recentHistory: opts.recentHistory,
-          planDate: today,
-          dayOfWeek,
-          skippedYesterday,
-          loadHint,
-          focusHours: focusHoursFromHistory,
-          recentCompletionRates: recentRates,
-        }),
-      });
+      // Fetch the AI plan with a 20-second timeout via AbortController.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20_000);
+      let aiPlan: { high_impact: PlanTask[]; small_wins: PlanTask[]; message: string } | null = null;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/daily-planner`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            memoryId,
+            goals: opts.goals,
+            tasks: opts.tasks.filter((t) => !t.completed),
+            events: opts.events,
+            routines: opts.routines,
+            preferences: opts.memory
+              ? {
+                  preferredWakeTime: opts.memory.preferences?.preferredWakeTime,
+                  busyDays: opts.memory.preferences?.busyDays,
+                }
+              : undefined,
+            recentHistory: opts.recentHistory,
+            planDate: today,
+            dayOfWeek,
+            skippedYesterday,
+            loadHint,
+            focusHours: focusHoursFromHistory,
+            recentCompletionRates: recentRates,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        setGenerationError(true);
-        return;
+        if (res.ok) {
+          aiPlan = await res.json();
+        }
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
+          setGenerationError('Plan generation timed out. Please try again.');
+        }
+        // Fall through to fallback plan below
+      } finally {
+        clearTimeout(timeoutId);
       }
-      const aiPlan = await res.json();
 
       // Build initial adaptations
       const adaptations: AdaptationEvent[] = [];
@@ -295,19 +362,32 @@ export function useDailyPlanner() {
         });
       }
 
-      const { data: { user: planUser } } = await supabase.auth.getUser();
-      if (!planUser) return;
+      // If AI generation failed or timed out, create a simple local fallback
+      // plan from today's incomplete tasks and events so the user can still
+      // make a schedule.
+      let highImpact = aiPlan?.high_impact ?? [];
+      let smallWins = aiPlan?.small_wins ?? [];
+      let message = aiPlan?.message ?? '';
+
+      if (!aiPlan) {
+        const incompleteTasks = opts.tasks.filter((t) => !t.completed);
+        const todaysEvents = opts.events.filter((e) => e.event_date === today);
+        const fallbackPlan = buildFallbackPlan(incompleteTasks, todaysEvents, skippedYesterday);
+        highImpact = fallbackPlan.high_impact;
+        smallWins = fallbackPlan.small_wins;
+        message = fallbackPlan.message;
+      }
 
       const { data } = await supabase
         .from('daily_plans')
         .upsert(
           {
             memory_id: memoryId,
-            user_id: planUser.id,
+            user_id: user.id,
             plan_date: today,
-            high_impact: aiPlan.high_impact,
-            small_wins: aiPlan.small_wins,
-            message: aiPlan.message,
+            high_impact: highImpact,
+            small_wins: smallWins,
+            message,
             skipped_tasks: [],
             load_hint: loadHint,
             adaptations,
@@ -321,7 +401,7 @@ export function useDailyPlanner() {
 
       if (data) setPlan(data as DailyPlan);
     } catch {
-      setGenerationError(true);
+      setGenerationError('Something went wrong while creating your plan. Please try again.');
     } finally {
       setGenerating(false);
     }

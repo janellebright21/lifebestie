@@ -35,7 +35,7 @@ interface ChatPageProps {
   goals?: Goal[];
   weeklyList?: WeeklyGroceryList | null;
   onAddTask: (title: string) => Promise<void>;
-  onAddEvent?: (title: string, date: string, time: string) => Promise<void>;
+  onAddEvent?: (title: string, date: string, time: string) => Promise<Event>;
   onAddGrocery: (name: string, category: GroceryCategory) => Promise<void>;
   onAddWeeklyItem?: (name: string, category: GroceryCategory, source: import('../lib/supabase').WeeklyGrocerySource) => Promise<void>;
   onUpdateMemory: (prefs: Preferences) => Promise<void>;

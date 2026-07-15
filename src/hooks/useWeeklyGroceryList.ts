@@ -632,7 +632,13 @@ export function useWeeklyGroceryList(
   const userIdRef = useRef<string | null>(null);
   const memoryId = localStorage.getItem(MEMORY_ID_KEY);
 
-  // Keep ref in sync for use inside async callbacks
+  // Keep refs in sync so the load callback can read the latest data without
+  // depending on it in its dependency array. This prevents the weekly list from
+  // being re-fetched from Supabase every time an event or task changes.
+  const dataRef = useRef({ habits, routines, recentHistory, events, meals, tasks });
+  dataRef.current = { habits, routines, recentHistory, events, meals, tasks };
+
+  // Keep list ref in sync for use inside async callbacks
   useEffect(() => {
     listRef.current = weeklyList;
   }, [weeklyList]);
@@ -660,7 +666,9 @@ export function useWeeklyGroceryList(
       return;
     }
 
-    // No list for this week — generate, fetch intro message, then persist
+    // No list for this week — generate, fetch intro message, then persist.
+    // Read from refs so this callback doesn't depend on the live props.
+    const { habits, routines, recentHistory, events, meals, tasks } = dataRef.current;
     const items = generateWeeklyItems(habits, routines, recentHistory, events, meals, tasks);
     const weekly_message = await fetchWeeklyIntroMessage(habits, routines, items, meals, events);
 
@@ -679,7 +687,7 @@ export function useWeeklyGroceryList(
 
     if (created) setWeeklyList(created as WeeklyGroceryList);
     setLoading(false);
-  }, [memoryId, habits, routines, recentHistory, events, meals, tasks]);
+  }, [memoryId]);
 
   useEffect(() => {
     load();
@@ -817,6 +825,10 @@ export function useWeeklyGroceryList(
     // Keep items the user added themselves so they are never silently removed
     const manualItems = list.items.filter((i) => i.source === 'manual');
     const manualNames = new Set(manualItems.map((i) => i.name.toLowerCase()));
+
+    // Read from refs so regenerate always uses the latest data without
+    // needing to be recreated when props change.
+    const { habits, routines, recentHistory, events, meals, tasks } = dataRef.current;
 
     const generated = generateWeeklyItems(habits, routines, recentHistory, events, meals, tasks)
       .filter((i) => !manualNames.has(i.name.toLowerCase()));
