@@ -756,10 +756,6 @@ export default function App() {
         characterId={selectedCharacter}
         expression={floatingExpression}
         activeTab={activeTab}
-        onTabChange={(tab) => {
-          if (tab === 'add') { setQuickAddOpen(true); return; }
-          setActiveTab(tab);
-        }}
       />
 
       <QuickAddSheet

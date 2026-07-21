@@ -1,139 +1,101 @@
-import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, CalendarDays, Plus, ShoppingCart } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { CHARACTERS } from '../lib/supabase';
 import type { CharacterId, AvatarExpression } from '../lib/supabase';
 import BestieAvatar from './besties/BestieAvatar';
 import type { TabName } from './BottomNav';
 
 // Keep the floating avatar well above the nav + plus button (which extends ~20px above nav top)
-const NAV_CLEARANCE = 88;
+const NAV_CLEARANCE = 90;
+const EDGE_SPACING = 12;
+const SLIDE_MS = 350;
+const BUBBLE_MS = 2000;
 
 const HIDDEN_ON: Set<TabName> = new Set(['bestie', 'settings', 'add', 'chat']);
-
-const QUICK_ACTIONS = [
-  { icon: <MessageCircle size={15} />, label: 'Chat with Bestie', tab: 'chat'    as TabName, accent: '#f3f0ff', color: '#7c3aed' },
-  { icon: <CalendarDays  size={15} />, label: 'Plan my day',       tab: 'planner' as TabName, accent: '#eff6ff', color: '#2563eb' },
-  { icon: <Plus          size={15} />, label: 'Add a task',        tab: 'add'     as TabName, accent: '#f0fdf4', color: '#16a34a' },
-  { icon: <ShoppingCart  size={15} />, label: 'Grocery help',      tab: 'grocery' as TabName, accent: '#fffbeb', color: '#d97706' },
-] as const;
 
 interface FloatingBestieProps {
   characterId: CharacterId;
   expression?: AvatarExpression;
   activeTab: TabName;
-  onTabChange: (tab: TabName) => void;
 }
 
 export default function FloatingBestie({
   characterId,
   expression = 'happy',
   activeTab,
-  onTabChange,
 }: FloatingBestieProps) {
-  const [open, setOpen] = useState(false);
-  const wrapperRef      = useRef<HTMLDivElement>(null);
+  const [side, setSide] = useState<'left' | 'right'>('right');
+  const [bubble, setBubble] = useState(false);
+  const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
 
   useEffect(() => {
-    setOpen(false);
+    setBubble(false);
   }, [activeTab]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onOutside(e: MouseEvent | TouchEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onOutside);
-    document.addEventListener('touchstart', onOutside);
-    return () => {
-      document.removeEventListener('mousedown', onOutside);
-      document.removeEventListener('touchstart', onOutside);
-    };
-  }, [open]);
+  useEffect(() => () => {
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+  }, []);
+
+  const handleScoot = useCallback(() => {
+    setSide((s) => (s === 'right' ? 'left' : 'right'));
+    setBubble(true);
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = setTimeout(() => setBubble(false), BUBBLE_MS);
+  }, []);
 
   if (HIDDEN_ON.has(activeTab)) return null;
 
+  const isLeft = side === 'left';
+
   return (
     <div
-      ref={wrapperRef}
       style={{
-        position:      'fixed',
-        bottom:        `calc(${NAV_CLEARANCE}px + env(safe-area-inset-bottom, 0px))`,
-        right:         12,
-        zIndex:        40,
-        display:       'flex',
+        position: 'fixed',
+        bottom: `calc(${NAV_CLEARANCE}px + env(safe-area-inset-bottom, 0px))`,
+        left: isLeft ? EDGE_SPACING : undefined,
+        right: isLeft ? undefined : EDGE_SPACING,
+        zIndex: 40,
+        display: 'flex',
         flexDirection: 'column',
-        alignItems:    'flex-end',
+        alignItems: isLeft ? 'flex-start' : 'flex-end',
+        transition: `left ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), right ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+        pointerEvents: 'none',
       }}
     >
-      {/* Quick-action panel */}
-      {open && (
+      {/* Speech bubble */}
+      {bubble && (
         <div
           style={{
             marginBottom: 8,
-            marginRight:  80,
-            display:      'flex',
-            flexDirection:'column',
-            gap:          6,
-            alignItems:   'flex-end',
+            marginLeft: isLeft ? 0 : 80,
+            marginRight: isLeft ? 80 : 0,
+            background: `${char.primaryColor}14`,
+            border: `1px solid ${char.primaryColor}33`,
+            borderRadius: isLeft ? '14px 14px 14px 4px' : '14px 14px 4px 14px',
+            padding: '8px 12px',
+            maxWidth: 176,
+            pointerEvents: 'none',
+            animation: 'bestieBubbleIn 200ms ease-out',
           }}
         >
-          <div
-            style={{
-              background:   `${char.primaryColor}14`,
-              border:       `1px solid ${char.primaryColor}33`,
-              borderRadius: '14px 14px 4px 14px',
-              padding:      '8px 12px',
-              maxWidth:     176,
-              marginBottom: 4,
-            }}
-          >
-            <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.4, margin: 0 }}>
-              Hey! What do you need?
-            </p>
-          </div>
-
-          {QUICK_ACTIONS.map((a) => (
-            <button
-              key={a.tab}
-              onClick={() => { onTabChange(a.tab); setOpen(false); }}
-              style={{
-                display:     'flex',
-                alignItems:  'center',
-                gap:          8,
-                padding:     '9px 14px',
-                borderRadius: 14,
-                background:   a.accent,
-                color:        a.color,
-                border:      `1px solid ${a.color}22`,
-                fontSize:     13,
-                fontWeight:   600,
-                whiteSpace:  'nowrap',
-                cursor:      'pointer',
-                boxShadow:   '0 2px 8px rgba(0,0,0,0.07)',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              {a.icon}
-              {a.label}
-            </button>
-          ))}
+          <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.4, margin: 0 }}>
+            Oops! Let me scoot over.
+          </p>
         </div>
       )}
 
       {/* Character button */}
       <button
-        aria-label={open ? 'Close bestie menu' : 'Open bestie menu'}
-        onClick={() => setOpen((v) => !v)}
+        aria-label="Move bestie to the other side"
+        onClick={handleScoot}
         style={{
-          cursor:      'pointer',
-          background:  'none',
-          border:      'none',
-          padding:      0,
+          cursor: 'pointer',
+          background: 'none',
+          border: 'none',
+          padding: 0,
           WebkitTapHighlightColor: 'transparent',
+          pointerEvents: 'auto',
         }}
       >
         <BestieAvatar
@@ -143,6 +105,13 @@ export default function FloatingBestie({
           enable3D
         />
       </button>
+
+      <style>{`
+        @keyframes bestieBubbleIn {
+          from { opacity: 0; transform: translateY(4px) scale(0.96); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
