@@ -34,7 +34,7 @@ interface PlannerPageProps {
   onDeleteEvent: (id: string) => void;
   onUpdateEvent: (id: string, patch: Partial<Pick<Event, 'title' | 'event_date' | 'event_time' | 'category' | 'location' | 'notes'>>) => Promise<void>;
   onDeleteRoutine: (name: string) => void;
-  onAddMeal: (name: string) => Promise<Meal | null>;
+  onAddMeal: (name: string) => Promise<Meal>;
   onDeleteMeal: (id: string) => void;
   onUpdateMeal: (id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
   onDuplicateMeal: (id: string, newDate: string) => Promise<Meal | null>;
@@ -997,7 +997,7 @@ function LinkMealSheet({
 }: {
   event: Event;
   meals: Meal[];
-  onAddMeal: (name: string) => Promise<Meal | null>;
+  onAddMeal: (name: string) => Promise<Meal>;
   onLink: (meal: Meal) => Promise<void>;
   onClose: () => void;
 }) {
@@ -1014,18 +1014,28 @@ function LinkMealSheet({
     .replace(/\s+/g, ' ')
     .trim();
 
+  const [linkError, setLinkError] = useState<string | null>(null);
+
   async function handleCreate() {
     const name = newName.trim() || suggestedName;
     if (!name || adding) return;
     setAdding(true);
-    const meal = await onAddMeal(name);
-    if (meal) {
+    setLinkError(null);
+    try {
+      const meal = await onAddMeal(name);
       setLinkedMeal(meal);
       setLinking(true);
       await onLink(meal);
       setLinking(false);
+    } catch (err) {
+      setLinkError(
+        err instanceof Error && err.message
+          ? err.message
+          : "We couldn't save this meal. Please check your connection and try again.",
+      );
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   }
 
   async function handleLink(meal: Meal) {
@@ -1103,7 +1113,12 @@ function LinkMealSheet({
                     placeholder={suggestedName || 'e.g. Taco Night…'}
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreate();
+                      }
+                    }}
                     className="flex-1 text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-amber-200 transition-colors"
                   />
                   <button
@@ -1120,6 +1135,11 @@ function LinkMealSheet({
                   <p className="text-xs text-amber-500 flex items-center gap-1.5 mt-2 px-1">
                     <Sparkles size={11} />
                     Finding ingredients…
+                  </p>
+                )}
+                {linkError && (
+                  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
+                    {linkError}
                   </p>
                 )}
               </div>
@@ -1189,7 +1209,7 @@ function EventCard({
     >
   >
 ) => Promise<void>;
-  onAddMeal: (name: string) => Promise<Meal | null>;
+  onAddMeal: (name: string) => Promise<Meal>;
   onLinkMeal: (meal: Meal) => Promise<void>;
 }) {
   const getCatColor = useCatColor();

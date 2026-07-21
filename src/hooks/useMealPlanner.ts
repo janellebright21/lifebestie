@@ -5,6 +5,8 @@ const MEMORY_ID_KEY = 'lifebestie_memory_id';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
+const DEV = import.meta.env.DEV;
+
 function parseIngQty(q?: string): number | null {
   if (!q) return null;
   const t = q.trim();
@@ -20,6 +22,14 @@ function formatIngQty(n: number): string {
     if (Math.abs(n - val) < 0.005) return str;
   }
   return parseFloat(n.toFixed(2)).toString();
+}
+
+/** Local YYYY-MM-DD in the user's timezone — avoids UTC date shift. */
+function localDateStr(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 async function fetchIngredients(mealName: string): Promise<MealIngredient[]> {
@@ -53,38 +63,74 @@ export function useMealPlanner() {
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data } = await supabase
+    if (DEV) console.log('[useMealPlanner] load: user_id =', user.id);
+    const { data, error } = await supabase
       .from('meals')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
-    if (data) setMeals(data as Meal[]);
+    if (error) {
+      dbError('meals (select)', error);
+    } else {
+      if (DEV) console.log('[useMealPlanner] load: meals returned =', data?.length ?? 0);
+      setMeals(data as Meal[]);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
 
-  /** Add a new meal, fetching ingredients via AI. Returns the created meal. */
-  async function addMeal(name: string): Promise<Meal | null> {
+  /** Add a new meal, fetching ingredients via AI. Returns the created meal or throws. */
+  async function addMeal(name: string): Promise<Meal> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) {
+      throw new Error('No authenticated user. Please sign in and try again.');
+    }
+    if (DEV) console.log('[useMealPlanner] addMeal: user_id =', user.id);
+    const meal_date = localDateStr();
     const ingredients = await fetchIngredients(name);
+    const payload = {
+      memory_id: memoryId,
+      user_id: user.id,
+      name,
+      meal_date,
+      ingredients,
+    };
+    if (DEV) console.log('[useMealPlanner] addMeal: submitted meal_date =', meal_date);
+    if (DEV) console.log('[useMealPlanner] addMeal: insert payload =', payload);
+
     const { data, error } = await supabase
       .from('meals')
-    .insert({
-  memory_id: memoryId,
-  user_id: user.id,
-  name,
-  meal_date: new Date().toISOString().split('T')[0],
-  ingredients
-})
+      .insert(payload)
       .select()
       .single();
-    dbError('meals (insert)', error);
-    if (!data) return null;
+    if (error) {
+      dbError('meals (insert)', error);
+      if (DEV) console.error('[useMealPlanner] addMeal: insert error =', JSON.stringify(error));
+      throw new Error('We couldn\'t save this meal. Please check your connection and try again.');
+    }
     const meal = data as Meal;
+    if (DEV) console.log('[useMealPlanner] addMeal: inserted row =', meal);
+
+    // Immediately add the returned meal to React state.
     setMeals((prev) => [meal, ...prev]);
+
+    // Re-fetch the correct week in the background to confirm persistence.
+    supabase
+      .from('meals')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data: refreshed, error: rErr }) => {
+        if (rErr) {
+          dbError('meals (refresh)', rErr);
+          return;
+        }
+        if (DEV) console.log('[useMealPlanner] addMeal: meals after refresh =', refreshed?.length ?? 0);
+        if (refreshed) setMeals(refreshed as Meal[]);
+      });
+
     return meal;
   }
 
@@ -97,24 +143,53 @@ export function useMealPlanner() {
     meal_type: MealType;
     meal_date: string;
     ingredients: MealIngredient[];
-  }): Promise<Meal | null> {
+  }): Promise<Meal> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-    const { data } = await supabase
+    if (!user) {
+      throw new Error('No authenticated user. Please sign in and try again.');
+    }
+    if (DEV) console.log('[useMealPlanner] addMealFull: user_id =', user.id);
+    if (DEV) console.log('[useMealPlanner] addMealFull: submitted meal_date =', opts.meal_date);
+
+    const payload = {
+      memory_id: memoryId,
+      user_id: user.id,
+      name: opts.name,
+      meal_type: opts.meal_type,
+      meal_date: opts.meal_date,
+      ingredients: opts.ingredients,
+    };
+    if (DEV) console.log('[useMealPlanner] addMealFull: insert payload =', payload);
+
+    const { data, error } = await supabase
       .from('meals')
-      .insert({
-        memory_id: memoryId,
-        user_id: user.id,
-        name: opts.name,
-        meal_type: opts.meal_type,
-        meal_date: opts.meal_date,
-        ingredients: opts.ingredients,
-      })
+      .insert(payload)
       .select()
       .single();
-    if (!data) return null;
+    if (error) {
+      dbError('meals (insert)', error);
+      if (DEV) console.error('[useMealPlanner] addMealFull: insert error =', JSON.stringify(error));
+      throw new Error('We couldn\'t save this meal. Please check your connection and try again.');
+    }
     const meal = data as Meal;
+    if (DEV) console.log('[useMealPlanner] addMealFull: inserted row =', meal);
+
     setMeals((prev) => [meal, ...prev]);
+
+    supabase
+      .from('meals')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data: refreshed, error: rErr }) => {
+        if (rErr) {
+          dbError('meals (refresh)', rErr);
+          return;
+        }
+        if (DEV) console.log('[useMealPlanner] addMealFull: meals after refresh =', refreshed?.length ?? 0);
+        if (refreshed) setMeals(refreshed as Meal[]);
+      });
+
     return meal;
   }
 
@@ -137,7 +212,7 @@ export function useMealPlanner() {
     if (!user) return null;
     const source = mealsRef.current.find((m) => m.id === id);
     if (!source) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('meals')
       .insert({
         user_id: user.id,
@@ -149,7 +224,10 @@ export function useMealPlanner() {
       })
       .select()
       .single();
-    if (!data) return null;
+    if (error) {
+      dbError('meals (duplicate insert)', error);
+      return null;
+    }
     const meal = data as Meal;
     setMeals((prev) => [meal, ...prev]);
     return meal;

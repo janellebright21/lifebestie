@@ -5,7 +5,7 @@ import { Meal, MealIngredient, GroceryCategory, GROCERY_CATEGORIES, getCategoryC
 interface Props {
   meals: Meal[];
   loadingMeals: boolean;
-  onAddMeal: (name: string) => Promise<Meal | null>;
+  onAddMeal: (name: string) => Promise<Meal>;
   onDeleteMeal: (id: string) => void;
   onUpdateMeal: (id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
   onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
@@ -246,6 +246,7 @@ export default function MealPlannerSheet({
   const [view, setView] = useState<View>('list');
   const [newMealName, setNewMealName] = useState('');
   const [addingMeal, setAddingMeal] = useState(false);
+  const [mealError, setMealError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [previewIngredients, setPreviewIngredients] = useState<MealIngredient[]>([]);
@@ -255,12 +256,22 @@ export default function MealPlannerSheet({
   async function handleAddMeal() {
     if (!newMealName.trim() || addingMeal) return;
     setAddingMeal(true);
-    const meal = await onAddMeal(newMealName.trim());
-    setNewMealName('');
-    setAddingMeal(false);
-    // Open ingredient editor when AI couldn't fetch ingredients
-    if (meal && meal.ingredients.length === 0) {
-      setEditingId(meal.id);
+    setMealError(null);
+    try {
+      const meal = await onAddMeal(newMealName.trim());
+      setNewMealName('');
+      // Open ingredient editor when AI couldn't fetch ingredients
+      if (meal && meal.ingredients.length === 0) {
+        setEditingId(meal.id);
+      }
+    } catch (err) {
+      setMealError(
+        err instanceof Error && err.message
+          ? err.message
+          : "We couldn't save this meal. Please check your connection and try again.",
+      );
+    } finally {
+      setAddingMeal(false);
     }
   }
 
@@ -355,7 +366,12 @@ export default function MealPlannerSheet({
                   placeholder="e.g. Spaghetti Bolognese…"
                   value={newMealName}
                   onChange={(e) => setNewMealName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddMeal()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddMeal();
+                    }
+                  }}
                   className="flex-1 text-sm bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-amber-200 transition-colors"
                   style={{ fontSize: 16 }}
                 />
@@ -374,6 +390,12 @@ export default function MealPlannerSheet({
 
               {addingMeal && (
                 <p className="text-xs text-gray-400 px-1">Saving meal…</p>
+              )}
+
+              {mealError && (
+                <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
+                  {mealError}
+                </p>
               )}
 
               {loadingMeals ? (

@@ -462,8 +462,10 @@ export default function App() {
 
   async function addMealFull(opts: { name: string; meal_type: import('./lib/supabase').MealType; meal_date: string; ingredients: MealIngredient[] }) {
     const result = await mealPlanner.addMealFull(opts);
+    // Bestie points are a non-critical side-effect — run in the background.
     if (result?.id) {
-      await bestieRelationship.awardPoints('add_meal', result.id, 8, `Added meal: ${opts.name}`);
+      bestieRelationship.awardPoints('add_meal', result.id, 8, `Added meal: ${opts.name}`)
+        .catch((e) => console.warn('[addMealFull] awardPoints failed:', e));
     }
     return result;
   }

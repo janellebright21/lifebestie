@@ -54,8 +54,8 @@ interface GroceryPageProps {
   onRegenerateWeekly: () => Promise<void>;
   onUpdateWeeklyItemPrice: (name: string, price: number) => Promise<void>;
   onSetWeeklyBudget: (amount: number) => Promise<void>;
-  onAddMeal: (name: string) => Promise<Meal | null>;
-  onAddMealFull: (opts: { name: string; meal_type: MealType; meal_date: string; ingredients: MealIngredient[] }) => Promise<Meal | null>;
+  onAddMeal: (name: string) => Promise<Meal>;
+  onAddMealFull: (opts: { name: string; meal_type: MealType; meal_date: string; ingredients: MealIngredient[] }) => Promise<Meal>;
   onDeleteMeal: (id: string) => void;
   onUpdateMeal: (id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
   onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
@@ -998,7 +998,7 @@ function WeeklyTab({
   onTogglePantryItem: (name: string) => Promise<void>;
   meals: Meal[];
   mealsLoading: boolean;
-  onAddMeal: (name: string) => Promise<Meal | null>;
+  onAddMeal: (name: string) => Promise<Meal>;
   onDeleteMeal: (id: string) => void;
   onUpdateMeal: (id: string, patch: Partial<Pick<Meal, 'name' | 'meal_type' | 'meal_date' | 'ingredients'>>) => Promise<void>;
   onPlanMeals: (mealIds: string[], ingredients: MealIngredient[]) => Promise<void>;
@@ -1322,11 +1322,11 @@ function MealPlannerModal({
   onAddWeekly,
   onClose,
 }: {
-  onAddMealFull: (opts: { name: string; meal_type: MealType; meal_date: string; ingredients: MealIngredient[] }) => Promise<Meal | null>;
+  onAddMealFull: (opts: { name: string; meal_type: MealType; meal_date: string; ingredients: MealIngredient[] }) => Promise<Meal>;
   onAddWeekly: (name: string, category: GroceryCategory, source: WeeklyGrocerySource) => Promise<void>;
   onClose: () => void;
 }) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
   const [name, setName] = useState('');
   const [mealType, setMealType] = useState<MealType>('Dinner');
   const [mealDate, setMealDate] = useState(today);
@@ -1337,18 +1337,28 @@ function MealPlannerModal({
 
   async function handleSave() {
     if (!name.trim()) { setError('Please enter a meal name.'); return; }
+    if (saving) return;
     setError('');
     setSaving(true);
-    const ingredients = parseIngredients(ingredientsRaw);
-    const meal = await onAddMealFull({ name: name.trim(), meal_type: mealType, meal_date: mealDate, ingredients });
-    if (meal && ingredients.length > 0) {
-      for (const ing of ingredients) {
-        await onAddWeekly(ing.name, ing.category, 'meal');
+    try {
+      const ingredients = parseIngredients(ingredientsRaw);
+      const meal = await onAddMealFull({ name: name.trim(), meal_type: mealType, meal_date: mealDate, ingredients });
+      if (meal && ingredients.length > 0) {
+        for (const ing of ingredients) {
+          await onAddWeekly(ing.name, ing.category, 'meal');
+        }
       }
+      setDone(true);
+      setTimeout(onClose, 900);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "We couldn't save this meal. Please check your connection and try again.",
+      );
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setDone(true);
-    setTimeout(onClose, 900);
   }
 
   return (
@@ -1575,7 +1585,7 @@ function WeeklyMealOverview({
       <div className="divide-y divide-gray-50">
         {weekDates.map((dateStr, i) => {
           const dayMeals = mealsByDate.get(dateStr) ?? [];
-          const today = new Date().toISOString().split('T')[0];
+          const today = new Date().toLocaleDateString('en-CA');
           const isToday = dateStr === today;
 
           return (
