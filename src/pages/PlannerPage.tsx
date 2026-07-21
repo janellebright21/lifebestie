@@ -96,16 +96,23 @@ function formatDate(dateStr: string, today: string) {
   const d = new Date(dateStr + 'T00:00:00');
   const tomorrow = new Date(today + 'T00:00:00');
   tomorrow.setDate(tomorrow.getDate() + 1);
-  if (dateStr === tomorrow.toISOString().split('T')[0]) return 'Tomorrow';
+  if (dateStr === localDateStr(tomorrow)) return 'Tomorrow';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function getToday() { return new Date().toISOString().split('T')[0]; }
+function localDateStr(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getToday() { return localDateStr(); }
 
 function addDays(dateStr: string, n: number) {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 
 // ─── Mini Calendar ────────────────────────────────────────────────────────────
@@ -1441,7 +1448,7 @@ function buildInitialPlan(tasks: Task[], events: Event[], today: string): { item
 
 function getTomorrow() {
   const d = new Date(); d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 
 // ─── Plan Item Edit Sheet ─────────────────────────────────────────────────────
@@ -2315,7 +2322,7 @@ function MealMoveDateForm({
   onSave: (date: string) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [date, setDate] = useState(meal.meal_date ?? new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(meal.meal_date ?? localDateStr());
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -2361,7 +2368,7 @@ function MealDuplicateForm({
   onSave: (date: string) => Promise<void>;
   onCancel: () => void;
 }) {
-  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })();
+  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return localDateStr(d); })();
   const [date, setDate] = useState(tomorrow);
   const [saving, setSaving] = useState(false);
 
