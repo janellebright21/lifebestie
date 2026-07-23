@@ -662,11 +662,11 @@ export default function HomePage({
   return (
     <div className="px-4 sm:px-6 pt-6 pb-32 space-y-6 w-full max-w-2xl mx-auto">
       {/* Header — illustrated welcome area */}
-      <div className="flex items-center gap-4 sm:gap-7">
+      <div className="flex items-start gap-3 sm:gap-7">
         {/* Emma portrait over organic lavender shape */}
         <div
-          className="relative shrink-0"
-          style={{ width: 'clamp(88px, 22vw, 180px)', height: 'clamp(96px, 24vw, 200px)' }}
+          className="relative shrink-0 overflow-hidden sm:overflow-visible"
+          style={{ width: 'clamp(92px, 24vw, 180px)', height: 'clamp(104px, 27vw, 200px)' }}
         >
           {/* Soft outer glow halo */}
           <div
@@ -715,9 +715,10 @@ export default function HomePage({
               border: '1.5px solid rgba(167,136,250,0.28)',
             }}
           />
-          {/* Decorative sparkle top-right */}
+          {/* Decorative sparkle top-right — hidden on small screens */}
           <Sparkles
             size={16}
+            className="hidden sm:block"
             style={{
               position: 'absolute',
               top: '-2%', right: '-4%',
@@ -726,9 +727,10 @@ export default function HomePage({
               zIndex: 2,
             }}
           />
-          {/* Decorative leaf bottom-left */}
+          {/* Decorative leaf bottom-left — hidden on small screens */}
           <Leaf
             size={18}
+            className="hidden sm:block"
             style={{
               position: 'absolute',
               bottom: '-2%', left: '-3%',
@@ -748,11 +750,11 @@ export default function HomePage({
           />
         </div>
         {/* Greeting block */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pt-1">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
-          <h1 className="text-2xl font-bold text-gray-800 leading-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">
             {getGreeting()}{(() => {
               const fn = getFirstName(preferredName);
               return fn ? `, ${fn}` : '';

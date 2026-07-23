@@ -229,7 +229,8 @@ export default function BestieAvatar({
       className={`${stateClass} relative${want3D ? ' ba-3d-scene' : ''}`}
       style={{
         flexShrink: 0,
-        width: dim,
+        width:    isPortrait ? '100%' : dim,
+        height:   isPortrait ? '100%' : undefined,
         // 3-D perspective scene
         perspective: want3D ? dim * 5 : undefined,
         perspectiveOrigin: want3D ? '50% 50%' : undefined,
@@ -262,8 +263,8 @@ export default function BestieAvatar({
           className="ba-body relative"
           onAnimationEnd={handleAnimationEnd}
           style={{
-            width:           dim,
-            height:          dim,
+            width:           isPortrait ? '100%' : dim,
+            height:          isPortrait ? '100%' : dim,
             borderRadius:    portraitStatic ? '0' : '50%',
             overflow:        portraitStatic ? 'visible' : 'hidden',
             boxShadow: portraitStatic
