@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks } from 'lucide-react';
+import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks, Leaf } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
@@ -45,6 +45,7 @@ interface HomePageProps {
   routineTemplates: RoutineTemplate[];
   enabledModules: Set<ModuleId>;
   preferredName?: string;
+  userId?: string;
   avatarTheme?: import('../lib/supabase').AvatarThemeId;
   character?: import('../lib/supabase').CharacterId;
   bestieNotes?: BestieNotes;
@@ -63,6 +64,37 @@ function getGreeting() {
   if (tod === 'morning')   return 'Good morning';
   if (tod === 'afternoon') return 'Good afternoon';
   return 'Good evening';
+}
+
+/** Extract a first name from a preferred-name string, capitalized naturally. */
+function getFirstName(name: string | undefined): string {
+  if (!name) return '';
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  const firstToken = trimmed.split(/\s+/)[0] ?? '';
+  return capitalize(firstToken);
+}
+
+const DAILY_SUBTITLES = [
+  "Here's what's on your plate today.",
+  "Let's make today feel a little easier.",
+  "We'll take today one step at a time.",
+  "Your plans are ready when you are.",
+  "Small steps still count.",
+  "You don't have to do everything at once.",
+  "Let's build a day that works for you.",
+];
+
+/** Deterministic subtitle pick — stable for a given user + calendar day. */
+function getDailySubtitle(userId?: string): string {
+  const today = new Date().toISOString().split('T')[0];
+  const seed = `${today}:${userId ?? 'anon'}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+  }
+  const idx = Math.abs(hash) % DAILY_SUBTITLES.length;
+  return DAILY_SUBTITLES[idx]!;
 }
 
 const FALLBACK_SUGGESTIONS = [
@@ -538,6 +570,7 @@ export default function HomePage({
   routineTemplates,
   enabledModules,
   preferredName,
+  userId,
   character,
   bestieNotes,
   memoriesCount = 0,
@@ -591,7 +624,7 @@ export default function HomePage({
   } else if (todayEvents.length > 0) {
     homeSubtitle = `You've got ${todayEvents.length} thing${todayEvents.length > 1 ? 's' : ''} on today.`;
   } else {
-    homeSubtitle = "Here's what's on your plate today.";
+    homeSubtitle = getDailySubtitle(userId);
   }
 
   const tomorrowEvents = events
@@ -629,61 +662,73 @@ export default function HomePage({
   return (
     <div className="px-4 sm:px-6 pt-6 pb-32 space-y-6 w-full max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex items-end gap-4">
-        <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
-          {/* Soft glow */}
+      <div className="flex items-center gap-4 sm:gap-5">
+        <div className="relative shrink-0" style={{ width: 92, height: 92 }}>
+          {/* Soft glow halo */}
           <div
-            className="absolute inset-0 rounded-full"
+            className="absolute"
             style={{
-              background: 'radial-gradient(circle at 50% 45%, rgba(167,136,250,0.18) 0%, rgba(221,214,254,0.08) 55%, transparent 75%)',
-              filter: 'blur(6px)',
+              inset: -6,
+              borderRadius: '48% 52% 50% 50% / 52% 48% 52% 48%',
+              background: 'radial-gradient(circle at 50% 45%, rgba(167,136,250,0.20) 0%, rgba(221,214,254,0.10) 55%, transparent 72%)',
+              filter: 'blur(8px)',
             }}
           />
           {/* Organic lavender background shape */}
           <div
             className="absolute"
             style={{
-              inset: '4px',
-              borderRadius: '46% 54% 50% 50% / 54% 46% 54% 46%',
-              background: 'linear-gradient(140deg, #f5f3ff 0%, #ede9fe 60%, #e9d5ff 100%)',
-              boxShadow: '0 6px 18px -8px rgba(167,136,250,0.35), inset 0 1px 2px rgba(255,255,255,0.6)',
+              inset: 0,
+              borderRadius: '44% 56% 48% 52% / 52% 48% 54% 46%',
+              background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e9d5ff 100%)',
+              boxShadow: '0 8px 22px -10px rgba(167,136,250,0.38), inset 0 1px 3px rgba(255,255,255,0.65)',
             }}
           />
-          {/* Layered translucent shape */}
+          {/* Layered translucent shape upper-left */}
           <div
             className="absolute"
             style={{
-              top: 10, left: 12, width: 64, height: 64,
-              borderRadius: '52% 48% 60% 40% / 48% 52% 48% 52%',
-              background: 'rgba(196,181,253,0.22)',
+              top: 6, left: 8, width: 52, height: 52,
+              borderRadius: '54% 46% 60% 40% / 48% 54% 46% 52%',
+              background: 'rgba(196,181,253,0.20)',
+            }}
+          />
+          {/* Layered translucent shape lower-right */}
+          <div
+            className="absolute"
+            style={{
+              bottom: 8, right: 6, width: 40, height: 40,
+              borderRadius: '46% 54% 42% 58% / 56% 44% 56% 44%',
+              background: 'rgba(221,214,254,0.28)',
             }}
           />
           {/* Thin lavender ring */}
           <div
             className="absolute"
             style={{
-              inset: '4px',
-              borderRadius: '46% 54% 50% 50% / 54% 46% 54% 46%',
-              border: '1.5px solid rgba(167,136,250,0.30)',
+              inset: 0,
+              borderRadius: '44% 56% 48% 52% / 52% 48% 54% 46%',
+              border: '1.5px solid rgba(167,136,250,0.28)',
             }}
           />
           {/* Subtle sparkle top-right */}
           <Sparkles
-            size={11}
+            size={12}
             style={{
               position: 'absolute',
-              top: 2, right: 0,
-              color: 'rgba(167,136,250,0.45)',
-              filter: 'drop-shadow(0 0 2px rgba(221,214,254,0.6))',
+              top: -1, right: -3,
+              color: 'rgba(167,136,250,0.50)',
+              filter: 'drop-shadow(0 0 2px rgba(221,214,254,0.7))',
             }}
           />
-          {/* Subtle sparkle bottom-left */}
-          <Sparkles
-            size={8}
+          {/* Subtle leaf detail bottom-left */}
+          <Leaf
+            size={13}
             style={{
               position: 'absolute',
-              bottom: 4, left: -2,
-              color: 'rgba(196,181,253,0.40)',
+              bottom: -1, left: -2,
+              color: 'rgba(196,181,253,0.38)',
+              transform: 'rotate(-22deg)',
             }}
           />
           <BestieAvatar
@@ -694,12 +739,15 @@ export default function HomePage({
             onMotionEnd={() => setMotionOverride(undefined)}
           />
         </div>
-        <div className="flex-1 min-w-0 pb-1">
+        <div className="flex-1 min-w-0">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
           <h1 className="text-2xl font-bold text-gray-800 leading-tight">
-            {getGreeting()}{preferredName ? `, ${preferredName}` : ''}.
+            {getGreeting()}{(() => {
+              const fn = getFirstName(preferredName);
+              return fn ? `, ${fn}` : '';
+            })()}.
           </h1>
           <p className="text-sm text-gray-400 mt-0.5">
             {homeSubtitle}

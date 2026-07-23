@@ -579,6 +579,7 @@ export default function App() {
           routineTemplates={routinesHook.templates}
           enabledModules={enabledModules}
           preferredName={preferredName}
+          userId={userId}
           avatarTheme={personalization.avatarTheme}
           character={selectedCharacter}
           bestieNotes={bestiePersonalization.notes}
