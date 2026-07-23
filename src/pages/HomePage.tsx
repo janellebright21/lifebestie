@@ -665,7 +665,7 @@ export default function HomePage({
       <div className="flex items-start gap-3 sm:gap-7">
         {/* Emma portrait over organic lavender shape */}
         <div
-          className="relative shrink-0 overflow-hidden sm:overflow-visible"
+          className="relative shrink-0 overflow-visible"
           style={{ width: 'clamp(92px, 24vw, 180px)', height: 'clamp(104px, 27vw, 200px)' }}
         >
           {/* Soft outer glow halo */}
@@ -739,7 +739,7 @@ export default function HomePage({
               zIndex: 2,
             }}
           />
-          {/* Emma portrait — overflows the shape naturally */}
+          {/* Emma portrait — rendered above the background shape */}
           <BestieAvatar
             characterId={character ?? 'emma'}
             expression={homeExpression}
@@ -747,6 +747,7 @@ export default function HomePage({
             motionOverride={motionOverride}
             onMotionEnd={() => setMotionOverride(undefined)}
             className="absolute inset-0"
+            style={{ zIndex: 3 }}
           />
         </div>
         {/* Greeting block */}

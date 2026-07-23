@@ -18,6 +18,8 @@ export interface BestieAvatarProps {
   onMotionEnd?: () => void;
   /** Enable 3-D tilt tracking (default true for lg/full, false for sm/md) */
   enable3D?: boolean;
+  /** Optional inline style on the outer wrapper (e.g. zIndex) */
+  style?: React.CSSProperties;
 }
 
 const SIZES: Record<NonNullable<BestieAvatarProps['size']>, number> = {
@@ -144,6 +146,7 @@ export default function BestieAvatar({
   motionOverride,
   onMotionEnd,
   enable3D,
+  style,
 }: BestieAvatarProps) {
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
   const dim  = SIZES[size];
@@ -162,9 +165,15 @@ export default function BestieAvatar({
 
   const handleError = () => {
     if (fallback === 'expression') {
+      if (import.meta.env.DEV) {
+        console.warn(`[BestieAvatar] expression asset failed to load: ${src}. Falling back to default.`);
+      }
       setFallback('default');
       setSrc(getDefaultSrc(characterId));
     } else {
+      if (import.meta.env.DEV) {
+        console.warn(`[BestieAvatar] default asset also failed: ${src}. Showing initials.`);
+      }
       setFallback('initials');
     }
   };
@@ -217,8 +226,8 @@ export default function BestieAvatar({
   const imgStyle: React.CSSProperties = {
     width:      '100%',
     height:     '100%',
-    objectFit:  isPortrait ? 'cover' : 'contain',
-    objectPosition: isPortrait ? 'center top' : undefined,
+    objectFit:  isPortrait ? 'contain' : 'contain',
+    objectPosition: isPortrait ? 'bottom center' : undefined,
     display:    'block',
     userSelect: 'none',
   };
@@ -231,9 +240,12 @@ export default function BestieAvatar({
         flexShrink: 0,
         width:    isPortrait ? '100%' : dim,
         height:   isPortrait ? '100%' : undefined,
+        // Portrait fills its parent — must have explicit height to render
+        minHeight: isPortrait ? '100%' : undefined,
         // 3-D perspective scene
         perspective: want3D ? dim * 5 : undefined,
         perspectiveOrigin: want3D ? '50% 50%' : undefined,
+        ...style,
       }}
     >
       {/* Glow halo behind the 3-D card */}
@@ -249,6 +261,7 @@ export default function BestieAvatar({
       <div
         style={{
           width: '100%',
+          height: isPortrait ? '100%' : undefined,
           position: 'relative',
           zIndex: 1,
           transformStyle: want3D ? 'preserve-3d' : undefined,
@@ -345,11 +358,11 @@ export default function BestieAvatar({
   );
 
   if (!showSpeechBubble && !message) {
-    return <div className={className}>{avatarEl}</div>;
+    return <div className={className} style={style}>{avatarEl}</div>;
   }
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex items-center gap-3 ${className}`} style={style}>
       {avatarEl}
       {message && <SpeechBubble message={message} primaryColor={char.primaryColor} />}
     </div>
