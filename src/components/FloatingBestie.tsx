@@ -10,7 +10,7 @@ const EDGE_SPACING = 12;
 const SLIDE_MS = 350;
 const BUBBLE_MS = 2000;
 
-const HIDDEN_ON: Set<TabName> = new Set(['bestie', 'settings', 'add', 'chat']);
+const HIDDEN_ON: Set<TabName> = new Set(['home', 'bestie', 'settings', 'add', 'chat']);
 
 interface FloatingBestieProps {
   characterId: CharacterId;

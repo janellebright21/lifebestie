@@ -630,13 +630,70 @@ export default function HomePage({
     <div className="px-4 sm:px-6 pt-6 pb-32 space-y-6 w-full max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-end gap-4">
-        <BestieAvatar
-          characterId={character ?? 'emma'}
-          expression={homeExpression}
-          size="lg"
-          motionOverride={motionOverride}
-          onMotionEnd={() => setMotionOverride(undefined)}
-        />
+        <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
+          {/* Soft glow */}
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 50% 45%, rgba(167,136,250,0.18) 0%, rgba(221,214,254,0.08) 55%, transparent 75%)',
+              filter: 'blur(6px)',
+            }}
+          />
+          {/* Organic lavender background shape */}
+          <div
+            className="absolute"
+            style={{
+              inset: '4px',
+              borderRadius: '46% 54% 50% 50% / 54% 46% 54% 46%',
+              background: 'linear-gradient(140deg, #f5f3ff 0%, #ede9fe 60%, #e9d5ff 100%)',
+              boxShadow: '0 6px 18px -8px rgba(167,136,250,0.35), inset 0 1px 2px rgba(255,255,255,0.6)',
+            }}
+          />
+          {/* Layered translucent shape */}
+          <div
+            className="absolute"
+            style={{
+              top: 10, left: 12, width: 64, height: 64,
+              borderRadius: '52% 48% 60% 40% / 48% 52% 48% 52%',
+              background: 'rgba(196,181,253,0.22)',
+            }}
+          />
+          {/* Thin lavender ring */}
+          <div
+            className="absolute"
+            style={{
+              inset: '4px',
+              borderRadius: '46% 54% 50% 50% / 54% 46% 54% 46%',
+              border: '1.5px solid rgba(167,136,250,0.30)',
+            }}
+          />
+          {/* Subtle sparkle top-right */}
+          <Sparkles
+            size={11}
+            style={{
+              position: 'absolute',
+              top: 2, right: 0,
+              color: 'rgba(167,136,250,0.45)',
+              filter: 'drop-shadow(0 0 2px rgba(221,214,254,0.6))',
+            }}
+          />
+          {/* Subtle sparkle bottom-left */}
+          <Sparkles
+            size={8}
+            style={{
+              position: 'absolute',
+              bottom: 4, left: -2,
+              color: 'rgba(196,181,253,0.40)',
+            }}
+          />
+          <BestieAvatar
+            characterId={character ?? 'emma'}
+            expression={homeExpression}
+            size="lg"
+            motionOverride={motionOverride}
+            onMotionEnd={() => setMotionOverride(undefined)}
+          />
+        </div>
         <div className="flex-1 min-w-0 pb-1">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
