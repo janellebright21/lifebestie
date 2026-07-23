@@ -10,7 +10,7 @@ export interface BestieAvatarProps {
   characterId: CharacterId;
   expression?: AvatarExpression;
   outfit?: OutfitId;
-  size?: 'sm' | 'md' | 'lg' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'full' | 'portrait';
   showSpeechBubble?: boolean;
   message?: string;
   className?: string;
@@ -21,10 +21,11 @@ export interface BestieAvatarProps {
 }
 
 const SIZES: Record<NonNullable<BestieAvatarProps['size']>, number> = {
-  sm:   50,
-  md:   70,
-  lg:  100,
-  full: 140,
+  sm:      50,
+  md:      70,
+  lg:     100,
+  full:   140,
+  portrait: 200,
 };
 
 const MOTION_BY_EXPRESSION: Record<AvatarExpression, BestieMotionState> = {
@@ -147,7 +148,8 @@ export default function BestieAvatar({
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
   const dim  = SIZES[size];
 
-  // 3D is on by default for lg and full, off for small avatars
+  // 3D is on by default for lg and full, off for small avatars and portrait
+  const isPortrait = size === 'portrait';
   const want3D = enable3D ?? (size === 'lg' || size === 'full');
 
   const [fallback, setFallback] = useState<FallbackState>('expression');
@@ -172,6 +174,8 @@ export default function BestieAvatar({
 
   // Max rotation: ±12° for full, ±8° for lg
   const maxRot = size === 'full' ? 12 : 8;
+  // Portrait is a static illustrated area — no tilt, no parallax
+  const portraitStatic = isPortrait;
   const rotX   = -tilt.y * maxRot;  // tilt up → positive rotX (face tips toward viewer)
   const rotY   =  tilt.x * maxRot;
 
@@ -213,7 +217,8 @@ export default function BestieAvatar({
   const imgStyle: React.CSSProperties = {
     width:      '100%',
     height:     '100%',
-    objectFit:  'contain',
+    objectFit:  isPortrait ? 'cover' : 'contain',
+    objectPosition: isPortrait ? 'center top' : undefined,
     display:    'block',
     userSelect: 'none',
   };
@@ -259,19 +264,21 @@ export default function BestieAvatar({
           style={{
             width:           dim,
             height:          dim,
-            borderRadius:    '50%',
-            overflow:        'hidden',
-            boxShadow: want3D
-              ? `${shadowX}px ${shadowY}px ${20 + Math.abs(shadowX) * 0.5}px ${char.primaryColor}33, 0 0 0 2px ${char.primaryColor}55`
-              : `0 0 0 2px ${char.primaryColor}55, 0 4px 14px ${char.primaryColor}22`,
-            background:      `${char.primaryColor}22`,
+            borderRadius:    portraitStatic ? '0' : '50%',
+            overflow:        portraitStatic ? 'visible' : 'hidden',
+            boxShadow: portraitStatic
+              ? 'none'
+              : want3D
+                ? `${shadowX}px ${shadowY}px ${20 + Math.abs(shadowX) * 0.5}px ${char.primaryColor}33, 0 0 0 2px ${char.primaryColor}55`
+                : `0 0 0 2px ${char.primaryColor}55, 0 4px 14px ${char.primaryColor}22`,
+            background:      portraitStatic ? 'transparent' : `${char.primaryColor}22`,
             transformOrigin: 'bottom center',
             position:        'relative',
             transition:      want3D ? 'box-shadow 0.1s linear' : undefined,
           }}
         >
           {/* Rim-light overlay */}
-          {want3D && (
+          {want3D && !portraitStatic && (
             <div
               aria-hidden="true"
               style={{
@@ -327,8 +334,8 @@ export default function BestieAvatar({
             )}
           </div>
 
-          {want3D && <div className="ba-shimmer" aria-hidden="true" />}
-          <div className="ba-blink" style={blinkStyle} />
+          {want3D && !portraitStatic && <div className="ba-shimmer" aria-hidden="true" />}
+          {!portraitStatic && <div className="ba-blink" style={blinkStyle} />}
         </div>
       </div>
 

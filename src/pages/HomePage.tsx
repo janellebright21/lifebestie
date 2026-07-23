@@ -661,43 +661,47 @@ export default function HomePage({
 
   return (
     <div className="px-4 sm:px-6 pt-6 pb-32 space-y-6 w-full max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 sm:gap-5">
-        <div className="relative shrink-0" style={{ width: 92, height: 92 }}>
-          {/* Soft glow halo */}
+      {/* Header — illustrated welcome area */}
+      <div className="flex items-center gap-4 sm:gap-7">
+        {/* Emma portrait over organic lavender shape */}
+        <div
+          className="relative shrink-0"
+          style={{ width: 'clamp(88px, 22vw, 180px)', height: 'clamp(96px, 24vw, 200px)' }}
+        >
+          {/* Soft outer glow halo */}
           <div
             className="absolute"
             style={{
-              inset: -6,
-              borderRadius: '48% 52% 50% 50% / 52% 48% 52% 48%',
-              background: 'radial-gradient(circle at 50% 45%, rgba(167,136,250,0.20) 0%, rgba(221,214,254,0.10) 55%, transparent 72%)',
-              filter: 'blur(8px)',
+              inset: '-8%',
+              borderRadius: '46% 54% 50% 50% / 54% 46% 56% 44%',
+              background: 'radial-gradient(circle at 50% 42%, rgba(167,136,250,0.22) 0%, rgba(221,214,254,0.10) 55%, transparent 72%)',
+              filter: 'blur(10px)',
             }}
           />
-          {/* Organic lavender background shape */}
+          {/* Organic lavender background shape — larger than Emma */}
           <div
             className="absolute"
             style={{
-              inset: 0,
-              borderRadius: '44% 56% 48% 52% / 52% 48% 54% 46%',
+              inset: '0',
+              borderRadius: '44% 56% 48% 52% / 52% 48% 56% 44%',
               background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e9d5ff 100%)',
-              boxShadow: '0 8px 22px -10px rgba(167,136,250,0.38), inset 0 1px 3px rgba(255,255,255,0.65)',
+              boxShadow: '0 10px 28px -12px rgba(167,136,250,0.40), inset 0 1px 3px rgba(255,255,255,0.65)',
             }}
           />
-          {/* Layered translucent shape upper-left */}
+          {/* Translucent layer upper-left */}
           <div
             className="absolute"
             style={{
-              top: 6, left: 8, width: 52, height: 52,
+              top: '6%', left: '8%', width: '52%', height: '52%',
               borderRadius: '54% 46% 60% 40% / 48% 54% 46% 52%',
               background: 'rgba(196,181,253,0.20)',
             }}
           />
-          {/* Layered translucent shape lower-right */}
+          {/* Translucent layer lower-right */}
           <div
             className="absolute"
             style={{
-              bottom: 8, right: 6, width: 40, height: 40,
+              bottom: '8%', right: '6%', width: '42%', height: '42%',
               borderRadius: '46% 54% 42% 58% / 56% 44% 56% 44%',
               background: 'rgba(221,214,254,0.28)',
             }}
@@ -706,39 +710,44 @@ export default function HomePage({
           <div
             className="absolute"
             style={{
-              inset: 0,
-              borderRadius: '44% 56% 48% 52% / 52% 48% 54% 46%',
+              inset: '0',
+              borderRadius: '44% 56% 48% 52% / 52% 48% 56% 44%',
               border: '1.5px solid rgba(167,136,250,0.28)',
             }}
           />
-          {/* Subtle sparkle top-right */}
+          {/* Decorative sparkle top-right */}
           <Sparkles
-            size={12}
+            size={16}
             style={{
               position: 'absolute',
-              top: -1, right: -3,
-              color: 'rgba(167,136,250,0.50)',
-              filter: 'drop-shadow(0 0 2px rgba(221,214,254,0.7))',
+              top: '-2%', right: '-4%',
+              color: 'rgba(167,136,250,0.55)',
+              filter: 'drop-shadow(0 0 3px rgba(221,214,254,0.7))',
+              zIndex: 2,
             }}
           />
-          {/* Subtle leaf detail bottom-left */}
+          {/* Decorative leaf bottom-left */}
           <Leaf
-            size={13}
+            size={18}
             style={{
               position: 'absolute',
-              bottom: -1, left: -2,
-              color: 'rgba(196,181,253,0.38)',
+              bottom: '-2%', left: '-3%',
+              color: 'rgba(196,181,253,0.42)',
               transform: 'rotate(-22deg)',
+              zIndex: 2,
             }}
           />
+          {/* Emma portrait — overflows the shape naturally */}
           <BestieAvatar
             characterId={character ?? 'emma'}
             expression={homeExpression}
-            size="lg"
+            size="portrait"
             motionOverride={motionOverride}
             onMotionEnd={() => setMotionOverride(undefined)}
+            className="absolute inset-0"
           />
         </div>
+        {/* Greeting block */}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
