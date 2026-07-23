@@ -8,8 +8,7 @@ import { useMovement, MOVEMENT_OPTIONS, EnergyLevel } from '../hooks/useMovement
 import LowStockBanner from '../components/LowStockBanner';
 import DailyPlanCard from '../components/DailyPlanCard';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
-import BestieAvatar from '../components/besties/BestieAvatar';
-import type { BestieMotionState } from '../components/besties/BestieAvatar';
+import { resolveExpressionSrc, getDefaultSrc } from '../lib/characterAssets';
 import { getHomeExpression } from '../lib/bestieExpression';
 import type { BestieNotes } from '../hooks/useBestiePersonalization';
 import { useTomorrowPrepChecklist, DEFAULT_PREP_ITEMS } from '../hooks/useTomorrowPrepChecklist';
@@ -578,18 +577,12 @@ export default function HomePage({
   const [proudFlash, setProudFlash] = useState(false);
   const proudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fire a wave on first mount (home screen entrance)
-  const [motionOverride, setMotionOverride] = useState<BestieMotionState | undefined>('wave');
-  useEffect(() => { setMotionOverride('wave'); }, []);
-
   const handleToggleTask = useCallback((id: string, completed: boolean) => {
     if (completed) {
       setProudFlash(true);
-      setMotionOverride('celebrating');
       if (proudTimer.current) clearTimeout(proudTimer.current);
       proudTimer.current = setTimeout(() => {
         setProudFlash(false);
-        setMotionOverride(undefined);
       }, 2000);
     }
     onToggleTask(id, completed);
@@ -662,92 +655,65 @@ export default function HomePage({
   return (
     <div className="px-4 sm:px-6 pt-6 pb-32 space-y-6 w-full max-w-2xl mx-auto">
       {/* Header — illustrated welcome area */}
-      <div className="flex items-start gap-3 sm:gap-7">
-        {/* Emma portrait over organic lavender shape */}
+      <div className="flex items-center gap-3 sm:gap-6">
+        {/* Character artwork — soft glow behind the existing portrait asset */}
         <div
-          className="relative shrink-0 overflow-visible"
-          style={{ width: 'clamp(92px, 24vw, 180px)', height: 'clamp(104px, 27vw, 200px)' }}
+          className="relative shrink-0"
+          style={{
+            width:  'clamp(96px, 25vw, 160px)',
+            height: 'clamp(96px, 25vw, 160px)',
+          }}
         >
-          {/* Soft outer glow halo */}
+          {/* Soft radial glow — sits behind the image */}
           <div
-            className="absolute"
+            aria-hidden="true"
             style={{
-              inset: '-8%',
-              borderRadius: '46% 54% 50% 50% / 54% 46% 56% 44%',
-              background: 'radial-gradient(circle at 50% 42%, rgba(167,136,250,0.22) 0%, rgba(221,214,254,0.10) 55%, transparent 72%)',
-              filter: 'blur(10px)',
+              position:     'absolute',
+              inset:        '-12%',
+              borderRadius: '50%',
+              background:   'radial-gradient(circle, rgba(196,181,253,0.35) 0%, rgba(221,214,254,0.15) 50%, transparent 72%)',
+              filter:       'blur(12px)',
+              zIndex:       0,
             }}
           />
-          {/* Organic lavender background shape — larger than Emma */}
-          <div
-            className="absolute"
-            style={{
-              inset: '0',
-              borderRadius: '44% 56% 48% 52% / 52% 48% 56% 44%',
-              background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e9d5ff 100%)',
-              boxShadow: '0 10px 28px -12px rgba(167,136,250,0.40), inset 0 1px 3px rgba(255,255,255,0.65)',
-            }}
-          />
-          {/* Translucent layer upper-left */}
-          <div
-            className="absolute"
-            style={{
-              top: '6%', left: '8%', width: '52%', height: '52%',
-              borderRadius: '54% 46% 60% 40% / 48% 54% 46% 52%',
-              background: 'rgba(196,181,253,0.20)',
-            }}
-          />
-          {/* Translucent layer lower-right */}
-          <div
-            className="absolute"
-            style={{
-              bottom: '8%', right: '6%', width: '42%', height: '42%',
-              borderRadius: '46% 54% 42% 58% / 56% 44% 56% 44%',
-              background: 'rgba(221,214,254,0.28)',
-            }}
-          />
-          {/* Thin lavender ring */}
-          <div
-            className="absolute"
-            style={{
-              inset: '0',
-              borderRadius: '44% 56% 48% 52% / 52% 48% 56% 44%',
-              border: '1.5px solid rgba(167,136,250,0.28)',
-            }}
-          />
-          {/* Decorative sparkle top-right — hidden on small screens */}
+          {/* One understated sparkle — desktop only */}
           <Sparkles
-            size={16}
+            size={13}
+            aria-hidden="true"
             className="hidden sm:block"
             style={{
               position: 'absolute',
-              top: '-2%', right: '-4%',
-              color: 'rgba(167,136,250,0.55)',
-              filter: 'drop-shadow(0 0 3px rgba(221,214,254,0.7))',
-              zIndex: 2,
+              top:      '2%',
+              right:    '0%',
+              color:    'rgba(167,136,250,0.50)',
+              zIndex:   2,
             }}
           />
-          {/* Decorative leaf bottom-left — hidden on small screens */}
-          <Leaf
-            size={18}
-            className="hidden sm:block"
+          {/* Emma's portrait — uses existing asset resolver, contains the full image */}
+          <img
+            src={resolveExpressionSrc(character ?? 'emma', homeExpression)}
+            alt={`${character ?? 'emma'} ${homeExpression}`}
+            onError={(e) => {
+              const target = e.currentTarget;
+              const fallback = getDefaultSrc(character ?? 'emma');
+              if (target.src !== window.location.origin + fallback) {
+                if (import.meta.env.DEV) {
+                  console.warn('[HomeHeader] expression asset failed, falling back to default:', target.src);
+                }
+                target.src = fallback;
+              }
+            }}
             style={{
-              position: 'absolute',
-              bottom: '-2%', left: '-3%',
-              color: 'rgba(196,181,253,0.42)',
-              transform: 'rotate(-22deg)',
-              zIndex: 2,
+              position:       'relative',
+              zIndex:         1,
+              display:        'block',
+              width:          '100%',
+              height:         '100%',
+              objectFit:      'contain',
+              objectPosition: 'center',
+              userSelect:     'none',
+              pointerEvents:  'none',
             }}
-          />
-          {/* Emma portrait — rendered above the background shape */}
-          <BestieAvatar
-            characterId={character ?? 'emma'}
-            expression={homeExpression}
-            size="portrait"
-            motionOverride={motionOverride}
-            onMotionEnd={() => setMotionOverride(undefined)}
-            className="absolute inset-0"
-            style={{ zIndex: 3 }}
           />
         </div>
         {/* Greeting block */}
