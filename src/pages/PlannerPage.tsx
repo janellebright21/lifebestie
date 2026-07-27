@@ -2946,7 +2946,7 @@ export default function PlannerPage({
   return (
     <CatColorCtx.Provider value={getColor}>
     <div className="px-4 sm:px-6 pt-6 pb-32 max-w-2xl mx-auto">
-      {/* Header */}
+      {/* Planner header — title + add buttons */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-800">Planner</h1>
         <div className="flex gap-2">
