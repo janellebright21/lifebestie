@@ -15,7 +15,6 @@ import {
 import type { CharacterId } from '../lib/supabase';
 import { useCategoryColors, seedDefaultColors } from '../hooks/useCategoryColors';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
-import BestieAvatar from '../components/besties/BestieAvatar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2887,7 +2886,7 @@ export default function PlannerPage({
   routines,
   goals,
   meals,
-  character,
+
   onAddEvent,
   onAddTask,
   onToggleTask,
@@ -2921,7 +2920,6 @@ export default function PlannerPage({
   useMemo(() => { seedDefaultColors(); }, []);
 
   const pendingTodayTasks = tasks.filter((t) => !t.completed && t.due_date === today);
-  const plannerExpression = pendingTodayTasks.length === 0 ? 'encouraging' as const : 'happy' as const;
 
   const overdueCount = tasks.filter((t) => !t.completed && t.due_date && t.due_date < today).length;
   const selectedEventCount = events.filter((e) => e.event_date === selectedDate).length;
@@ -2950,10 +2948,7 @@ export default function PlannerPage({
     <div className="px-4 sm:px-6 pt-6 pb-32 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <BestieAvatar characterId={character ?? 'emma'} expression={plannerExpression} size="sm" />
-          <h1 className="text-xl font-bold text-gray-800">Planner</h1>
-        </div>
+        <h1 className="text-xl font-bold text-gray-800">Planner</h1>
         <div className="flex gap-2">
           <button
             onClick={() => { setShowAddTask((v) => !v); setShowAddEvent(false); }}
