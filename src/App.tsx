@@ -692,7 +692,6 @@ export default function App() {
       {activeTab === 'movement' && enabledModules.has('movement') && (
         <MovementPage
           events={events}
-          character={selectedCharacter}
           onAddEvent={addEvent}
           onUpdateEvent={updateEvent}
         />
