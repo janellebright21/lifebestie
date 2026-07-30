@@ -2919,8 +2919,6 @@ export default function PlannerPage({
   // Seed defaults on first load
   useMemo(() => { seedDefaultColors(); }, []);
 
-  const pendingTodayTasks = tasks.filter((t) => !t.completed && t.due_date === today);
-
   const overdueCount = tasks.filter((t) => !t.completed && t.due_date && t.due_date < today).length;
   const selectedEventCount = events.filter((e) => e.event_date === selectedDate).length;
   const selectedTaskCount = tasks.filter((t) => !t.completed && t.due_date === selectedDate).length;

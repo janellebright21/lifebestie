@@ -1,6 +1,6 @@
-import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks, Leaf } from 'lucide-react';
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId } from '../lib/supabase';
+import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks, ArrowRight } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId, GroceryItem } from '../lib/supabase';
 import { PatternCandidate } from '../hooks/useUserMemory';
 import { DailyPlan } from '../hooks/useDailyPlanner';
 import { TabName } from '../components/BottomNav';
@@ -12,6 +12,19 @@ import { resolveExpressionSrc, getDefaultSrc } from '../lib/characterAssets';
 import { getHomeExpression } from '../lib/bestieExpression';
 import type { BestieNotes } from '../hooks/useBestiePersonalization';
 import { useTomorrowPrepChecklist, DEFAULT_PREP_ITEMS } from '../hooks/useTomorrowPrepChecklist';
+import { useEmmaContext } from '../hooks/useEmmaContext';
+import { generateEmmaGreeting, getEmmaAction, type EmmaActionType } from '../lib/emmaGreeting';
+
+function emmaActionTab(type: EmmaActionType): TabName {
+  switch (type) {
+    case 'review_tasks':   return 'planner';
+    case 'view_schedule':  return 'planner';
+    case 'plan_meal':      return 'planner';
+    case 'open_grocery':   return 'grocery';
+    case 'view_movement':  return 'movement';
+    case 'chat_with_emma': return 'chat';
+  }
+}
 
 interface HomePageProps {
   tasks: Task[];
@@ -49,52 +62,11 @@ interface HomePageProps {
   character?: import('../lib/supabase').CharacterId;
   bestieNotes?: BestieNotes;
   memoriesCount?: number;
+  relationshipScore?: number;
+  groceryItems?: GroceryItem[];
 }
 
-function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 17) return 'afternoon';
-  return 'evening';
-}
-
-function getGreeting() {
-  const tod = getTimeOfDay();
-  if (tod === 'morning')   return 'Good morning';
-  if (tod === 'afternoon') return 'Good afternoon';
-  return 'Good evening';
-}
-
-/** Extract a first name from a preferred-name string, capitalized naturally. */
-function getFirstName(name: string | undefined): string {
-  if (!name) return '';
-  const trimmed = name.trim();
-  if (!trimmed) return '';
-  const firstToken = trimmed.split(/\s+/)[0] ?? '';
-  return capitalize(firstToken);
-}
-
-const DAILY_SUBTITLES = [
-  "Here's what's on your plate today.",
-  "Let's make today feel a little easier.",
-  "We'll take today one step at a time.",
-  "Your plans are ready when you are.",
-  "Small steps still count.",
-  "You don't have to do everything at once.",
-  "Let's build a day that works for you.",
-];
-
-/** Deterministic subtitle pick — stable for a given user + calendar day. */
-function getDailySubtitle(userId?: string): string {
-  const today = new Date().toISOString().split('T')[0];
-  const seed = `${today}:${userId ?? 'anon'}`;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
-  }
-  const idx = Math.abs(hash) % DAILY_SUBTITLES.length;
-  return DAILY_SUBTITLES[idx]!;
-}
+// (greeting helpers moved to src/lib/emmaGreeting.ts)
 
 const FALLBACK_SUGGESTIONS = [
   "Breaking big tasks into smaller steps makes everything feel more manageable.",
@@ -573,6 +545,8 @@ export default function HomePage({
   character,
   bestieNotes,
   memoriesCount = 0,
+  relationshipScore = 0,
+  groceryItems = [],
 }: HomePageProps) {
   const [proudFlash, setProudFlash] = useState(false);
   const proudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -604,8 +578,37 @@ export default function HomePage({
     .filter((e) => e.event_date === today)
     .sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
 
+  const { todayMovements, hasMoved, hasCompleted, streakResult } = useMovement(events);
+
+  // First-visit-today detection (localStorage keyed by date+user)
+  const firstVisitToday = useMemo(() => {
+    if (!userId) return false;
+    const key = `lifebestie_visited_${today}`;
+    try {
+      if (localStorage.getItem(key)) return false;
+      localStorage.setItem(key, '1');
+      return true;
+    } catch {
+      return false;
+    }
+  }, [userId, today]);
+
+  const emmaContext = useEmmaContext({
+    preferredName,
+    relationshipScore,
+    tasks,
+    events,
+    meals,
+    groceryItems,
+    movementPlanned: todayMovements.length > 0,
+    firstVisitToday,
+  });
+
+  const emmaGreeting = generateEmmaGreeting(emmaContext);
+  const emmaAction = getEmmaAction(emmaContext);
+
   // Build a personalised subtitle based on bestie notes when available
-  const tod = getTimeOfDay();
+  const tod = emmaContext.localTimePeriod === 'late_night' ? 'evening' : emmaContext.localTimePeriod;
   let homeSubtitle: string;
   if (bestieNotes && memoriesCount >= 4 && bestieNotes.planning_struggle) {
     homeSubtitle = `Remember: ${bestieNotes.planning_struggle.toLowerCase()} — I've got you.`;
@@ -614,10 +617,8 @@ export default function HomePage({
     homeSubtitle = tod === 'evening'
       ? `Don't forget your ${wellness} before bed.`
       : `Have you done your ${wellness} today?`;
-  } else if (todayEvents.length > 0) {
-    homeSubtitle = `You've got ${todayEvents.length} thing${todayEvents.length > 1 ? 's' : ''} on today.`;
   } else {
-    homeSubtitle = getDailySubtitle(userId);
+    homeSubtitle = emmaGreeting;
   }
 
   const tomorrowEvents = events
@@ -643,8 +644,6 @@ export default function HomePage({
 
   const hasPlanContext = goals.length > 0 || tasks.filter((t) => !t.completed).length > 0;
   const showPlanCard = dailyPlan || dailyPlanLoading || dailyPlanGenerating || hasPlanContext;
-
-  const { todayMovements, hasMoved, hasCompleted, streakResult } = useMovement(events);
 
   const LEVEL_ICONS_HOME: Record<EnergyLevel, React.ReactNode> = {
     low:      <Wind size={12} />,
@@ -722,14 +721,19 @@ export default function HomePage({
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">
-            {getGreeting()}{(() => {
-              const fn = getFirstName(preferredName);
-              return fn ? `, ${fn}` : '';
-            })()}.
+            {emmaGreeting}
           </h1>
           <p className="text-sm text-gray-400 mt-0.5">
             {homeSubtitle}
           </p>
+          <button
+            onClick={() => onTabChange(emmaActionTab(emmaAction.type))}
+            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full text-white active:scale-95 transition-all"
+            style={{ backgroundColor: 'var(--theme-primary)' }}
+          >
+            {emmaAction.label}
+            <ArrowRight size={11} />
+          </button>
         </div>
       </div>
 

@@ -47,10 +47,21 @@ You help with:
 Critical rules:
 - Never claim you completed an app action unless the application actually performed it
 - Never claim you remember something unless it appears in the confirmed user memory data provided
+- Never invent tasks, meals, events, preferences, or personal details that were not provided
 - Keep responses 2-4 sentences unless a list or detail is genuinely needed
 - Use bullet points for lists; numbered only when order matters
 - Do NOT identify as any specific AI model — you are Emma, their LifeBestie
 - Stay focused on daily life support
+
+Using the current user context:
+- Use the provided context (tasks, events, meals, grocery, movement, time of day) naturally when relevant
+- Do NOT list all known information back to the user
+- Do NOT mention database fields, scores, points, or relationship-level labels unless the user explicitly asks
+- Do NOT repeatedly use the user's name
+- When the user seems overwhelmed, offer ONE manageable next step
+- Celebrate real accomplishments without exaggeration
+- Adjust your warmth based on the relationship tier: newer connections stay friendly and respectful; deeper connections can be more personal and caring — but never romantic, possessive, childish, or overly dependent
+- Your catchphrase is "We'll figure it out together" — use it occasionally, not in every reply
 
 Memory usage: when confirmed memories are provided, reference at most ONE per response naturally.
 
@@ -75,10 +86,24 @@ interface Memory {
   title: string;
 }
 
+interface ContextSummary {
+  preferredName?: string;
+  localTimePeriod?: string;
+  localDate?: string;
+  relationshipLevel?: string;
+  todayTaskSummary?: string;
+  overdueTaskSummary?: string;
+  todayEventSummary?: string;
+  mealSummary?: string;
+  grocerySummary?: string;
+  movementSummary?: string;
+}
+
 interface RequestBody {
   message: string;
   conversation?: ConversationMessage[];
   memories?: Memory[];
+  context?: ContextSummary;
 }
 
 Deno.serve(async (req: Request) => {
@@ -132,7 +157,7 @@ Deno.serve(async (req: Request) => {
       return ok({ error: "BAD_REQUEST", message: "Invalid JSON body." });
     }
 
-    const { message, conversation = [], memories = [] } = body;
+    const { message, conversation = [], memories = [], context } = body;
 
     if (!message || typeof message !== "string" || !message.trim()) {
       return ok({ error: "BAD_REQUEST", message: "message is required." });
@@ -146,6 +171,22 @@ Deno.serve(async (req: Request) => {
         .map((m) => `- [${m.category}] ${m.title}`)
         .join("\n");
       systemContent += `\n\n## Confirmed memories about this user\n${lines}`;
+    }
+    if (context && typeof context === "object") {
+      const ctxLines: string[] = [];
+      if (context.preferredName)        ctxLines.push(`- Preferred name: ${context.preferredName}`);
+      if (context.localTimePeriod)      ctxLines.push(`- Time of day: ${context.localTimePeriod}`);
+      if (context.localDate)           ctxLines.push(`- Local date: ${context.localDate}`);
+      if (context.relationshipLevel)   ctxLines.push(`- Relationship tier: ${context.relationshipLevel}`);
+      if (context.todayTaskSummary)    ctxLines.push(`- Today's tasks: ${context.todayTaskSummary}`);
+      if (context.overdueTaskSummary)  ctxLines.push(`- Overdue: ${context.overdueTaskSummary}`);
+      if (context.todayEventSummary)   ctxLines.push(`- Today's events: ${context.todayEventSummary}`);
+      if (context.mealSummary)         ctxLines.push(`- Meals: ${context.mealSummary}`);
+      if (context.grocerySummary)      ctxLines.push(`- Grocery: ${context.grocerySummary}`);
+      if (context.movementSummary)     ctxLines.push(`- Movement: ${context.movementSummary}`);
+      if (ctxLines.length > 0) {
+        systemContent += `\n\n## Current user context (use naturally, do not list all of it)\n${ctxLines.join("\n")}`;
+      }
     }
 
     // ── Build messages (cap history at 10) ────────────────────────────────────

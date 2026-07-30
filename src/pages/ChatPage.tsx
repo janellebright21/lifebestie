@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, Component } from 'react';
 import type { ReactNode } from 'react';
 import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
-import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META } from '../lib/supabase';
+import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
+import { useEmmaContext } from '../hooks/useEmmaContext';
+import { buildEmmaContextSummary, type EmmaContextSummary } from '../lib/emmaGreeting';
 
 const CHAT_MESSAGES_KEY = 'lifebestie_chat_messages';
 
@@ -47,6 +49,8 @@ interface ChatPageProps {
   onSaveMemory?: (category: MemoryCategory, title: string, value: string) => Promise<LifeBestieMemory | null>;
   memoryEnabled?: boolean;
   getRelevantMemories?: (conversationText: string) => LifeBestieMemory[];
+  relationshipScore?: number;
+  meals?: Meal[];
 }
 
 const SUGGESTED_PROMPTS = [
@@ -113,6 +117,7 @@ async function callEmmaChatFunction(
   currentMessage: string,
   messages: Message[],
   relevantMemories: LifeBestieMemory[],
+  contextSummary?: EmmaContextSummary,
 ): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
   // Build conversation history from existing messages (exclude the init greeting,
   // exclude the message we are about to send, cap at 10 turns).
@@ -124,7 +129,7 @@ async function callEmmaChatFunction(
   const memories = relevantMemories.map((m) => ({ category: m.category, title: m.title }));
 
   const { data, error } = await supabase.functions.invoke('emma-chat', {
-    body: { message: currentMessage, conversation, memories },
+    body: { message: currentMessage, conversation, memories, context: contextSummary },
   });
 
   // HTTP 401 → auth failure (supabase client puts it in `error`, not `data`)
@@ -299,7 +304,21 @@ function ChatPageInner({
   onSaveMemory,
   memoryEnabled = true,
   getRelevantMemories,
+  relationshipScore = 0,
+  meals = [],
 }: ChatPageProps) {
+  const emmaContext = useEmmaContext({
+    preferredName,
+    relationshipScore,
+    tasks: _tasks,
+    events: _events,
+    meals,
+    groceryItems: _groceryItems,
+    movementPlanned: false,
+    firstVisitToday: false,
+  });
+  const contextSummary = buildEmmaContextSummary(emmaContext);
+
   const buildInitMessage = (): Message => ({
     id: 'init',
     role: 'assistant',
@@ -359,6 +378,7 @@ function ChatPageInner({
         trimmedText,
         updatedMessages,
         relevantMemories,
+        contextSummary,
       );
 
       const replyText = result.text;

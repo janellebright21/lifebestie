@@ -584,6 +584,8 @@ export default function App() {
           character={selectedCharacter}
           bestieNotes={bestiePersonalization.notes}
           memoriesCount={lifeBestieMemory.memories.length}
+          relationshipScore={bestieRelationship.score}
+          groceryItems={groceryItems}
         />
       )}
       {activeTab === 'planner' && (
@@ -687,6 +689,8 @@ export default function App() {
           onSaveMemory={personalization.memoryEnabled ? lifeBestieMemory.addMemory : undefined}
           memoryEnabled={personalization.memoryEnabled}
           getRelevantMemories={lifeBestieMemory.getRelevantMemories}
+          relationshipScore={bestieRelationship.score}
+          meals={mealPlanner.meals}
         />
       )}
       {activeTab === 'movement' && enabledModules.has('movement') && (
