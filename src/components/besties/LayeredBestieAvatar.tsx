@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { CharacterId } from '../../lib/supabase';
 import {
   getLayeredBestieRig,
@@ -17,7 +17,7 @@ export interface LayeredBestieAvatarProps {
   className?: string;
   style?: CSSProperties;
   /** Rendered when the production layered rig is not complete yet. */
-  fallback?: React.ReactNode;
+  fallback?: ReactNode;
 }
 
 const HEAD_PARTS = new Set<LayeredBestiePart>([
