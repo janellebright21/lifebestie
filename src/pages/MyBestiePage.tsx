@@ -1,12 +1,22 @@
+import { useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Heart, Sparkles, Star, TrendingUp } from 'lucide-react';
 import CoreMyBestiePage from './MyBestiePageCore';
 import BestieAvatar from '../components/besties/BestieAvatar';
+import LayeredBestieAvatar from '../components/besties/LayeredBestieAvatar';
+import type { LayeredMotionState } from '../components/besties/LayeredBestieAvatar';
 import { CHARACTERS } from '../lib/supabase';
 
 type MyBestiePageProps = ComponentProps<typeof CoreMyBestiePage>;
 
 const EXPRESSIONS = ['happy', 'thinking', 'encouraging', 'proud', 'calm'] as const;
+const LAB_MOTIONS: Array<{ id: LayeredMotionState; label: string }> = [
+  { id: 'idle', label: 'Idle' },
+  { id: 'thinking', label: 'Thinking' },
+  { id: 'encouraging', label: 'Encouraging' },
+  { id: 'calm', label: 'Calm' },
+  { id: 'celebrating', label: 'Celebrate' },
+];
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -16,6 +26,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
   const character = props.character ?? 'emma';
   const charDef = CHARACTERS.find((item) => item.id === character) ?? CHARACTERS[0]!;
   const relationship = props.relationship;
+  const [labMotion, setLabMotion] = useState<LayeredMotionState>('idle');
 
   const greeting = props.preferredName
     ? `Hey ${props.preferredName}! I'm glad you're here.`
@@ -61,13 +72,29 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                 “{charDef.catchphrase}”
               </p>
             </div>
-            <div className="shrink-0 -mr-2 -mt-2">
-              <BestieAvatar
-                characterId={character}
-                expression="happy"
-                size="full"
-                enableTilt={false}
-              />
+            <div className="shrink-0 -mr-2 -mt-2 min-w-[140px] flex justify-end">
+              {character === 'emma' ? (
+                <LayeredBestieAvatar
+                  characterId="emma"
+                  size={140}
+                  motion={labMotion}
+                  fallback={(
+                    <BestieAvatar
+                      characterId="emma"
+                      expression="happy"
+                      size="full"
+                      enable3D={false}
+                    />
+                  )}
+                />
+              ) : (
+                <BestieAvatar
+                  characterId={character}
+                  expression="happy"
+                  size="full"
+                  enable3D={false}
+                />
+              )}
             </div>
           </div>
 
@@ -112,6 +139,46 @@ export default function MyBestiePage(props: MyBestiePageProps) {
           </div>
         </section>
 
+        {character === 'emma' && (
+          <section
+            className="bg-white rounded-3xl border shadow-sm px-4 py-4"
+            style={{ borderColor: 'var(--theme-primary-mid)' }}
+          >
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-primary)' }}>
+                  Animation Lab · V1
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Body breathing + independent head motion</p>
+              </div>
+              <Sparkles size={16} style={{ color: 'var(--theme-primary)' }} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {LAB_MOTIONS.map((motion) => {
+                const active = labMotion === motion.id;
+                return (
+                  <button
+                    key={motion.id}
+                    type="button"
+                    onClick={() => setLabMotion(motion.id)}
+                    className="text-[11px] font-semibold px-3 py-2 rounded-xl border transition-all active:scale-95"
+                    style={{
+                      borderColor: active ? 'var(--theme-primary)' : 'var(--theme-primary-mid)',
+                      backgroundColor: active ? 'var(--theme-primary)' : 'var(--theme-primary-light)',
+                      color: active ? 'white' : 'var(--theme-primary)',
+                    }}
+                  >
+                    {motion.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
+              Blink is intentionally not enabled yet because the production open/closed eye layers are not installed on this branch.
+            </p>
+          </section>
+        )}
+
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm px-4 py-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div>
@@ -132,7 +199,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                     characterId={character}
                     expression={expression}
                     size="sm"
-                    enableTilt={false}
+                    enable3D={false}
                   />
                 </div>
                 <span className="text-[9px] font-semibold text-gray-500 text-center leading-tight truncate w-full">
