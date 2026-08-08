@@ -18,8 +18,10 @@ export interface LayeredBestieAvatarProps {
   style?: CSSProperties;
   /** Optional manual blink for the branch-only Animation Lab. */
   forceBlink?: boolean;
-  /** Rendered when the production layered rig is not complete yet. */
+  /** Rendered when the production layered rig is not complete or required assets fail. */
   fallback?: ReactNode;
+  /** Optional callback so the Animation Lab can show real runtime readiness. */
+  onAssetStatusChange?: (status: { ready: boolean; failedParts: LayeredBestiePart[] }) => void;
 }
 
 const HEAD_PARTS = new Set<LayeredBestiePart>([
@@ -30,6 +32,8 @@ const HEAD_PARTS = new Set<LayeredBestiePart>([
   'eyesClosed',
   'mouth',
 ]);
+
+const REQUIRED_PARTS = new Set<LayeredBestiePart>(['body', 'head']);
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined'
@@ -124,20 +128,44 @@ export default function LayeredBestieAvatar({
   style,
   forceBlink = false,
   fallback = null,
+  onAssetStatusChange,
 }: LayeredBestieAvatarProps) {
   const rig = getLayeredBestieRig(characterId);
-  const ready = hasCompleteLayeredBestieRig(characterId);
-  const blinkReady = Boolean(rig?.layers.eyesClosed.src);
-  const naturalBlink = useNaturalBlink(ready && blinkReady);
+  const manifestReady = hasCompleteLayeredBestieRig(characterId);
+  const [failedParts, setFailedParts] = useState<LayeredBestiePart[]>([]);
+  const [loadedRequiredParts, setLoadedRequiredParts] = useState<LayeredBestiePart[]>([]);
+
+  useEffect(() => {
+    setFailedParts([]);
+    setLoadedRequiredParts([]);
+  }, [characterId]);
+
+  const requiredFailed = failedParts.some((part) => REQUIRED_PARTS.has(part));
+  const runtimeReady = manifestReady && !requiredFailed && loadedRequiredParts.length === REQUIRED_PARTS.size;
+  const blinkReady = Boolean(rig?.layers.eyesClosed.src) && !failedParts.includes('eyesClosed');
+  const naturalBlink = useNaturalBlink(runtimeReady && blinkReady);
   const blinking = blinkReady && (forceBlink || naturalBlink);
+
+  useEffect(() => {
+    onAssetStatusChange?.({ ready: runtimeReady, failedParts });
+  }, [runtimeReady, failedParts, onAssetStatusChange]);
 
   const motionClass = useMemo(() => `layered-bestie--${motion}`, [motion]);
 
-  if (!rig || !ready) return <>{fallback}</>;
+  if (!rig || !manifestReady || requiredFailed) return <>{fallback}</>;
 
   const orderedParts = (Object.entries(rig.layers) as Array<[LayeredBestiePart, LayeredBestieLayer]>)
     .filter(([, layer]) => Boolean(layer.src))
     .sort((a, b) => a[1].zIndex - b[1].zIndex);
+
+  const markLoaded = (part: LayeredBestiePart) => {
+    if (!REQUIRED_PARTS.has(part)) return;
+    setLoadedRequiredParts((current) => current.includes(part) ? current : [...current, part]);
+  };
+
+  const markFailed = (part: LayeredBestiePart) => {
+    setFailedParts((current) => current.includes(part) ? current : [...current, part]);
+  };
 
   return (
     <div
@@ -153,7 +181,7 @@ export default function LayeredBestieAvatar({
     >
       <div className="layered-bestie__body" style={{ position: 'absolute', inset: 0 }}>
         {orderedParts.map(([part, layer]) => {
-          if (!layer.src) return null;
+          if (!layer.src || failedParts.includes(part)) return null;
           const classNames = [
             'layered-bestie__layer',
             `layered-bestie__${part}`,
@@ -168,11 +196,19 @@ export default function LayeredBestieAvatar({
               aria-hidden="true"
               draggable={false}
               className={classNames}
+              onLoad={() => markLoaded(part)}
+              onError={() => markFailed(part)}
               style={layerStyle(layer, part, rig.canvas.width, rig.canvas.height, blinking, motion)}
             />
           );
         })}
       </div>
+
+      {!runtimeReady && (
+        <div style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
+          {fallback}
+        </div>
+      )}
     </div>
   );
 }
