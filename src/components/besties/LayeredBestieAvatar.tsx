@@ -81,9 +81,17 @@ function layerStyle(
   canvasWidth: number,
   canvasHeight: number,
   blinking: boolean,
+  motion: LayeredMotionState,
 ): CSSProperties {
   const isEyesOpen = part === 'eyesOpen';
   const isEyesClosed = part === 'eyesClosed';
+  const isMouth = part === 'mouth';
+  const showWarmSmile = motion === 'encouraging' || motion === 'celebrating';
+
+  let opacity = 1;
+  if (isEyesOpen) opacity = blinking ? 0 : 1;
+  if (isEyesClosed) opacity = blinking ? 1 : 0;
+  if (isMouth) opacity = showWarmSmile ? 1 : 0;
 
   return {
     position: 'absolute',
@@ -94,7 +102,8 @@ function layerStyle(
     pointerEvents: 'none',
     userSelect: 'none',
     zIndex: layer.zIndex,
-    opacity: isEyesOpen ? (blinking ? 0 : 1) : isEyesClosed ? (blinking ? 1 : 0) : 1,
+    opacity,
+    transition: isMouth ? 'opacity 180ms ease' : undefined,
     transformOrigin: `${(layer.anchor.originX ?? 0.5) * 100}% ${(layer.anchor.originY ?? 0.5) * 100}%`,
     ['--layer-anchor-x' as string]: `${(layer.anchor.x / canvasWidth) * 100}%`,
     ['--layer-anchor-y' as string]: `${(layer.anchor.y / canvasHeight) * 100}%`,
@@ -153,7 +162,7 @@ export default function LayeredBestieAvatar({
               aria-hidden="true"
               draggable={false}
               className={classNames}
-              style={layerStyle(layer, part, rig.canvas.width, rig.canvas.height, blinking)}
+              style={layerStyle(layer, part, rig.canvas.width, rig.canvas.height, blinking, motion)}
             />
           );
         })}
