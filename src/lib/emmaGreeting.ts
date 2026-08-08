@@ -269,12 +269,23 @@ export function getEmmaAction(ctx: EmmaContext): EmmaAction {
     return diff > 0 && diff < soonMs;
   });
 
+  // Brand-new users should get one clear starting point instead of being pushed
+  // straight into meal planning simply because their account is empty.
+  if (
+    ctx.relationshipTier === 'new_friend' &&
+    ctx.firstVisitToday &&
+    ctx.situation.hasNoPlans &&
+    ctx.todayCompletedTasks.length === 0
+  ) {
+    return { type: 'view_schedule', label: 'Set up my day' };
+  }
+
   if (ctx.situation.hasOverdue) return { type: 'review_tasks', label: 'Review tasks' };
   if (hasUpcomingEvent) return { type: 'view_schedule', label: 'View schedule' };
   if (ctx.situation.hasNoMealPlanned) return { type: 'plan_meal', label: 'Plan a meal' };
   if (ctx.groceryPendingCount > 0) return { type: 'open_grocery', label: 'Open grocery list' };
   if (ctx.situation.hasMovementPlanned) return { type: 'view_movement', label: 'View movement' };
-  return { type: 'chat_with_emma', label: 'Chat with Emma' };
+  return { type: 'chat_with_emma', label: 'Chat with my Bestie' };
 }
 
 // ── Compact context summary for the AI chat payload ────────────────────────────
