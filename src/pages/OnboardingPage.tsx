@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
-import { HouseholdType, WorkSchedule, Chronotype, MainGoal } from '../lib/supabase';
+import { HouseholdType, WorkSchedule, Chronotype, MainGoal, CharacterId } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
 
 interface OnboardingPageProps {
@@ -11,12 +11,13 @@ interface OnboardingPageProps {
     chronotype: Chronotype;
     main_goals: MainGoal[];
     biggest_challenge: string;
+    character_id: CharacterId;
   }) => Promise<void>;
 }
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
-type StepId = 'name' | 'household' | 'work' | 'chronotype' | 'goals' | 'challenge';
+type StepId = 'name' | 'household' | 'work' | 'chronotype' | 'goals' | 'challenge' | 'bestie';
 
 interface StepBase {
   id: StepId;
@@ -93,6 +94,17 @@ const STEPS: Step[] = [
     question: () => "Almost there! What's your biggest day-to-day challenge? (In your own words)",
     placeholder: 'e.g. Keeping up with everything, never having time for myself…',
   },
+  {
+    id: 'bestie',
+    type: 'choice',
+    question: (name) => `Last thing, ${name} — choose the Bestie you want by your side.`,
+    options: [
+      { value: 'emma', label: 'Emma — all-around Life Bestie', emoji: '💜' },
+      { value: 'ava',  label: 'Ava — goals & strategy',       emoji: '💙' },
+      { value: 'nora', label: 'Nora — home & meals',          emoji: '🌿' },
+      { value: 'luna', label: 'Luna — wellness & movement',   emoji: '🧡' },
+    ],
+  },
 ];
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
@@ -124,7 +136,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [stepIdx, setStepIdx] = useState(0);
   const [bubbleVisible, setBubbleVisible] = useState(false);
   const [answers, setAnswers] = useState<Record<StepId, string | string[]>>({
-    name: '', household: '', work: '', chronotype: '', goals: [], challenge: '',
+    name: '', household: '', work: '', chronotype: '', goals: [], challenge: '', bestie: '',
   });
   const [textInput, setTextInput] = useState('');
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
@@ -195,6 +207,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
         chronotype: newAnswers.chronotype as Chronotype,
         main_goals: newAnswers.goals as MainGoal[],
         biggest_challenge: newAnswers.challenge as string,
+        character_id: newAnswers.bestie as CharacterId,
       });
     }
   }
