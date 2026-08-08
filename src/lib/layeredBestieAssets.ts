@@ -41,9 +41,8 @@ const layer = (src: string | undefined, zIndex: number, anchor: LayerAnchor): La
  * Emma V1 production rig.
  *
  * Body and head are independently movable on the approved 1024x1536 Emma canvas.
- * The head intentionally reuses Emma's known-good primary image and is clipped
- * in the renderer to the head/hair/neck region. This avoids relying on the
- * branch-only head.webp asset that Bolt was unable to decode at runtime.
+ * The head uses a dedicated transparent PNG derived from the approved Emma master
+ * so Bolt can decode it reliably without cropping the normal portrait asset.
  */
 export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
   characterId: 'emma',
@@ -51,7 +50,7 @@ export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
   layers: {
     hairBack:   layer(undefined, 10, { x: 512, y: 310, originX: 0.5, originY: 0.72 }),
     body:       layer('/characters/layered/emma/body.webp', 20, { x: 512, y: 920, originX: 0.5, originY: 0.92 }),
-    head:       layer('/characters/emma.webp', 30, { x: 485, y: 300, originX: 0.47, originY: 0.22 }),
+    head:       layer('/characters/layered/emma/head-safe.png', 30, { x: 485, y: 300, originX: 0.47, originY: 0.22 }),
     eyesOpen:   layer(undefined, 40, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
     eyesClosed: layer('/characters/layered/emma/eyes-closed.svg', 41, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
     mouth:      layer('/characters/layered/emma/mouth-smile.svg', 42, { x: 512, y: 420, originX: 0.5, originY: 0.5 }),
