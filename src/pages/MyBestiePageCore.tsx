@@ -7,6 +7,7 @@ import {
   LifeBestieMemory, MemoryCategory,
 } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
+import LayeredBestieAvatar from '../components/besties/LayeredBestieAvatar';
 import MemorySection from '../components/MemorySection';
 import type { BestieRelationshipData } from '../hooks/useBestieRelationship';
 import type { BestieNotes } from '../hooks/useBestiePersonalization';
@@ -64,7 +65,6 @@ function RelationshipCard({ charName, charColor, relationship }: RelationshipCar
         border: `1px solid ${charColor}33`,
       }}
     >
-      {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base leading-none">{LEVEL_ICONS[level]}</span>
@@ -84,7 +84,6 @@ function RelationshipCard({ charName, charColor, relationship }: RelationshipCar
         </div>
       </div>
 
-      {/* Progress bar */}
       <div className="space-y-1.5">
         <div
           className="w-full rounded-full overflow-hidden"
@@ -110,7 +109,6 @@ function RelationshipCard({ charName, charColor, relationship }: RelationshipCar
         )}
       </div>
 
-      {/* Message */}
       <p className="text-xs leading-relaxed italic text-gray-600">
         "{charName} says: {levelMessage}"
       </p>
@@ -216,7 +214,6 @@ export default function MyBestiePage({
 
   return (
     <div className="min-h-[100dvh] theme-app-bg pb-24">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
         <div className="max-w-md mx-auto flex items-center gap-3">
           <div
@@ -235,8 +232,6 @@ export default function MyBestiePage({
       </div>
 
       <div className="max-w-md mx-auto px-4 py-5 space-y-8">
-
-        {/* ─── Greeting bubble ────────────────────────────────────────────── */}
         <BestieAvatar
           characterId={character}
           expression="encouraging"
@@ -245,14 +240,12 @@ export default function MyBestiePage({
           message={greetingMessage}
         />
 
-        {/* ─── Relationship progress card ─────────────────────────────────── */}
         <RelationshipCard
           charName={charDef.name}
           charColor={charDef.primaryColor}
           relationship={relationship}
         />
 
-        {/* ─── Hero card ──────────────────────────────────────────────────── */}
         <div
           className="rounded-3xl overflow-hidden relative"
           style={{
@@ -271,7 +264,6 @@ export default function MyBestiePage({
             <p className="text-xs italic mt-1 leading-relaxed" style={{ color: 'var(--theme-primary)' }}>
               "{charDef.catchphrase}"
             </p>
-            {/* Soft relationship label — subtle, no numbers */}
             <div
               className="inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-full text-[10px] font-semibold"
               style={{ backgroundColor: 'var(--theme-primary-mid)', color: 'var(--theme-primary)' }}
@@ -281,11 +273,19 @@ export default function MyBestiePage({
             </div>
           </div>
           <div className="absolute bottom-0 right-4 pb-4">
-            <BestieAvatar characterId={character} expression="proud" size="full" />
+            {character === 'emma' ? (
+              <LayeredBestieAvatar
+                characterId="emma"
+                size={135}
+                motion="idle"
+                fallback={<BestieAvatar characterId={character} expression="proud" size="full" />}
+              />
+            ) : (
+              <BestieAvatar characterId={character} expression="proud" size="full" />
+            )}
           </div>
         </div>
 
-        {/* ─── Expression preview ─────────────────────────────────────────── */}
         <div>
           <SectionHeading>Expressions</SectionHeading>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4">
@@ -303,7 +303,6 @@ export default function MyBestiePage({
           </div>
         </div>
 
-        {/* ─── Personalization notes ──────────────────────────────────────── */}
         <div>
           <SectionHeading>What your Bestie knows</SectionHeading>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 space-y-5">
@@ -337,7 +336,6 @@ export default function MyBestiePage({
           </div>
         </div>
 
-        {/* ─── Style snapshot ─────────────────────────────────────────────── */}
         <div>
           <SectionHeading>Your Style</SectionHeading>
           <div className="grid grid-cols-3 gap-2">
@@ -364,7 +362,6 @@ export default function MyBestiePage({
           </div>
         </div>
 
-        {/* ─── Enabled modules ────────────────────────────────────────────── */}
         <div>
           <SectionHeading>Active Modules</SectionHeading>
           {enabledMods.length === 0 ? (
@@ -385,7 +382,6 @@ export default function MyBestiePage({
           )}
         </div>
 
-        {/* ─── Memory summary strip ───────────────────────────────────────── */}
         {memories.length > 0 && (
           <div>
             <SectionHeading>Memory Snapshot</SectionHeading>
@@ -410,7 +406,6 @@ export default function MyBestiePage({
           </div>
         )}
 
-        {/* ─── Memory section (full add/edit/delete) ──────────────────────── */}
         <MemorySection
           memories={memories}
           loading={memoriesLoading}
