@@ -1,6 +1,7 @@
 import { CharacterId, CharacterVariant, AvatarExpression, OutfitId } from './supabase';
 
 function charUrl(name: string) { return `/characters/${name}.webp`; }
+function exprUrl(name: string) { return `/characters/expression/${name}.svg`; }
 
 const DEFAULT_IMAGES: Record<CharacterId, string> = {
   emma: charUrl('emma'),
@@ -9,26 +10,15 @@ const DEFAULT_IMAGES: Record<CharacterId, string> = {
   luna: charUrl('luna'),
 };
 
-const EXPRESSION_SPRITE_URL = '/characters/expression/bestie_expression_grid.webp';
-const EXPRESSION_COLUMNS: AvatarExpression[] = ['happy', 'thinking', 'encouraging', 'proud', 'calm'];
-const EXPRESSION_ROWS: CharacterId[] = ['emma', 'ava', 'nora', 'luna'];
-
-function expressionSpriteDataUrl(id: CharacterId, expression: AvatarExpression): string | null {
-  const column = EXPRESSION_COLUMNS.indexOf(expression);
-  const row = EXPRESSION_ROWS.indexOf(id);
-  if (column < 0 || row < 0) return null;
-
-  const x = -(column * 128);
-  const y = -(row * 128);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><image href="${EXPRESSION_SPRITE_URL}" x="${x}" y="${y}" width="640" height="512"/></svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
+const PRIMARY_EXPRESSIONS: AvatarExpression[] = ['happy', 'thinking', 'encouraging', 'proud', 'calm'];
 
 export function resolveExpressionSrc(
   id: CharacterId,
   expression: AvatarExpression = 'happy',
 ): string {
-  return expressionSpriteDataUrl(id, expression) ?? DEFAULT_IMAGES[id];
+  return PRIMARY_EXPRESSIONS.includes(expression)
+    ? exprUrl(`${id}_${expression}`)
+    : DEFAULT_IMAGES[id];
 }
 
 export function getDefaultSrc(id: CharacterId): string {
