@@ -1,4 +1,4 @@
-import { CalendarPlus, MessageCircleHeart, UtensilsCrossed, ArrowRight } from 'lucide-react';
+import { Calendar, MessageCircle, UtensilsCrossed, ArrowRight } from 'lucide-react';
 import type { TabName } from './BottomNav';
 
 interface FirstUseGuideCardProps {
@@ -10,13 +10,13 @@ const ACTIONS: Array<{
   title: string;
   description: string;
   tab: TabName;
-  icon: typeof CalendarPlus;
+  icon: typeof Calendar;
 }> = [
   {
     title: "Add today's plan",
     description: 'Start with one or two things that matter today.',
     tab: 'planner',
-    icon: CalendarPlus,
+    icon: Calendar,
   },
   {
     title: 'Plan a meal',
@@ -28,7 +28,7 @@ const ACTIONS: Array<{
     title: 'Talk to my Bestie',
     description: 'Ask for help, sort out your day, or just check in.',
     tab: 'chat',
-    icon: MessageCircleHeart,
+    icon: MessageCircle,
   },
 ];
 
