@@ -41,9 +41,9 @@ const layer = (src: string | undefined, zIndex: number, anchor: LayerAnchor): La
  * Emma V1 production rig.
  *
  * Body and head are independently movable on the approved 1024x1536 Emma canvas.
- * Closed-eye and smile overlays provide the first facial reactions, while a
- * lightweight front-hair accent adds subtle secondary motion without redrawing
- * or replacing Emma's approved base hair.
+ * Closed-eye and smile overlays provide the first facial reactions, a lightweight
+ * front-hair accent adds secondary motion, and the open-hand arm accent provides
+ * a very small encouraging gesture without replacing Emma's approved base art.
  */
 export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
   characterId: 'emma',
@@ -56,7 +56,7 @@ export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
     eyesClosed: layer('/characters/layered/emma/eyes-closed.svg', 41, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
     mouth:      layer('/characters/layered/emma/mouth-smile.svg', 42, { x: 512, y: 420, originX: 0.5, originY: 0.5 }),
     hairFront:  layer('/characters/layered/emma/hair-accent.webp', 50, { x: 512, y: 300, originX: 0.5, originY: 0.74 }),
-    leftArm:    layer(undefined, 60, { x: 355, y: 690, originX: 0.66, originY: 0.18 }),
+    leftArm:    layer('/characters/layered/emma/left-arm-accent.svg', 60, { x: 245, y: 455, originX: 0.72, originY: 0.42 }),
     rightArm:   layer(undefined, 61, { x: 675, y: 700, originX: 0.34, originY: 0.18 }),
     accessory:  layer(undefined, 70, { x: 512, y: 555, originX: 0.5, originY: 0.5 }),
   },
@@ -71,8 +71,8 @@ export function getLayeredBestieRig(characterId: CharacterId): LayeredBestieRigM
 }
 
 /**
- * V1 readiness requires the real body + head pair. Facial/hair overlays enhance
- * the rig but are not required for a safe fallback-capable render.
+ * V1 readiness requires the real body + head pair. Facial/hair/gesture overlays
+ * enhance the rig but are not required for a safe fallback-capable render.
  */
 export function hasCompleteLayeredBestieRig(characterId: CharacterId): boolean {
   const rig = getLayeredBestieRig(characterId);
