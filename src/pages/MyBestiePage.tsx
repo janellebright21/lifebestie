@@ -27,6 +27,12 @@ export default function MyBestiePage(props: MyBestiePageProps) {
   const charDef = CHARACTERS.find((item) => item.id === character) ?? CHARACTERS[0]!;
   const relationship = props.relationship;
   const [labMotion, setLabMotion] = useState<LayeredMotionState>('idle');
+  const [labBlink, setLabBlink] = useState(false);
+
+  const triggerLabBlink = () => {
+    setLabBlink(true);
+    window.setTimeout(() => setLabBlink(false), 180);
+  };
 
   const greeting = props.preferredName
     ? `Hey ${props.preferredName}! I'm glad you're here.`
@@ -65,9 +71,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                 {charDef.role}
               </p>
               <h2 className="text-xl font-bold text-gray-800 mt-1">{greeting}</h2>
-              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-                {charDef.tagline}
-              </p>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">{charDef.tagline}</p>
               <p className="text-xs italic mt-2 leading-relaxed" style={{ color: 'var(--theme-primary)' }}>
                 “{charDef.catchphrase}”
               </p>
@@ -78,31 +82,19 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                   characterId="emma"
                   size={140}
                   motion={labMotion}
+                  forceBlink={labBlink}
                   fallback={(
-                    <BestieAvatar
-                      characterId="emma"
-                      expression="happy"
-                      size="full"
-                      enable3D={false}
-                    />
+                    <BestieAvatar characterId="emma" expression="happy" size="full" enable3D={false} />
                   )}
                 />
               ) : (
-                <BestieAvatar
-                  characterId={character}
-                  expression="happy"
-                  size="full"
-                  enable3D={false}
-                />
+                <BestieAvatar characterId={character} expression="happy" size="full" enable3D={false} />
               )}
             </div>
           </div>
 
           <div className="px-5 pb-5 pt-3">
-            <div
-              className="rounded-2xl bg-white/80 border px-4 py-4"
-              style={{ borderColor: 'var(--theme-primary-mid)' }}
-            >
+            <div className="rounded-2xl bg-white/80 border px-4 py-4" style={{ borderColor: 'var(--theme-primary-mid)' }}>
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Bestie level</p>
@@ -149,10 +141,28 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-primary)' }}>
                   Animation Lab · V1
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Body breathing + independent head motion</p>
+                <p className="text-xs text-gray-400 mt-1">Breathing + head motion + natural blink</p>
               </div>
               <Sparkles size={16} style={{ color: 'var(--theme-primary)' }} />
             </div>
+
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
+              >
+                Blink: Ready
+              </span>
+              <button
+                type="button"
+                onClick={triggerLabBlink}
+                className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border active:scale-95 transition-transform"
+                style={{ borderColor: 'var(--theme-primary)', color: 'var(--theme-primary)' }}
+              >
+                Test blink
+              </button>
+            </div>
+
             <div className="flex flex-wrap gap-2">
               {LAB_MOTIONS.map((motion) => {
                 const active = labMotion === motion.id;
@@ -173,8 +183,9 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                 );
               })}
             </div>
+
             <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
-              Blink is intentionally not enabled yet because the production open/closed eye layers are not installed on this branch.
+              Emma also blinks automatically at slightly randomized intervals. Use Test blink to check eyelid alignment immediately.
             </p>
           </section>
         )}
@@ -191,16 +202,8 @@ export default function MyBestiePage(props: MyBestiePageProps) {
           <div className="grid grid-cols-5 gap-2">
             {EXPRESSIONS.map((expression) => (
               <div key={expression} className="flex flex-col items-center gap-1.5 min-w-0">
-                <div
-                  className="rounded-full p-0.5"
-                  style={{ backgroundColor: 'var(--theme-primary-mid)' }}
-                >
-                  <BestieAvatar
-                    characterId={character}
-                    expression={expression}
-                    size="sm"
-                    enable3D={false}
-                  />
+                <div className="rounded-full p-0.5" style={{ backgroundColor: 'var(--theme-primary-mid)' }}>
+                  <BestieAvatar characterId={character} expression={expression} size="sm" enable3D={false} />
                 </div>
                 <span className="text-[9px] font-semibold text-gray-500 text-center leading-tight truncate w-full">
                   {titleCase(expression)}
