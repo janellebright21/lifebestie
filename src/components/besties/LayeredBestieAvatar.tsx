@@ -113,6 +113,7 @@ function layerStyle(
     userSelect: 'none',
     zIndex: layer.zIndex,
     opacity,
+    clipPath: part === 'head' ? 'polygon(28% 0%, 63% 0%, 63% 30%, 28% 30%)' : undefined,
     transition: (isMouth || isLeftArm || isRightArm) ? 'opacity 180ms ease' : undefined,
     transformOrigin: `${(layer.anchor.originX ?? 0.5) * 100}% ${(layer.anchor.originY ?? 0.5) * 100}%`,
     ['--layer-anchor-x' as string]: `${(layer.anchor.x / canvasWidth) * 100}%`,
