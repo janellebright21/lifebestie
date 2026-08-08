@@ -1,7 +1,7 @@
 import { CharacterId, CharacterVariant, AvatarExpression, OutfitId } from './supabase';
 
 function charUrl(name: string) { return `/characters/${name}.webp`; }
-function exprUrl(name: string) { return `/characters/expression/${name}.svg`; }
+function exprWebpUrl(name: string) { return `/characters/expression/${name}.webp`; }
 
 const DEFAULT_IMAGES: Record<CharacterId, string> = {
   emma: charUrl('emma'),
@@ -10,15 +10,52 @@ const DEFAULT_IMAGES: Record<CharacterId, string> = {
   luna: charUrl('luna'),
 };
 
-const PRIMARY_EXPRESSIONS: AvatarExpression[] = ['happy', 'thinking', 'encouraging', 'proud', 'calm'];
+/**
+ * Primary expressions now resolve directly to valid WebP assets instead of the
+ * generated SVG wrappers. Those wrappers depended on bestie_expression_grid.webp,
+ * which is not a decodable WebP file and could leave the avatar blank because
+ * the outer SVG itself still loaded successfully.
+ *
+ * Some characters do not yet have a dedicated WebP for every primary state, so
+ * those states intentionally map to the closest existing illustration until a
+ * dedicated asset is added.
+ */
+const EXPRESSION_IMAGES: Record<CharacterId, Partial<Record<AvatarExpression, string>>> = {
+  emma: {
+    happy:        exprWebpUrl('emma_happy'),
+    thinking:     exprWebpUrl('emma_thinking'),
+    encouraging:  exprWebpUrl('emma_encouraging'),
+    proud:        exprWebpUrl('emma_proud'),
+    calm:         exprWebpUrl('emma_calm'),
+  },
+  ava: {
+    happy:        exprWebpUrl('ava_happy'),
+    thinking:     exprWebpUrl('ava_thinking'),
+    encouraging:  exprWebpUrl('ava_confident'),
+    proud:        exprWebpUrl('ava_proud'),
+    calm:         exprWebpUrl('ava_happy'),
+  },
+  nora: {
+    happy:        exprWebpUrl('nora_happy'),
+    thinking:     exprWebpUrl('nora_cooking'),
+    encouraging:  exprWebpUrl('nora_helpful'),
+    proud:        exprWebpUrl('nora_proud'),
+    calm:         exprWebpUrl('nora_happy'),
+  },
+  luna: {
+    happy:        exprWebpUrl('luna_happy'),
+    thinking:     exprWebpUrl('luna_calm'),
+    encouraging:  exprWebpUrl('luna_motivating'),
+    proud:        exprWebpUrl('luna_proud'),
+    calm:         exprWebpUrl('luna_calm'),
+  },
+};
 
 export function resolveExpressionSrc(
   id: CharacterId,
   expression: AvatarExpression = 'happy',
 ): string {
-  return PRIMARY_EXPRESSIONS.includes(expression)
-    ? exprUrl(`${id}_${expression}`)
-    : DEFAULT_IMAGES[id];
+  return EXPRESSION_IMAGES[id][expression] ?? DEFAULT_IMAGES[id];
 }
 
 export function getDefaultSrc(id: CharacterId): string {
