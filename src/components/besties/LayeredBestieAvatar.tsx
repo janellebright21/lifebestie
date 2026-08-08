@@ -86,12 +86,18 @@ function layerStyle(
   const isEyesOpen = part === 'eyesOpen';
   const isEyesClosed = part === 'eyesClosed';
   const isMouth = part === 'mouth';
+  const isLeftArm = part === 'leftArm';
+  const isRightArm = part === 'rightArm';
   const showWarmSmile = motion === 'encouraging' || motion === 'celebrating';
+  const showOpenHand = motion === 'encouraging' || motion === 'celebrating';
+  const showNotebook = motion === 'thinking' || motion === 'calm';
 
   let opacity = 1;
   if (isEyesOpen) opacity = blinking ? 0 : 1;
   if (isEyesClosed) opacity = blinking ? 1 : 0;
   if (isMouth) opacity = showWarmSmile ? 1 : 0;
+  if (isLeftArm) opacity = showOpenHand ? 1 : 0;
+  if (isRightArm) opacity = showNotebook ? 1 : 0;
 
   return {
     position: 'absolute',
@@ -103,7 +109,7 @@ function layerStyle(
     userSelect: 'none',
     zIndex: layer.zIndex,
     opacity,
-    transition: isMouth ? 'opacity 180ms ease' : undefined,
+    transition: (isMouth || isLeftArm || isRightArm) ? 'opacity 180ms ease' : undefined,
     transformOrigin: `${(layer.anchor.originX ?? 0.5) * 100}% ${(layer.anchor.originY ?? 0.5) * 100}%`,
     ['--layer-anchor-x' as string]: `${(layer.anchor.x / canvasWidth) * 100}%`,
     ['--layer-anchor-y' as string]: `${(layer.anchor.y / canvasHeight) * 100}%`,
