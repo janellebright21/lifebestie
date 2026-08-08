@@ -96,6 +96,16 @@
   will-change: transform, opacity;
 }
 
+/* Branch-only safety: when the layered rig falls back to the legacy avatar,
+   suppress its older float/bounce animations so test results are unambiguous. */
+.layered-bestie__fallback .ba-body,
+.layered-bestie__fallback .ba-head,
+.layered-bestie__fallback .ba-blink,
+.layered-bestie__fallback .bestie-sparkle-dot {
+  animation: none !important;
+  transform: none !important;
+}
+
 .layered-bestie--idle .layered-bestie__body {
   animation: layered-bestie-breathe 5.8s ease-in-out infinite;
 }
