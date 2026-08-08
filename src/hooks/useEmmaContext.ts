@@ -26,6 +26,13 @@ function getFirstName(name: string | undefined): string {
   return firstToken.charAt(0).toUpperCase() + firstToken.slice(1);
 }
 
+function getLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function buildSituation(
   todayIncomplete: Task[],
   todayCompleted: Task[],
@@ -53,7 +60,9 @@ function buildSituation(
 export function useEmmaContext(args: UseEmmaContextArgs): EmmaContext {
   return useMemo(() => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    // Keep "today" aligned with the user's device timezone. Using toISOString()
+    // here can shift late-night users into the next UTC day.
+    const today = getLocalDateKey(now);
     const timePeriod = getTimePeriod(now);
 
     const todayIncomplete = args.tasks.filter(
