@@ -1,11 +1,6 @@
 import { CharacterId, CharacterVariant, AvatarExpression, OutfitId } from './supabase';
 
-// ─── Public URL helpers ───────────────────────────────────────────────────────
-// Images live in /public/characters/ and are served as static files.
-
 function charUrl(name: string) { return `/characters/${name}.webp`; }
-
-// ─── Default character images ─────────────────────────────────────────────────
 
 const DEFAULT_IMAGES: Record<CharacterId, string> = {
   emma: charUrl('emma'),
@@ -14,71 +9,47 @@ const DEFAULT_IMAGES: Record<CharacterId, string> = {
   luna: charUrl('luna'),
 };
 
-// ─── Expression sprite registry ───────────────────────────────────────────────
-// Refreshed expression art is stored in one compact 5×4 sprite sheet:
-// columns = happy, thinking, encouraging, proud, calm
-// rows    = Emma, Ava, Nora, Luna
+const EXPRESSION_SPRITE_URL = '/characters/expression/bestie_expression_grid.webp';
+const EXPRESSION_COLUMNS: AvatarExpression[] = ['happy', 'thinking', 'encouraging', 'proud', 'calm'];
+const EXPRESSION_ROWS: CharacterId[] = ['emma', 'ava', 'nora', 'luna'];
 
-export const EXPRESSION_SPRITE_URL = '/characters/expression/bestie_expression_grid.webp';
+function expressionSpriteDataUrl(id: CharacterId, expression: AvatarExpression): string | null {
+  const column = EXPRESSION_COLUMNS.indexOf(expression);
+  const row = EXPRESSION_ROWS.indexOf(id);
+  if (column < 0 || row < 0) return null;
 
-export const EXPRESSION_SPRITE_COLUMNS: AvatarExpression[] = [
-  'happy', 'thinking', 'encouraging', 'proud', 'calm',
-];
-
-export const EXPRESSION_SPRITE_ROWS: CharacterId[] = [
-  'emma', 'ava', 'nora', 'luna',
-];
-
-export interface ExpressionSpritePosition {
-  column: number;
-  row: number;
+  const x = -(column * 128);
+  const y = -(row * 128);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><image href="${EXPRESSION_SPRITE_URL}" x="${x}" y="${y}" width="640" height="512"/></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-export function getExpressionSpritePosition(
-  id: CharacterId,
-  expression: AvatarExpression = 'happy',
-): ExpressionSpritePosition | null {
-  const row = EXPRESSION_SPRITE_ROWS.indexOf(id);
-  const column = EXPRESSION_SPRITE_COLUMNS.indexOf(expression);
-  if (row < 0 || column < 0) return null;
-  return { column, row };
-}
-
-/**
- * Returns the image src for a character + expression.
- * The five primary expressions use the new shared sprite sheet.
- * Any unsupported expression (currently tired) falls back to the default portrait.
- */
 export function resolveExpressionSrc(
   id: CharacterId,
   expression: AvatarExpression = 'happy',
 ): string {
-  return getExpressionSpritePosition(id, expression)
-    ? EXPRESSION_SPRITE_URL
-    : DEFAULT_IMAGES[id];
+  return expressionSpriteDataUrl(id, expression) ?? DEFAULT_IMAGES[id];
 }
 
 export function getDefaultSrc(id: CharacterId): string {
   return DEFAULT_IMAGES[id];
 }
 
-// ─── Legacy manifest API (used by LifeBestieAvatar) ───────────────────────────
-
 export interface CharacterAssetManifest {
-  hasPortrait:  boolean;
-  hasFullBody:  boolean;
-  expressions:  AvatarExpression[];
-  outfits:      OutfitId[];
+  hasPortrait: boolean;
+  hasFullBody: boolean;
+  expressions: AvatarExpression[];
+  outfits: OutfitId[];
 }
 
 const ALL_EXPRESSIONS: AvatarExpression[] = ['happy', 'encouraging', 'proud', 'calm', 'thinking', 'tired'];
-const ALL_OUTFITS: OutfitId[]             = ['classic', 'cozy', 'professional', 'wellness'];
+const ALL_OUTFITS: OutfitId[] = ['classic', 'cozy', 'professional', 'wellness'];
 
 const MANIFESTS: Record<CharacterId, CharacterAssetManifest> = {
-  emma: { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
-  ava:  { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
-  nora: { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
-  luna: { hasPortrait: true,  hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  emma: { hasPortrait: true, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  ava:  { hasPortrait: true, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  nora: { hasPortrait: true, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
+  luna: { hasPortrait: true, hasFullBody: false, expressions: ALL_EXPRESSIONS, outfits: ALL_OUTFITS },
 };
 
 export function getManifest(id: CharacterId): CharacterAssetManifest {
@@ -86,10 +57,10 @@ export function getManifest(id: CharacterId): CharacterAssetManifest {
 }
 
 export function getAssetPath(
-  id:         CharacterId,
-  variant:    CharacterVariant,
+  id: CharacterId,
+  variant: CharacterVariant,
   expression: AvatarExpression = 'happy',
-  outfit:     OutfitId         = 'classic',
+  outfit: OutfitId = 'classic',
 ): string {
   return `/characters/${id}/${variant}/${expression}_${outfit}.png`;
 }
