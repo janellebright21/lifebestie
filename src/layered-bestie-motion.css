@@ -1,0 +1,80 @@
+/* Layered Bestie motion foundations.
+   These classes remain dormant until a complete production rig is available. */
+
+@keyframes layered-bestie-breathe {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  48% { transform: translateY(-0.7px) scaleY(1.008); }
+}
+
+@keyframes layered-bestie-head-drift {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  38% { transform: translateY(-0.6px) rotate(-0.35deg); }
+  72% { transform: translateY(-0.2px) rotate(0.2deg); }
+}
+
+@keyframes layered-bestie-thinking-head {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  45% { transform: translateY(-0.9px) rotate(-1.4deg); }
+}
+
+@keyframes layered-bestie-encourage {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-0.8px) rotate(-0.8deg); }
+}
+
+@keyframes layered-bestie-celebrate {
+  0% { transform: translateY(0) scale(1); }
+  28% { transform: translateY(-6px) scale(1.025); }
+  52% { transform: translateY(0) scale(0.995); }
+  76% { transform: translateY(-2px) scale(1.008); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes layered-bestie-calm {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+.layered-bestie__body {
+  transform-origin: 50% 92%;
+}
+
+.layered-bestie__head-part {
+  transform-origin: 50% 72%;
+}
+
+.layered-bestie--idle .layered-bestie__body {
+  animation: layered-bestie-breathe 5.4s ease-in-out infinite;
+}
+
+.layered-bestie--idle .layered-bestie__head-part {
+  animation: layered-bestie-head-drift 7.2s ease-in-out infinite;
+}
+
+.layered-bestie--thinking .layered-bestie__body {
+  animation: layered-bestie-breathe 5.8s ease-in-out infinite;
+}
+
+.layered-bestie--thinking .layered-bestie__head-part {
+  animation: layered-bestie-thinking-head 4.2s ease-in-out infinite;
+}
+
+.layered-bestie--encouraging .layered-bestie__body {
+  animation: layered-bestie-encourage 3.8s ease-in-out infinite;
+}
+
+.layered-bestie--celebrating .layered-bestie__body {
+  animation: layered-bestie-celebrate 0.85s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.layered-bestie--calm .layered-bestie__body {
+  animation: layered-bestie-calm 6.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layered-bestie__body,
+  .layered-bestie__head-part {
+    animation: none !important;
+    transform: none !important;
+  }
+}
