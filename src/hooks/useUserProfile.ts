@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, dbError, UserProfile, EMPTY_PROFILE, MainGoal, HouseholdType, WorkSchedule, Chronotype } from '../lib/supabase';
+import { supabase, dbError, UserProfile, EMPTY_PROFILE, MainGoal, HouseholdType, WorkSchedule, Chronotype, CharacterId } from '../lib/supabase';
 
 export type ProfilePatch = Partial<Omit<UserProfile, 'user_id' | 'created_at' | 'updated_at'>>;
 
@@ -85,6 +85,7 @@ export function useUserProfile() {
     chronotype: Chronotype;
     main_goals: MainGoal[];
     biggest_challenge: string;
+    character_id: CharacterId;
   }): Promise<void> {
     await saveProfile({ ...data, onboarding_done: true });
   }
