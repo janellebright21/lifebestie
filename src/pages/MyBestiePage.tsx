@@ -141,24 +141,21 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-primary)' }}>
                   Animation Lab · V1
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Breathing + head + blink + hair + hand gesture</p>
+                <p className="text-xs text-gray-400 mt-1">Subtle breathing, head drift, blink, smile, hair and arm reactions</p>
               </div>
               <Sparkles size={16} style={{ color: 'var(--theme-primary)' }} />
             </div>
 
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <span
-                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
-              >
-                Blink: Ready
-              </span>
-              <span
-                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
-              >
-                Gesture: Ready
-              </span>
+              {['Blink', 'Smile', 'Hair', 'Open hand', 'Notebook'].map((label) => (
+                <span
+                  key={label}
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                  style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
+                >
+                  {label}: Ready
+                </span>
+              ))}
               <button
                 type="button"
                 onClick={triggerLabBlink}
@@ -191,7 +188,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
             </div>
 
             <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
-              Emma blinks automatically at slightly randomized intervals. Encouraging and Celebrate also activate the new open-hand gesture layer.
+              Idle stays very quiet. Thinking and Calm use the notebook hold. Encouraging and Celebrate use the open-hand gesture and warmer smile. Emma also blinks automatically at slightly randomized intervals.
             </p>
           </section>
         )}
