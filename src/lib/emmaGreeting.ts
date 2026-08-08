@@ -160,8 +160,8 @@ const GREETINGS: Record<TimePeriod, GreetingEntry[]> = {
     },
     {
       text: (c) => c.firstName
-        ? `Hey ${c.firstName}. winding down is allowed too.`
-        : `Hey. winding down is allowed too.`,
+        ? `Hey ${c.firstName}. Winding down is allowed too.`
+        : `Hey. Winding down is allowed too.`,
     },
     {
       text: (c) => c.firstName
@@ -187,8 +187,8 @@ function morningPlanLine(c: EmmaContext): string {
   if (c.situation.hasOverdue) return `You have some overdue tasks — we'll take them one at a time.`;
   if (c.situation.isBusyDay) return `You have a few things planned today. We'll take them one at a time.`;
   if (c.situation.hasCompletedTasks) return `You've already finished a couple things — nice start.`;
-  if (c.situation.hasNoMealPlanned) return `Dinner isn't planned yet — we can find something simple.`;
   if (c.situation.hasNoPlans) return `Today looks open. What would make it feel easier?`;
+  if (c.situation.hasNoMealPlanned) return `Dinner isn't planned yet — we can find something simple.`;
   return `Let's make today feel a little easier.`;
 }
 
@@ -196,9 +196,9 @@ function afternoonPlanLine(c: EmmaContext): string {
   if (c.situation.hasOverdue) return `A couple tasks slipped — want to decide what matters most?`;
   if (c.situation.isBusyDay) return `Your afternoon looks a little full. Want to decide what matters most first?`;
   if (c.situation.hasCompletedTasks) return `You've already finished a few things today — that deserves credit.`;
+  if (c.situation.hasNoPlans) return `The afternoon is open. What would help most?`;
   if (c.situation.hasNoMealPlanned) return `Dinner isn't planned yet — we can figure something out.`;
   if (c.situation.everythingFinished) return `You handled the important things today. It's okay to slow down.`;
-  if (c.situation.hasNoPlans) return `The afternoon is open. What would help most?`;
   return `Let's see what's left to handle.`;
 }
 
@@ -206,8 +206,8 @@ function eveningPlanLine(c: EmmaContext): string {
   if (c.situation.everythingFinished) return `You handled the important things today. It's okay to slow down now.`;
   if (c.situation.hasCompletedTasks) return `You got through a good chunk today — well done.`;
   if (c.situation.hasOverdue) return `A few things are still hanging — we can look tomorrow.`;
-  if (c.situation.hasNoMealPlanned) return `Dinner isn't planned yet — we can find something simple.`;
   if (c.situation.hasNoPlans) return `Tonight looks open. What would make it feel easier?`;
+  if (c.situation.hasNoMealPlanned) return `Dinner isn't planned yet — we can find something simple.`;
   return `You made it through the day.`;
 }
 
@@ -269,12 +269,23 @@ export function getEmmaAction(ctx: EmmaContext): EmmaAction {
     return diff > 0 && diff < soonMs;
   });
 
+  // Brand-new users should get one clear starting point instead of being pushed
+  // straight into meal planning simply because their account is empty.
+  if (
+    ctx.relationshipTier === 'new_friend' &&
+    ctx.firstVisitToday &&
+    ctx.situation.hasNoPlans &&
+    ctx.todayCompletedTasks.length === 0
+  ) {
+    return { type: 'view_schedule', label: 'Set up my day' };
+  }
+
   if (ctx.situation.hasOverdue) return { type: 'review_tasks', label: 'Review tasks' };
   if (hasUpcomingEvent) return { type: 'view_schedule', label: 'View schedule' };
   if (ctx.situation.hasNoMealPlanned) return { type: 'plan_meal', label: 'Plan a meal' };
   if (ctx.groceryPendingCount > 0) return { type: 'open_grocery', label: 'Open grocery list' };
   if (ctx.situation.hasMovementPlanned) return { type: 'view_movement', label: 'View movement' };
-  return { type: 'chat_with_emma', label: 'Chat with Emma' };
+  return { type: 'chat_with_emma', label: 'Chat with my Bestie' };
 }
 
 // ── Compact context summary for the AI chat payload ────────────────────────────

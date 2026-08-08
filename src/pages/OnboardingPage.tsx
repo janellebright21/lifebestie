@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Check } from 'lucide-react';
-import { HouseholdType, WorkSchedule, Chronotype, MainGoal } from '../lib/supabase';
+import { ChevronRight, Check, Sparkles } from 'lucide-react';
+import { HouseholdType, WorkSchedule, Chronotype, MainGoal, CharacterId, CHARACTERS } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
+import BestieAvatar from '../components/besties/BestieAvatar';
 
 interface OnboardingPageProps {
   onComplete: (data: {
@@ -11,12 +12,13 @@ interface OnboardingPageProps {
     chronotype: Chronotype;
     main_goals: MainGoal[];
     biggest_challenge: string;
+    character_id: CharacterId;
   }) => Promise<void>;
 }
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
-type StepId = 'name' | 'household' | 'work' | 'chronotype' | 'goals' | 'challenge';
+type StepId = 'name' | 'household' | 'work' | 'chronotype' | 'goals' | 'challenge' | 'bestie';
 
 interface StepBase {
   id: StepId;
@@ -93,6 +95,16 @@ const STEPS: Step[] = [
     question: () => "Almost there! What's your biggest day-to-day challenge? (In your own words)",
     placeholder: 'e.g. Keeping up with everything, never having time for myself…',
   },
+  {
+    id: 'bestie',
+    type: 'choice',
+    question: (name) => `Last thing, ${name} — choose the Bestie you want by your side.`,
+    options: CHARACTERS.map((character) => ({
+      value: character.id,
+      label: `${character.name} — ${character.role.replace('The ', '')}`,
+      emoji: character.emoji,
+    })),
+  },
 ];
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
@@ -124,10 +136,11 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [stepIdx, setStepIdx] = useState(0);
   const [bubbleVisible, setBubbleVisible] = useState(false);
   const [answers, setAnswers] = useState<Record<StepId, string | string[]>>({
-    name: '', household: '', work: '', chronotype: '', goals: [], challenge: '',
+    name: '', household: '', work: '', chronotype: '', goals: [], challenge: '', bestie: '',
   });
   const [textInput, setTextInput] = useState('');
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
+  const [bestieSelected, setBestieSelected] = useState<CharacterId | null>(null);
   const [history, setHistory] = useState<{ bot: string; user?: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -135,14 +148,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const step = STEPS[stepIdx]!;
   const name = (answers.name as string) || 'friend';
 
-  // Show question bubble with slight delay
   useEffect(() => {
     setBubbleVisible(false);
     const t = setTimeout(() => setBubbleVisible(true), 150);
     return () => clearTimeout(t);
   }, [stepIdx]);
 
-  // Scroll to bottom when history changes
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [history, bubbleVisible]);
@@ -157,6 +168,13 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
     advance(value, label);
   }
 
+  function submitBestie() {
+    if (!bestieSelected) return;
+    const character = CHARACTERS.find((c) => c.id === bestieSelected);
+    if (!character) return;
+    advance(bestieSelected, `${character.emoji} ${character.name}`);
+  }
+
   function toggleMulti(value: string) {
     setMultiSelected((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
@@ -164,9 +182,9 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   }
 
   function submitMulti() {
-    const step = STEPS[stepIdx] as MultiStep;
-    if (multiSelected.length < step.min) return;
-    const labels = step.options
+    const current = STEPS[stepIdx] as MultiStep;
+    if (multiSelected.length < current.min) return;
+    const labels = current.options
       .filter((o) => multiSelected.includes(o.value))
       .map((o) => `${o.emoji} ${o.label}`)
       .join(', ');
@@ -176,8 +194,6 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   async function advance(value: string | string[], displayLabel: string) {
     const newAnswers = { ...answers, [step.id]: value };
     setAnswers(newAnswers);
-
-    // Push current question + user answer to history
     setHistory((prev) => [...prev, { bot: step.question(name), user: displayLabel }]);
     setTextInput('');
     setMultiSelected([]);
@@ -186,7 +202,6 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
     if (stepIdx < STEPS.length - 1) {
       setStepIdx(stepIdx + 1);
     } else {
-      // Onboarding complete
       setSaving(true);
       await onComplete({
         preferred_name: newAnswers.name as string,
@@ -195,13 +210,13 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
         chronotype: newAnswers.chronotype as Chronotype,
         main_goals: newAnswers.goals as MainGoal[],
         biggest_challenge: newAnswers.challenge as string,
+        character_id: newAnswers.bestie as CharacterId,
       });
     }
   }
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 flex flex-col">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 shrink-0">
         <div className="max-w-md mx-auto flex items-center gap-3">
           <LifeBestieAvatar size="md" pulse expression="happy" />
@@ -209,7 +224,6 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
             <h1 className="text-base font-bold text-gray-800 leading-none">LifeBestie</h1>
             <p className="text-xs text-gray-400 mt-0.5">Let's get to know each other</p>
           </div>
-          {/* Step dots */}
           <div className="ml-auto flex items-center gap-1">
             {STEPS.map((_, i) => (
               <div
@@ -225,9 +239,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
         </div>
       </div>
 
-      {/* Chat area */}
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 max-w-md mx-auto w-full">
-        {/* Historical exchanges */}
         {history.map((item, i) => (
           <div key={i} className="space-y-3">
             <BotBubble text={item.bot} visible />
@@ -235,10 +247,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
           </div>
         ))}
 
-        {/* Current question */}
-        {!saving && (
-          <BotBubble text={step.question(name)} visible={bubbleVisible} />
-        )}
+        {!saving && <BotBubble text={step.question(name)} visible={bubbleVisible} />}
 
         {saving && (
           <div className="flex items-end gap-2">
@@ -256,11 +265,9 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input area */}
       {!saving && (
         <div className="bg-white border-t border-gray-100 px-4 py-4 shrink-0">
           <div className="max-w-md mx-auto">
-
             {step.type === 'text' && (
               <div className="flex gap-2">
                 <input
@@ -281,7 +288,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
               </div>
             )}
 
-            {step.type === 'choice' && (
+            {step.type === 'choice' && step.id !== 'bestie' && (
               <div className="grid grid-cols-2 gap-2">
                 {step.options.map((opt) => (
                   <button
@@ -293,6 +300,108 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <span className="text-xs font-semibold text-gray-700 leading-tight">{opt.label}</span>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {step.id === 'bestie' && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  {CHARACTERS.map((character) => {
+                    const selected = bestieSelected === character.id;
+                    return (
+                      <button
+                        key={character.id}
+                        type="button"
+                        onClick={() => setBestieSelected(character.id)}
+                        aria-pressed={selected}
+                        className={`relative overflow-hidden rounded-3xl border-2 p-3 text-left transition-all active:scale-[0.98] ${
+                          selected
+                            ? 'shadow-md -translate-y-0.5'
+                            : 'border-gray-100 bg-gray-50 hover:border-gray-200'
+                        }`}
+                        style={selected ? {
+                          borderColor: character.primaryColor,
+                          backgroundColor: `${character.primaryColor}0D`,
+                        } : undefined}
+                      >
+                        {selected && (
+                          <div
+                            className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white shadow-sm"
+                            style={{ backgroundColor: character.primaryColor }}
+                          >
+                            <Check size={13} strokeWidth={3} />
+                          </div>
+                        )}
+
+                        <div className="flex justify-center h-24 mb-2 overflow-hidden">
+                          <BestieAvatar
+                            characterId={character.id}
+                            expression={selected ? 'proud' : 'calm'}
+                            motionOverride={selected ? 'celebrating' : 'calm'}
+                            size="lg"
+                            enable3D={false}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-sm font-bold text-gray-800">{character.name}</h3>
+                            <span className="text-xs">{character.emoji}</span>
+                          </div>
+                          <p
+                            className="text-[10px] font-bold uppercase tracking-wide"
+                            style={{ color: character.primaryColor }}
+                          >
+                            {character.role}
+                          </p>
+                          <p className="text-[11px] font-semibold text-gray-600 leading-snug">
+                            {character.tagline}
+                          </p>
+                          <p className="text-[10px] text-gray-400 leading-snug pt-0.5">
+                            {character.superpower}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {bestieSelected && (() => {
+                  const character = CHARACTERS.find((c) => c.id === bestieSelected)!;
+                  return (
+                    <div
+                      className="rounded-2xl px-4 py-3 border flex gap-3 items-start"
+                      style={{
+                        backgroundColor: `${character.primaryColor}0D`,
+                        borderColor: `${character.primaryColor}33`,
+                      }}
+                    >
+                      <Sparkles size={15} className="shrink-0 mt-0.5" style={{ color: character.primaryColor }} />
+                      <div>
+                        <p className="text-xs font-bold text-gray-700">
+                          {character.name} will be your Bestie throughout LifeBestie.
+                        </p>
+                        <p className="text-[11px] italic mt-1" style={{ color: character.primaryColor }}>
+                          “{character.catchphrase}”
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <button
+                  type="button"
+                  onClick={submitBestie}
+                  disabled={!bestieSelected}
+                  className="w-full py-3.5 rounded-2xl text-white text-sm font-bold disabled:opacity-40 active:scale-[0.99] transition-all shadow-sm"
+                  style={{ backgroundColor: bestieSelected
+                    ? CHARACTERS.find((c) => c.id === bestieSelected)?.primaryColor
+                    : '#f43f5e' }}
+                >
+                  {bestieSelected
+                    ? `Choose ${CHARACTERS.find((c) => c.id === bestieSelected)?.name}`
+                    : 'Choose your Bestie'}
+                </button>
               </div>
             )}
 
@@ -329,7 +438,6 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </button>
               </div>
             )}
-
           </div>
         </div>
       )}
