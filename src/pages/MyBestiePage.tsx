@@ -141,17 +141,23 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-primary)' }}>
                   Animation Lab · V1
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Breathing + head motion + natural blink</p>
+                <p className="text-xs text-gray-400 mt-1">Breathing + head + blink + hair + hand gesture</p>
               </div>
               <Sparkles size={16} style={{ color: 'var(--theme-primary)' }} />
             </div>
 
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               <span
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full"
                 style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
               >
                 Blink: Ready
+              </span>
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
+              >
+                Gesture: Ready
               </span>
               <button
                 type="button"
@@ -185,7 +191,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
             </div>
 
             <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
-              Emma also blinks automatically at slightly randomized intervals. Use Test blink to check eyelid alignment immediately.
+              Emma blinks automatically at slightly randomized intervals. Encouraging and Celebrate also activate the new open-hand gesture layer.
             </p>
           </section>
         )}
