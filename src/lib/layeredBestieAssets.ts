@@ -41,9 +41,9 @@ const layer = (src: string | undefined, zIndex: number, anchor: LayerAnchor): La
  * Emma V1 production rig.
  *
  * Body and head are independently movable on the approved 1024x1536 Emma canvas.
- * A transparent closed-eye SVG overlay enables randomized blinking without
- * replacing or redrawing the approved base face. Hair, mouth and arm layers stay
- * intentionally empty until their production assets are ready.
+ * A transparent closed-eye SVG overlay enables randomized blinking, and a subtle
+ * smile overlay can be shown for warmer motion states without replacing the base
+ * face artwork. Hair and arm layers remain intentionally empty until ready.
  */
 export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
   characterId: 'emma',
@@ -54,7 +54,7 @@ export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
     head:       layer('/characters/layered/emma/head.webp', 30, { x: 485, y: 300, originX: 0.47, originY: 0.22 }),
     eyesOpen:   layer(undefined, 40, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
     eyesClosed: layer('/characters/layered/emma/eyes-closed.svg', 41, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
-    mouth:      layer(undefined, 42, { x: 512, y: 420, originX: 0.5, originY: 0.5 }),
+    mouth:      layer('/characters/layered/emma/mouth-smile.svg', 42, { x: 486, y: 248, originX: 0.5, originY: 0.5 }),
     hairFront:  layer(undefined, 50, { x: 512, y: 300, originX: 0.5, originY: 0.74 }),
     leftArm:    layer(undefined, 60, { x: 355, y: 690, originX: 0.66, originY: 0.18 }),
     rightArm:   layer(undefined, 61, { x: 675, y: 700, originX: 0.34, originY: 0.18 }),
