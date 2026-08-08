@@ -46,6 +46,19 @@
   45% { transform: translateX(-0.7px) rotate(-0.3deg); }
 }
 
+@keyframes layered-bestie-hand-offer {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  45% { transform: translate(1.1px, -1px) rotate(0.7deg); }
+  72% { transform: translate(0.4px, -0.35px) rotate(0.25deg); }
+}
+
+@keyframes layered-bestie-hand-celebrate {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  35% { transform: translate(1.4px, -2px) rotate(1.1deg); }
+  70% { transform: translate(0.3px, -0.5px) rotate(0.25deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
 .layered-bestie__body {
   transform-origin: 50% 92%;
 }
@@ -57,6 +70,12 @@
 .layered-bestie__hairFront {
   transform-origin: 50% 38%;
   will-change: transform;
+}
+
+.layered-bestie__leftArm {
+  transform-origin: 29% 31%;
+  opacity: 0;
+  will-change: transform, opacity;
 }
 
 .layered-bestie--idle .layered-bestie__body {
@@ -91,12 +110,22 @@
   animation: layered-bestie-hair-sway 6.8s ease-in-out infinite;
 }
 
+.layered-bestie--encouraging .layered-bestie__leftArm {
+  opacity: 1;
+  animation: layered-bestie-hand-offer 4.6s ease-in-out infinite;
+}
+
 .layered-bestie--celebrating .layered-bestie__body {
   animation: layered-bestie-celebrate 0.85s cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
 
 .layered-bestie--celebrating .layered-bestie__hairFront {
   animation: layered-bestie-hair-sway 1.05s ease-out 1;
+}
+
+.layered-bestie--celebrating .layered-bestie__leftArm {
+  opacity: 1;
+  animation: layered-bestie-hand-celebrate 0.95s ease-out 1;
 }
 
 .layered-bestie--calm .layered-bestie__body {
@@ -110,7 +139,8 @@
 @media (prefers-reduced-motion: reduce) {
   .layered-bestie__body,
   .layered-bestie__head-part,
-  .layered-bestie__hairFront {
+  .layered-bestie__hairFront,
+  .layered-bestie__leftArm {
     animation: none !important;
     transform: none !important;
   }
