@@ -49,6 +49,7 @@ function useNaturalBlink(enabled: boolean) {
     let cancelled = false;
 
     const schedule = () => {
+      // Human-ish timing: most blinks land between about 3.6 and 7.8 seconds.
       const delay = 3600 + Math.random() * 4200;
       blinkTimer = setTimeout(() => {
         if (cancelled) return;
@@ -92,6 +93,8 @@ function layerStyle(
     pointerEvents: 'none',
     userSelect: 'none',
     zIndex: layer.zIndex,
+    // Emma's head artwork remains the open-eye base. The closed-eye overlay only
+    // appears for the short randomized blink interval.
     opacity: isEyesOpen ? (blinking ? 0 : 1) : isEyesClosed ? (blinking ? 1 : 0) : 1,
     transformOrigin: `${(layer.anchor.originX ?? 0.5) * 100}% ${(layer.anchor.originY ?? 0.5) * 100}%`,
     ['--layer-anchor-x' as string]: `${(layer.anchor.x / canvasWidth) * 100}%`,
@@ -109,7 +112,8 @@ export default function LayeredBestieAvatar({
 }: LayeredBestieAvatarProps) {
   const rig = getLayeredBestieRig(characterId);
   const ready = hasCompleteLayeredBestieRig(characterId);
-  const blinking = useNaturalBlink(ready);
+  const blinkReady = Boolean(rig?.layers.eyesClosed.src);
+  const blinking = useNaturalBlink(ready && blinkReady);
 
   const motionClass = useMemo(() => `layered-bestie--${motion}`, [motion]);
 
