@@ -3,20 +3,27 @@ import type { ComponentProps } from 'react';
 import { Heart, Sparkles, Star, TrendingUp } from 'lucide-react';
 import CoreMyBestiePage from './MyBestiePageCore';
 import BestieAvatar from '../components/besties/BestieAvatar';
-import LayeredBestieAvatar from '../components/besties/LayeredBestieAvatar';
-import type { LayeredMotionState } from '../components/besties/LayeredBestieAvatar';
 import { CHARACTERS } from '../lib/supabase';
 
 type MyBestiePageProps = ComponentProps<typeof CoreMyBestiePage>;
+type MotionState = 'idle' | 'thinking' | 'encouraging' | 'calm' | 'celebrating';
 
 const EXPRESSIONS = ['happy', 'thinking', 'encouraging', 'proud', 'calm'] as const;
-const LAB_MOTIONS: Array<{ id: LayeredMotionState; label: string }> = [
+const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
   { id: 'idle', label: 'Idle' },
   { id: 'thinking', label: 'Thinking' },
   { id: 'encouraging', label: 'Encouraging' },
   { id: 'calm', label: 'Calm' },
   { id: 'celebrating', label: 'Celebrate' },
 ];
+
+const EMMA_MOTION_IMAGE: Record<MotionState, string> = {
+  idle: '/characters/expression/emma_happy.webp',
+  thinking: '/characters/expression/emma_thinking.webp',
+  encouraging: '/characters/expression/emma_encouraging.webp',
+  calm: '/characters/expression/emma_calm.webp',
+  celebrating: '/characters/expression/emma_proud.webp',
+};
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -26,13 +33,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
   const character = props.character ?? 'emma';
   const charDef = CHARACTERS.find((item) => item.id === character) ?? CHARACTERS[0]!;
   const relationship = props.relationship;
-  const [labMotion, setLabMotion] = useState<LayeredMotionState>('idle');
-  const [labBlink, setLabBlink] = useState(false);
-
-  const triggerLabBlink = () => {
-    setLabBlink(true);
-    window.setTimeout(() => setLabBlink(false), 180);
-  };
+  const [labMotion, setLabMotion] = useState<MotionState>('idle');
 
   const greeting = props.preferredName
     ? `Hey ${props.preferredName}! I'm glad you're here.`
@@ -78,15 +79,14 @@ export default function MyBestiePage(props: MyBestiePageProps) {
             </div>
             <div className="shrink-0 -mr-2 -mt-2 min-w-[140px] flex justify-end">
               {character === 'emma' ? (
-                <LayeredBestieAvatar
-                  characterId="emma"
-                  size={140}
-                  motion={labMotion}
-                  forceBlink={labBlink}
-                  fallback={(
-                    <BestieAvatar characterId="emma" expression="happy" size="full" enable3D={false} />
-                  )}
-                />
+                <div className={`emma-motion-prototype emma-motion-${labMotion}`}>
+                  <img
+                    src={EMMA_MOTION_IMAGE[labMotion]}
+                    alt={`Emma ${labMotion}`}
+                    className="emma-motion-image"
+                    draggable={false}
+                  />
+                </div>
               ) : (
                 <BestieAvatar characterId={character} expression="happy" size="full" enable3D={false} />
               )}
@@ -139,31 +139,20 @@ export default function MyBestiePage(props: MyBestiePageProps) {
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-primary)' }}>
-                  Animation Lab · V1
+                  Motion Prototype · Stable
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Subtle breathing, head drift, blink, smile, hair and arm reactions</p>
+                <p className="text-xs text-gray-400 mt-1">Known-good Emma images with reliable motion states</p>
               </div>
               <Sparkles size={16} style={{ color: 'var(--theme-primary)' }} />
             </div>
 
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              {['Blink', 'Smile', 'Hair', 'Open hand', 'Notebook'].map((label) => (
-                <span
-                  key={label}
-                  className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
-                >
-                  {label}: Ready
-                </span>
-              ))}
-              <button
-                type="button"
-                onClick={triggerLabBlink}
-                className="text-[11px] font-semibold px-3 py-1.5 rounded-xl border active:scale-95 transition-transform"
-                style={{ borderColor: 'var(--theme-primary)', color: 'var(--theme-primary)' }}
-              >
-                Test blink
-              </button>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(34,197,94,.12)', color: 'rgb(21,128,61)' }}>
+                No layered assets required
+              </span>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}>
+                Blink: deferred to true rig
+              </span>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -188,7 +177,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
             </div>
 
             <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
-              Idle stays very quiet. Thinking and Calm use the notebook hold. Encouraging and Celebrate use the open-hand gesture and warmer smile. Emma also blinks automatically at slightly randomized intervals.
+              This prototype intentionally stops using the unreliable body/head layer files. First we are validating Emma's motion personality and expression changes. True independent blinking, hair and arm motion will be rebuilt as a separate rig after this visual behavior is approved.
             </p>
           </section>
         )}
@@ -226,6 +215,54 @@ export default function MyBestiePage(props: MyBestiePageProps) {
         .bestie-profile-core > div > div:nth-child(2) > :nth-child(-n+4) { display: none; }
         .bestie-profile-core > div > div:nth-child(2) { padding-top: 0 !important; }
         .bestie-profile-core > div > div:nth-child(2) > :nth-child(5) { margin-top: 0 !important; }
+
+        .emma-motion-prototype {
+          width: 140px;
+          height: 140px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transform-origin: 50% 85%;
+          will-change: transform;
+        }
+        .emma-motion-image {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+          user-select: none;
+        }
+        @keyframes emmaIdle {
+          0%,100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-2px) scale(1.008); }
+        }
+        @keyframes emmaThink {
+          0%,100% { transform: translateY(0) rotate(0deg); }
+          45% { transform: translateY(-1px) rotate(-1.2deg); }
+          70% { transform: translateY(0) rotate(-0.4deg); }
+        }
+        @keyframes emmaEncourage {
+          0%,100% { transform: translateX(0) rotate(0deg) scale(1); }
+          45% { transform: translateX(-2px) rotate(-0.8deg) scale(1.012); }
+        }
+        @keyframes emmaCalm {
+          0%,100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(1px) scale(0.996); }
+        }
+        @keyframes emmaCelebrate {
+          0% { transform: translateY(0) scale(1); }
+          35% { transform: translateY(-7px) scale(1.035); }
+          65% { transform: translateY(0) scale(.995); }
+          100% { transform: translateY(0) scale(1); }
+        }
+        .emma-motion-idle { animation: emmaIdle 4.8s ease-in-out infinite; }
+        .emma-motion-thinking { animation: emmaThink 3.6s ease-in-out infinite; }
+        .emma-motion-encouraging { animation: emmaEncourage 3.2s ease-in-out infinite; }
+        .emma-motion-calm { animation: emmaCalm 5.8s ease-in-out infinite; }
+        .emma-motion-celebrating { animation: emmaCelebrate .85s cubic-bezier(.2,.8,.3,1) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .emma-motion-prototype { animation: none !important; transform: none !important; }
+        }
       `}</style>
     </div>
   );
