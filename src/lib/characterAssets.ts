@@ -2,10 +2,8 @@ import { CharacterId, CharacterVariant, AvatarExpression, OutfitId } from './sup
 
 // ─── Public URL helpers ───────────────────────────────────────────────────────
 // Images live in /public/characters/ and are served as static files.
-// No bundling — the browser fetches them lazily on first render.
 
-function charUrl(name: string)       { return `/characters/${name}.webp`; }
-function exprUrl(name: string)       { return `/characters/expression/${name}.webp`; }
+function charUrl(name: string) { return `/characters/${name}.webp`; }
 
 // ─── Default character images ─────────────────────────────────────────────────
 
@@ -16,50 +14,48 @@ const DEFAULT_IMAGES: Record<CharacterId, string> = {
   luna: charUrl('luna'),
 };
 
-// ─── Expression registry ──────────────────────────────────────────────────────
+// ─── Expression sprite registry ───────────────────────────────────────────────
+// Refreshed expression art is stored in one compact 5×4 sprite sheet:
+// columns = happy, thinking, encouraging, proud, calm
+// rows    = Emma, Ava, Nora, Luna
 
-type ExpressionMap = Partial<Record<AvatarExpression, string>>;
+export const EXPRESSION_SPRITE_URL = '/characters/expression/bestie_expression_grid.webp';
 
-const EXPRESSION_REGISTRY: Record<CharacterId, ExpressionMap> = {
-  emma: {
-    happy:       exprUrl('emma_happy'),
-    thinking:    exprUrl('emma_thinking'),
-    encouraging: exprUrl('emma_encouraging'),
-    proud:       exprUrl('emma_proud'),
-    calm:        exprUrl('emma_calm'),
-  },
-  ava: {
-    happy:       exprUrl('ava_happy'),
-    thinking:    exprUrl('ava_thinking'),
-    encouraging: exprUrl('ava_confident'),
-    proud:       exprUrl('ava_proud'),
-    calm:        exprUrl('ava_focused'),
-  },
-  nora: {
-    happy:       exprUrl('nora_happy'),
-    thinking:    exprUrl('nora_helpful'),
-    encouraging: exprUrl('nora_helpful'),
-    proud:       exprUrl('nora_proud'),
-    calm:        exprUrl('nora_cooking'),
-  },
-  luna: {
-    happy:       exprUrl('luna_happy'),
-    thinking:    exprUrl('luna_calm'),
-    encouraging: exprUrl('luna_motivating'),
-    proud:       exprUrl('luna_proud'),
-    calm:        exprUrl('luna_calm'),
-  },
-};
+export const EXPRESSION_SPRITE_COLUMNS: AvatarExpression[] = [
+  'happy', 'thinking', 'encouraging', 'proud', 'calm',
+];
+
+export const EXPRESSION_SPRITE_ROWS: CharacterId[] = [
+  'emma', 'ava', 'nora', 'luna',
+];
+
+export interface ExpressionSpritePosition {
+  column: number;
+  row: number;
+}
+
+export function getExpressionSpritePosition(
+  id: CharacterId,
+  expression: AvatarExpression = 'happy',
+): ExpressionSpritePosition | null {
+  const row = EXPRESSION_SPRITE_ROWS.indexOf(id);
+  const column = EXPRESSION_SPRITE_COLUMNS.indexOf(expression);
+  if (row < 0 || column < 0) return null;
+  return { column, row };
+}
 
 /**
  * Returns the image src for a character + expression.
- * Falls back to the character's default image when no expression file is registered.
+ * The five primary expressions use the new shared sprite sheet.
+ * Any unsupported expression (currently tired) falls back to the default portrait.
  */
 export function resolveExpressionSrc(
-  id:         CharacterId,
+  id: CharacterId,
   expression: AvatarExpression = 'happy',
 ): string {
-  return EXPRESSION_REGISTRY[id]?.[expression] ?? DEFAULT_IMAGES[id];
+  return getExpressionSpritePosition(id, expression)
+    ? EXPRESSION_SPRITE_URL
+    : DEFAULT_IMAGES[id];
 }
 
 export function getDefaultSrc(id: CharacterId): string {
