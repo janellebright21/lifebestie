@@ -38,15 +38,12 @@ const layer = (src: string | undefined, zIndex: number, anchor: LayerAnchor): La
 });
 
 /**
- * Emma Phase 1 production rig.
+ * Emma V1 production rig.
  *
- * The first installed production layers are a body and an independently movable
- * head cut from the approved Emma master image. Both are exported against the
- * same 1024x1536 canvas so they stay registered when animated.
- *
- * Additional hair/face/arm layers remain intentionally empty until their real
- * production assets are ready. The renderer can safely use this minimum rig for
- * breathing and subtle independent head motion without inventing placeholder art.
+ * Body and head are independently movable on the approved 1024x1536 Emma canvas.
+ * A closed-eye overlay now enables the first real randomized blink without
+ * changing the base face artwork. Additional hair, mouth and arm layers remain
+ * intentionally empty until their production assets are ready.
  */
 export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
   characterId: 'emma',
@@ -56,7 +53,7 @@ export const EMMA_LAYERED_RIG: LayeredBestieRigManifest = {
     body:       layer('/characters/layered/emma/body.webp', 20, { x: 512, y: 920, originX: 0.5, originY: 0.92 }),
     head:       layer('/characters/layered/emma/head.webp', 30, { x: 485, y: 300, originX: 0.47, originY: 0.22 }),
     eyesOpen:   layer(undefined, 40, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
-    eyesClosed: layer(undefined, 41, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
+    eyesClosed: layer('/characters/layered/emma/eyes_closed.webp', 41, { x: 512, y: 345, originX: 0.5, originY: 0.5 }),
     mouth:      layer(undefined, 42, { x: 512, y: 420, originX: 0.5, originY: 0.5 }),
     hairFront:  layer(undefined, 50, { x: 512, y: 300, originX: 0.5, originY: 0.74 }),
     leftArm:    layer(undefined, 60, { x: 355, y: 690, originX: 0.66, originY: 0.18 }),
@@ -74,8 +71,8 @@ export function getLayeredBestieRig(characterId: CharacterId): LayeredBestieRigM
 }
 
 /**
- * Phase-1 readiness only requires the real body + head pair. Later phases can
- * tighten this requirement when the facial and arm layers ship.
+ * V1 readiness requires the real body + head pair. Facial overlays enhance the
+ * rig but are not required for a safe fallback-capable render.
  */
 export function hasCompleteLayeredBestieRig(characterId: CharacterId): boolean {
   const rig = getLayeredBestieRig(characterId);
