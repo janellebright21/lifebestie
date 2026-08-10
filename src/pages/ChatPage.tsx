@@ -286,6 +286,43 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
   }
 }
 
+// ── Grocery-add request detection ──────────────────────────────────────────────
+// Detects explicit grocery-add requests from the user's message text.
+// Returns the item name if detected, or null otherwise.
+// Supports phrasing like:
+//   "Add milk to my grocery list"
+//   "Can you add milk to my grocery list?"
+//   "Put eggs on the grocery list"
+//   "Add to my grocery list: bread"
+function detectGroceryAddRequest(input: string): string | null {
+  // Pattern 1: "add <item> to (my) grocery list"
+  let m = input.match(/\badd\s+(.+?)\s+to\s+(?:my\s+)?grocery\s+list\b/i);
+  if (m) return cleanItemName(m[1]);
+
+  // Pattern 2: "can/could you add <item> to (my) grocery list"
+  m = input.match(/\b(?:can|could)\s+you\s+add\s+(.+?)\s+to\s+(?:my\s+)?grocery\s+list\b/i);
+  if (m) return cleanItemName(m[1]);
+
+  // Pattern 3: "put <item> on (the/my) grocery list"
+  m = input.match(/\bput\s+(.+?)\s+on\s+(?:the\s+|my\s+)?grocery\s+list\b/i);
+  if (m) return cleanItemName(m[1]);
+
+  // Pattern 4: "add to (my) grocery list: <item>"
+  m = input.match(/\badd\s+to\s+(?:my\s+)?grocery\s+list\s*[:\-]\s*(.+)/i);
+  if (m) return cleanItemName(m[1]);
+
+  return null;
+}
+
+function cleanItemName(raw: string): string {
+  return raw
+    .replace(/[?.!,;]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // ── Main chat component ────────────────────────────────────────────────────────
 
 function ChatPageInner({
@@ -383,22 +420,29 @@ function ChatPageInner({
 
       const replyText = result.text;
       const lowerInput = trimmedText.toLowerCase();
-      const lowerReply = replyText.toLowerCase();
 
-      // Side-effect: auto-add grocery / task from conversation — errors must not crash chat
+      // Detect explicit grocery-add requests from the user's message.
+      // We detect from the user's words — not Emma's reply — so we never
+      // claim an item was added unless onAddGrocery actually succeeded.
+      const groceryMatch = detectGroceryAddRequest(lowerInput);
+      let groceryAdded = false;
+      let groceryItemName = '';
+      if (groceryMatch) {
+        groceryItemName = groceryMatch;
+        try {
+          await onAddGrocery(groceryItemName, 'Pantry');
+          groceryAdded = true;
+        } catch (groceryErr) {
+          console.error('[Chat] Grocery add failed:', groceryErr);
+          groceryAdded = false;
+        }
+      }
+
+      // Side-effect: auto-add task from conversation — errors must not crash chat
       try {
-        if (
-          (lowerReply.includes('grocery list') || lowerReply.includes("i'll add")) &&
-          lowerReply.includes('add')
-        ) {
-          const match = lowerInput.match(/(?:add|buy|get|need|pick up)\s+(.+)/i);
-          if (match) await onAddGrocery(match[1].trim(), 'Pantry');
-        } else if (
-          lowerReply.includes('task list') ||
-          (lowerReply.includes('added') && lowerReply.includes('task'))
-        ) {
-          const match = lowerInput.match(/(?:add|remind me to|i need to)\s+(.+)/i);
-          if (match) await onAddTask(match[1].trim());
+        const taskMatch = lowerInput.match(/(?:add|remind me to|i need to)\s+(?:a\s+)?(?:task|to-do|reminder)\s+(?:to\s+)?(.+)/i);
+        if (taskMatch) {
+          await onAddTask(taskMatch[1].trim());
         }
       } catch (sideErr) {
         console.error('[Chat] Auto-add side effect failed:', sideErr);
@@ -414,12 +458,22 @@ function ChatPageInner({
         console.error('[Chat] Wake time save failed:', wakeErr);
       }
 
+      // Build Emma's reply. If the user asked to add a grocery item, override
+      // the AI's text with an honest confirmation or failure message based on
+      // whether onAddGrocery actually succeeded.
+      let finalReplyText = replyText;
+      if (groceryMatch) {
+        finalReplyText = groceryAdded
+          ? `Done! I added ${groceryItemName} to your grocery list 💛`
+          : `I'm sorry — I couldn't add ${groceryItemName} to your grocery list right now. Please try again in a moment.`;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id:        (Date.now() + 1).toString(),
           role:      'assistant',
-          text:      replyText,
+          text:      finalReplyText,
           timestamp: new Date(),
         },
       ]);

@@ -399,13 +399,17 @@ export default function App() {
       .insert({ name, category, memory_id: memoryId, user_id: userId })
       .select()
       .single();
-    dbError('grocery_items (insert)', error);
-    if (data) {
-      setGroceryItems((prev) => [...prev, data]);
-      await userMemory.addHistoryAction(`Added grocery: ${name}`);
-      await userMemory.upsertGroceryHabit(name, category);
-      await bestieRelationship.awardPoints('add_grocery', data.id, 5, `Added grocery: ${name}`);
+    if (error) {
+      dbError('grocery_items (insert)', error);
+      throw new Error(`Failed to add grocery item: ${error.message}`);
     }
+    if (!data) {
+      throw new Error('Failed to add grocery item: no data returned from database');
+    }
+    setGroceryItems((prev) => [...prev, data]);
+    await userMemory.addHistoryAction(`Added grocery: ${name}`);
+    await userMemory.upsertGroceryHabit(name, category);
+    await bestieRelationship.awardPoints('add_grocery', data.id, 5, `Added grocery: ${name}`);
   }
 
   async function toggleGrocery(id: string, checked: boolean) {
