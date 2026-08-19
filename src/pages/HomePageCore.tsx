@@ -565,7 +565,7 @@ export default function HomePage({
   const today = new Date().toISOString().split('T')[0];
   const pendingTasks = tasks.filter((t) => !t.completed);
   const hasOverdueTasks = pendingTasks.some((t) => t.due_date && t.due_date < today);
-  const homeExpression = getHomeExpression(pendingTasks.length, hasOverdueTasks, proudFlash);
+  const completedTaskCount = tasks.filter((t) => t.completed).length;
 
   const tomorrowDate = (() => {
     const d = new Date();
@@ -602,6 +602,17 @@ export default function HomePage({
     groceryItems,
     movementPlanned: todayMovements.length > 0,
     firstVisitToday,
+  });
+
+  const homeExpression = getHomeExpression({
+    pendingTaskCount: pendingTasks.length,
+    hasOverdueTasks,
+    proudFlash,
+    firstVisitToday,
+    localTimePeriod: emmaContext.localTimePeriod,
+    hasMoved,
+    hasCompletedMovement: hasCompleted,
+    completedTaskCount,
   });
 
   const emmaGreeting = generateEmmaGreeting(emmaContext);
@@ -690,6 +701,7 @@ export default function HomePage({
           />
           {/* Emma's portrait — uses existing asset resolver, contains the full image */}
           <img
+            key={homeExpression}
             src={resolveExpressionSrc(character ?? 'emma', homeExpression)}
             alt={`${character ?? 'emma'} ${homeExpression}`}
             onError={(e) => {
@@ -712,6 +724,7 @@ export default function HomePage({
               objectPosition: 'center',
               userSelect:     'none',
               pointerEvents:  'none',
+              animation:      'bestie-expr-fade 350ms ease-out',
             }}
           />
         </div>
