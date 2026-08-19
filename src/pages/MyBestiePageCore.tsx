@@ -236,8 +236,6 @@ export default function MyBestiePage({
           characterId={character}
           expression="encouraging"
           size="md"
-          showSpeechBubble
-          message={greetingMessage}
         />
 
         <RelationshipCard
