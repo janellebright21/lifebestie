@@ -376,7 +376,9 @@ export const DEFAULT_ENABLED_MODULES = new Set<ModuleId>(
 export type ThemeId        = 'cozy-coffee' | 'lavender-calm' | 'coastal-breeze' | 'boss-babe' | 'fresh-start';
 export type BgSkinId       = 'solid' | 'watercolor' | 'floral' | 'planner-paper' | 'minimalist';
 export type AvatarThemeId  = 'classic' | 'cozy' | 'wellness' | 'professional';
-export type AvatarExpression = 'happy' | 'encouraging' | 'proud' | 'calm' | 'thinking' | 'tired';
+export type AvatarExpression =
+  | 'happy' | 'encouraging' | 'proud' | 'calm' | 'thinking' | 'tired'
+  | 'listening' | 'empathetic' | 'focused' | 'excited' | 'playful';
 export type CharacterId      = 'emma' | 'ava' | 'nora' | 'luna';
 export type CharacterVariant = 'portrait' | 'full-body';
 export type OutfitId         = 'classic' | 'cozy' | 'professional' | 'wellness';

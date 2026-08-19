@@ -27,6 +27,11 @@ const EXPRESSION_IMAGES: Record<CharacterId, Partial<Record<AvatarExpression, st
     encouraging:  exprWebpUrl('emma_encouraging'),
     proud:        exprWebpUrl('emma_proud'),
     calm:         exprWebpUrl('emma_calm'),
+    listening:    exprWebpUrl('emma_listening'),
+    empathetic:   exprWebpUrl('emma_empathetic'),
+    focused:      exprWebpUrl('emma_focused'),
+    excited:      exprWebpUrl('emma_excited'),
+    playful:      exprWebpUrl('emma_playful'),
   },
   ava: {
     happy:        exprWebpUrl('ava_happy'),

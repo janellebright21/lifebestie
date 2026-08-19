@@ -1,12 +1,23 @@
 import { useState, useRef, useEffect, Component } from 'react';
 import type { ReactNode } from 'react';
 import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
-import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal } from '../lib/supabase';
+import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal, AvatarExpression } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { buildEmmaContextSummary, type EmmaContextSummary } from '../lib/emmaGreeting';
 
 const CHAT_MESSAGES_KEY = 'lifebestie_chat_messages';
+
+const EMOTION_ALLOWLIST = new Set<AvatarExpression>([
+  'happy', 'thinking', 'encouraging', 'proud', 'calm',
+  'listening', 'empathetic', 'focused', 'excited', 'playful',
+]);
+
+function sanitizeEmotion(raw: unknown): AvatarExpression {
+  if (typeof raw !== 'string') return 'happy';
+  const cleaned = raw.trim().toLowerCase();
+  return EMOTION_ALLOWLIST.has(cleaned as AvatarExpression) ? cleaned as AvatarExpression : 'happy';
+}
 
 interface Message {
   id: string;
@@ -118,7 +129,7 @@ async function callEmmaChatFunction(
   messages: Message[],
   relevantMemories: LifeBestieMemory[],
   contextSummary?: EmmaContextSummary,
-): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
+): Promise<{ text: string; emotion: AvatarExpression; memory_suggestion?: MemorySuggestion }> {
   // Build conversation history from existing messages (exclude the init greeting,
   // exclude the message we are about to send, cap at 10 turns).
   const conversation = messages
@@ -151,6 +162,7 @@ async function callEmmaChatFunction(
   const text = typeof payload.text === 'string' && payload.text.trim()
     ? payload.text
     : "I'm here for you 💛 Could you say that again?";
+  const emotion = sanitizeEmotion(payload.emotion);
 
   let memory_suggestion: MemorySuggestion | undefined;
   try {
@@ -173,7 +185,7 @@ async function callEmmaChatFunction(
     // memory_suggestion parse failed — continue without it
   }
 
-  return { text, memory_suggestion };
+  return { text, emotion, memory_suggestion };
 }
 
 // ── Memory confirmation banner ─────────────────────────────────────────────────
@@ -374,6 +386,7 @@ function ChatPageInner({
   const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
   const [savingMemory, setSavingMemory]           = useState(false);
   const [lastUserText, setLastUserText]           = useState('');
+  const [emmaEmotion, setEmmaEmotion]             = useState<AvatarExpression>('happy');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -419,6 +432,7 @@ function ChatPageInner({
       );
 
       const replyText = result.text;
+      setEmmaEmotion(result.emotion);
       const lowerInput = trimmedText.toLowerCase();
 
       // Detect explicit grocery-add requests from the user's message.
@@ -571,7 +585,7 @@ function ChatPageInner({
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
         <BestieAvatar
           characterId={character ?? 'emma'}
-          expression={isTyping ? 'thinking' : 'happy'}
+          expression={isTyping ? 'thinking' : emmaEmotion}
           size="md"
         />
         <div>
