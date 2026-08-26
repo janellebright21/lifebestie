@@ -40,8 +40,13 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
     // position: relative so the absolutely-positioned Plus button is anchored here.
     // The nav is fixed full-width, so left: 50% always equals the true screen center.
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white safe-bottom"
-      style={{ borderTop: `1px solid ${THEME_PRIMARY_MID}` }}
+      className="fixed bottom-0 left-0 right-0 z-50 safe-bottom"
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderTop: '1px solid rgba(0,0,0,0.06)',
+      }}
     >
       {/* Plus button — lifted out of the flex row and pinned to true screen center.
           left: 50% on a full-viewport-width element is always the horizontal midpoint,
@@ -50,7 +55,10 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
         onClick={() => onTabChange('add')}
         aria-label="Add"
         className="absolute left-1/2 -translate-x-1/2 -top-5 flex items-center justify-center w-12 h-12 rounded-full shadow-lg active:scale-95 transition-transform z-10"
-        style={{ backgroundColor: THEME_PRIMARY, boxShadow: `0 4px 16px ${THEME_PRIMARY_MID}` }}
+        style={{
+          backgroundColor: THEME_PRIMARY,
+          boxShadow: `0 4px 16px ${THEME_PRIMARY_MID}`,
+        }}
       >
         <Plus size={22} className="text-white" strokeWidth={2.5} />
       </button>
@@ -76,11 +84,11 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
               <Icon
                 size={20}
                 style={{ color: isActive ? THEME_PRIMARY : undefined }}
-                className={isActive ? '' : 'text-gray-400'}
+                className={isActive ? '' : 'text-slate-400'}
                 strokeWidth={isActive ? 2.2 : 1.8}
               />
               <span
-                className={`text-[9px] font-medium leading-none ${isActive ? '' : 'text-gray-400'}`}
+                className={`text-[9px] font-medium leading-none ${isActive ? '' : 'text-slate-400'}`}
                 style={{ color: isActive ? THEME_PRIMARY : undefined }}
               >
                 {tab.label}
@@ -104,11 +112,11 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
           <Heart
             size={20}
             style={{ color: activeTab === 'bestie' ? THEME_PRIMARY : undefined }}
-            className={activeTab === 'bestie' ? '' : 'text-gray-400'}
+            className={activeTab === 'bestie' ? '' : 'text-slate-400'}
             strokeWidth={activeTab === 'bestie' ? 2.2 : 1.8}
           />
           <span
-            className={`text-[9px] font-medium leading-none ${activeTab === 'bestie' ? '' : 'text-gray-400'}`}
+            className={`text-[9px] font-medium leading-none ${activeTab === 'bestie' ? '' : 'text-slate-400'}`}
             style={{ color: activeTab === 'bestie' ? THEME_PRIMARY : undefined }}
           >
             Bestie
@@ -127,11 +135,11 @@ export default function BottomNav({ activeTab, onTabChange, enabledModules }: Bo
           <Settings
             size={20}
             style={{ color: activeTab === 'settings' ? THEME_PRIMARY : undefined }}
-            className={activeTab === 'settings' ? '' : 'text-gray-400'}
+            className={activeTab === 'settings' ? '' : 'text-slate-400'}
             strokeWidth={activeTab === 'settings' ? 2.2 : 1.8}
           />
           <span
-            className={`text-[9px] font-medium leading-none ${activeTab === 'settings' ? '' : 'text-gray-400'}`}
+            className={`text-[9px] font-medium leading-none ${activeTab === 'settings' ? '' : 'text-slate-400'}`}
             style={{ color: activeTab === 'settings' ? THEME_PRIMARY : undefined }}
           >
             Settings

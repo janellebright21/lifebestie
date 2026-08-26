@@ -1795,7 +1795,7 @@ const existingNames = new Set(
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">Grocery List</h1>
+          <h1 className="bl-page-title">Grocery List</h1>
           <p className="text-xs text-gray-400 mt-0.5">
             {pageTab === 'today'
               ? `${totalUnchecked} item${totalUnchecked !== 1 ? 's' : ''} to get`

@@ -208,13 +208,9 @@ export default function MyBestiePage({
     return acc;
   }, {});
 
-  const greetingMessage = preferredName
-    ? `Hey ${preferredName}! Here's everything I know about you.`
-    : "Here's your LifeBestie profile.";
-
   return (
     <div className="min-h-[100dvh] theme-app-bg pb-24">
-      <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
+      <div className="border-b px-4 pt-12 pb-4 sticky top-0 z-10" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="max-w-md mx-auto flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -223,7 +219,7 @@ export default function MyBestiePage({
             <Heart size={18} style={{ color: 'var(--theme-primary)' }} />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-800 leading-none">My Bestie</h1>
+            <h1 className="bl-page-title leading-none">My Bestie</h1>
             <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--theme-primary)' }}>
               {relationship.levelLabel}
             </p>
@@ -236,8 +232,6 @@ export default function MyBestiePage({
           characterId={character}
           expression="encouraging"
           size="md"
-          showSpeechBubble
-          message={greetingMessage}
         />
 
         <RelationshipCard
@@ -291,7 +285,7 @@ export default function MyBestiePage({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4">
             <p className="text-xs text-gray-400 mb-3">How your Bestie looks in different moments</p>
             <div className="grid grid-cols-5 gap-2">
-              {(['happy', 'thinking', 'encouraging', 'proud', 'calm'] as const).map((expr) => (
+              {(['happy', 'thinking', 'encouraging', 'proud', 'calm', 'listening', 'empathetic', 'focused', 'excited', 'playful'] as const).map((expr) => (
                 <div key={expr} className="flex flex-col items-center gap-1.5">
                   <BestieAvatar characterId={character} expression={expr} size="sm" />
                   <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide text-center leading-tight">

@@ -243,10 +243,10 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
   return (
     <div className="min-h-[100dvh] theme-app-bg pb-32">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
+      <div className="border-b px-4 pt-12 pb-4 sticky top-0 z-10" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="max-w-2xl mx-auto flex items-center">
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-800 leading-none">Movement</h1>
+            <h1 className="bl-page-title leading-none">Movement</h1>
             <p className="text-xs text-gray-400 mt-0.5">Pick what fits your energy today</p>
           </div>
           {streakResult.streak > 0 && (

@@ -1,12 +1,23 @@
 import { useState, useRef, useEffect, Component } from 'react';
 import type { ReactNode } from 'react';
 import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
-import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal } from '../lib/supabase';
+import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal, AvatarExpression } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { buildEmmaContextSummary, type EmmaContextSummary } from '../lib/emmaGreeting';
 
 const CHAT_MESSAGES_KEY = 'lifebestie_chat_messages';
+
+const EMOTION_ALLOWLIST = new Set<AvatarExpression>([
+  'happy', 'thinking', 'encouraging', 'proud', 'calm',
+  'listening', 'empathetic', 'focused', 'excited', 'playful',
+]);
+
+function sanitizeEmotion(raw: unknown): AvatarExpression {
+  if (typeof raw !== 'string') return 'happy';
+  const cleaned = raw.trim().toLowerCase();
+  return EMOTION_ALLOWLIST.has(cleaned as AvatarExpression) ? cleaned as AvatarExpression : 'happy';
+}
 
 interface Message {
   id: string;
@@ -118,7 +129,7 @@ async function callEmmaChatFunction(
   messages: Message[],
   relevantMemories: LifeBestieMemory[],
   contextSummary?: EmmaContextSummary,
-): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
+): Promise<{ text: string; emotion: AvatarExpression; memory_suggestion?: MemorySuggestion }> {
   // Build conversation history from existing messages (exclude the init greeting,
   // exclude the message we are about to send, cap at 10 turns).
   const conversation = messages
@@ -151,6 +162,7 @@ async function callEmmaChatFunction(
   const text = typeof payload.text === 'string' && payload.text.trim()
     ? payload.text
     : "I'm here for you 💛 Could you say that again?";
+  const emotion = sanitizeEmotion(payload.emotion);
 
   let memory_suggestion: MemorySuggestion | undefined;
   try {
@@ -173,7 +185,7 @@ async function callEmmaChatFunction(
     // memory_suggestion parse failed — continue without it
   }
 
-  return { text, memory_suggestion };
+  return { text, emotion, memory_suggestion };
 }
 
 // ── Memory confirmation banner ─────────────────────────────────────────────────
@@ -286,6 +298,43 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
   }
 }
 
+// ── Grocery-add request detection ──────────────────────────────────────────────
+// Detects explicit grocery-add requests from the user's message text.
+// Returns the item name if detected, or null otherwise.
+// Supports phrasing like:
+//   "Add milk to my grocery list"
+//   "Can you add milk to my grocery list?"
+//   "Put eggs on the grocery list"
+//   "Add to my grocery list: bread"
+function detectGroceryAddRequest(input: string): string | null {
+  // Pattern 1: "add <item> to (my) grocery list"
+  let m = input.match(/\badd\s+(.+?)\s+to\s+(?:my\s+)?grocery\s+list\b/i);
+  if (m) return cleanItemName(m[1]);
+
+  // Pattern 2: "can/could you add <item> to (my) grocery list"
+  m = input.match(/\b(?:can|could)\s+you\s+add\s+(.+?)\s+to\s+(?:my\s+)?grocery\s+list\b/i);
+  if (m) return cleanItemName(m[1]);
+
+  // Pattern 3: "put <item> on (the/my) grocery list"
+  m = input.match(/\bput\s+(.+?)\s+on\s+(?:the\s+|my\s+)?grocery\s+list\b/i);
+  if (m) return cleanItemName(m[1]);
+
+  // Pattern 4: "add to (my) grocery list: <item>"
+  m = input.match(/\badd\s+to\s+(?:my\s+)?grocery\s+list\s*[:\-]\s*(.+)/i);
+  if (m) return cleanItemName(m[1]);
+
+  return null;
+}
+
+function cleanItemName(raw: string): string {
+  return raw
+    .replace(/[?.!,;]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // ── Main chat component ────────────────────────────────────────────────────────
 
 function ChatPageInner({
@@ -337,6 +386,7 @@ function ChatPageInner({
   const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
   const [savingMemory, setSavingMemory]           = useState(false);
   const [lastUserText, setLastUserText]           = useState('');
+  const [emmaEmotion, setEmmaEmotion]             = useState<AvatarExpression>('happy');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -382,23 +432,31 @@ function ChatPageInner({
       );
 
       const replyText = result.text;
+      setEmmaEmotion(result.emotion);
       const lowerInput = trimmedText.toLowerCase();
-      const lowerReply = replyText.toLowerCase();
 
-      // Side-effect: auto-add grocery / task from conversation — errors must not crash chat
+      // Detect explicit grocery-add requests from the user's message.
+      // We detect from the user's words — not Emma's reply — so we never
+      // claim an item was added unless onAddGrocery actually succeeded.
+      const groceryMatch = detectGroceryAddRequest(lowerInput);
+      let groceryAdded = false;
+      let groceryItemName = '';
+      if (groceryMatch) {
+        groceryItemName = groceryMatch;
+        try {
+          await onAddGrocery(groceryItemName, 'Pantry');
+          groceryAdded = true;
+        } catch (groceryErr) {
+          console.error('[Chat] Grocery add failed:', groceryErr);
+          groceryAdded = false;
+        }
+      }
+
+      // Side-effect: auto-add task from conversation — errors must not crash chat
       try {
-        if (
-          (lowerReply.includes('grocery list') || lowerReply.includes("i'll add")) &&
-          lowerReply.includes('add')
-        ) {
-          const match = lowerInput.match(/(?:add|buy|get|need|pick up)\s+(.+)/i);
-          if (match) await onAddGrocery(match[1].trim(), 'Pantry');
-        } else if (
-          lowerReply.includes('task list') ||
-          (lowerReply.includes('added') && lowerReply.includes('task'))
-        ) {
-          const match = lowerInput.match(/(?:add|remind me to|i need to)\s+(.+)/i);
-          if (match) await onAddTask(match[1].trim());
+        const taskMatch = lowerInput.match(/(?:add|remind me to|i need to)\s+(?:a\s+)?(?:task|to-do|reminder)\s+(?:to\s+)?(.+)/i);
+        if (taskMatch) {
+          await onAddTask(taskMatch[1].trim());
         }
       } catch (sideErr) {
         console.error('[Chat] Auto-add side effect failed:', sideErr);
@@ -414,12 +472,22 @@ function ChatPageInner({
         console.error('[Chat] Wake time save failed:', wakeErr);
       }
 
+      // Build Emma's reply. If the user asked to add a grocery item, override
+      // the AI's text with an honest confirmation or failure message based on
+      // whether onAddGrocery actually succeeded.
+      let finalReplyText = replyText;
+      if (groceryMatch) {
+        finalReplyText = groceryAdded
+          ? `Done! I added ${groceryItemName} to your grocery list 💛`
+          : `I'm sorry — I couldn't add ${groceryItemName} to your grocery list right now. Please try again in a moment.`;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id:        (Date.now() + 1).toString(),
           role:      'assistant',
-          text:      replyText,
+          text:      finalReplyText,
           timestamp: new Date(),
         },
       ]);
@@ -514,14 +582,14 @@ function ChatPageInner({
   return (
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
+      <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <BestieAvatar
           characterId={character ?? 'emma'}
-          expression={isTyping ? 'thinking' : 'happy'}
+          expression={isTyping ? 'thinking' : emmaEmotion}
           size="md"
         />
         <div>
-          <h1 className="text-sm font-bold text-gray-800">Emma</h1>
+          <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Emma</h1>
           <p className="text-xs font-medium" style={{ color: 'var(--theme-primary)' }}>Always here for you</p>
         </div>
         {memoryEnabled && savedMemories.length > 0 && (
@@ -619,8 +687,8 @@ function ChatPageInner({
       )}
 
       {/* Input */}
-      <div className="shrink-0 px-4 pb-24 pt-2 bg-white border-t border-gray-50">
-        <div className="flex gap-2 items-center bg-gray-50 rounded-2xl px-3 py-2">
+      <div className="shrink-0 px-4 pb-24 pt-2 border-t" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="flex gap-2 items-center rounded-2xl px-3 py-2" style={{ backgroundColor: 'var(--bg-warm)' }}>
           <input
             ref={inputRef}
             type="text"

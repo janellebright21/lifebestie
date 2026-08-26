@@ -37,6 +37,11 @@ const MOTION_BY_EXPRESSION: Record<AvatarExpression, BestieMotionState> = {
   calm:        'calm',
   thinking:    'thinking',
   tired:       'calm',
+  listening:   'idle',
+  empathetic:  'lean',
+  focused:     'thinking',
+  excited:     'celebrating',
+  playful:     'idle',
 };
 
 const ONE_SHOT_MOTIONS = new Set<BestieMotionState>(['wave', 'celebrating']);
@@ -93,7 +98,7 @@ function FadingImage({
       setCurrent(src);
       setNext(null);
       setFading(false);
-    }, 280);
+    }, 450);
     return () => clearTimeout(t);
   }, [src, current]);
 
@@ -112,7 +117,8 @@ function FadingImage({
           position: 'absolute',
           inset: 0,
           opacity: fading ? 0 : 1,
-          transition: 'opacity 0.28s ease',
+          transform: fading ? 'scale(1.03)' : 'scale(1)',
+          transition: 'opacity 0.45s ease, transform 0.45s ease',
         }}
       />
       {next && (
@@ -128,7 +134,8 @@ function FadingImage({
             position: 'absolute',
             inset: 0,
             opacity: fading ? 1 : 0,
-            transition: 'opacity 0.28s ease',
+            transform: fading ? 'scale(1)' : 'scale(0.97)',
+            transition: 'opacity 0.45s ease, transform 0.45s ease',
           }}
         />
       )}
@@ -226,8 +233,8 @@ export default function BestieAvatar({
   const imgStyle: React.CSSProperties = {
     width:      '100%',
     height:     '100%',
-    objectFit:  isPortrait ? 'contain' : 'contain',
-    objectPosition: isPortrait ? 'bottom center' : undefined,
+    objectFit:  isPortrait ? 'contain' : 'cover',
+    objectPosition: isPortrait ? 'bottom center' : 'center',
     display:    'block',
     userSelect: 'none',
   };

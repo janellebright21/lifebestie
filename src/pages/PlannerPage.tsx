@@ -239,11 +239,12 @@ function MiniCalendar({
               onClick={() => onSelect(dateStr)}
               className={`relative flex flex-col items-center pt-1.5 pb-1.5 px-0.5 min-h-[44px] rounded-xl text-sm font-medium transition-all active:scale-95 ${
                 isSelected
-                  ? 'bg-sky-500 text-white shadow-sm shadow-sky-200'
+                  ? 'text-white shadow-sm'
                   : isToday
-                  ? 'bg-sky-50 text-sky-600 font-bold'
+                  ? 'font-bold'
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
+              style={isSelected ? { backgroundColor: 'var(--theme-primary)' } : isToday ? { backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' } : {}}
             >
               <span className="leading-none">{day}</span>
 
@@ -2532,7 +2533,7 @@ function TodayView({
                 <circle cx="24" cy="24" r="19" fill="none" stroke="#f3f4f6" strokeWidth="4" />
                 <circle
                   cx="24" cy="24" r="19" fill="none"
-                  stroke="#38bdf8" strokeWidth="4" strokeLinecap="round"
+                  stroke="var(--theme-primary)" strokeWidth="4" strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 19}`}
                   strokeDashoffset={`${2 * Math.PI * 19 * (1 - completedCount / totalCount)}`}
                   className="transition-all duration-500"
@@ -2550,7 +2551,11 @@ function TodayView({
       {/* Plan My Day button */}
       <button
         onClick={onOpenPlanMyDay}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-sky-400 to-sky-500 text-white font-semibold text-sm shadow-sm shadow-sky-200 hover:from-sky-500 hover:to-sky-600 active:scale-[0.98] transition-all"
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-white font-semibold text-sm shadow-sm active:scale-[0.98] transition-all"
+        style={{
+          background: 'linear-gradient(to right, var(--theme-primary), var(--theme-primary-mid))',
+          boxShadow: '0 2px 8px rgba(139, 92, 246, 0.2)',
+        }}
       >
         <Sparkles size={16} />
         {isToday ? 'Plan My Day' : `Plan ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
@@ -2946,13 +2951,17 @@ export default function PlannerPage({
     <div className="px-4 sm:px-6 pt-6 pb-32 max-w-2xl mx-auto">
       {/* Planner header — title + add buttons */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-gray-800">Planner</h1>
+        <h1 className="bl-page-title">Planner</h1>
         <div className="flex gap-2">
           <button
             onClick={() => { setShowAddTask((v) => !v); setShowAddEvent(false); }}
             className={`flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full shadow-sm active:scale-95 transition-all ${
-              showAddTask ? 'bg-sky-500 text-white' : 'bg-sky-50 text-sky-600 border border-sky-100'
+              showAddTask ? 'text-white' : ''
             }`}
+            style={showAddTask
+              ? { backgroundColor: 'var(--theme-primary)' }
+              : { backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)', border: '1px solid var(--theme-primary-mid)' }
+            }
           >
             <Plus size={14} />
             Task
@@ -3011,7 +3020,7 @@ export default function PlannerPage({
       />
 
       {/* Tab bar */}
-      <div className="flex bg-gray-100 rounded-2xl p-1 gap-1 mb-5">
+      <div className="flex rounded-2xl p-1 gap-1 mb-5" style={{ backgroundColor: 'var(--bg-warm)' }}>
         {([
           { key: 'today', label: 'Day', badge: selectedEventCount + selectedTaskCount },
           { key: 'tasks', label: 'Tasks', badge: overdueCount },
@@ -3020,16 +3029,16 @@ export default function PlannerPage({
           <button
             key={key}
             onClick={() => setView(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold py-2.5 rounded-xl transition-all ${
-              view === key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+            style={view === key ? { backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)' } : {}} className={`flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold py-2.5 rounded-xl transition-all ${
+              view === key ? 'shadow-sm' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             {label}
             {badge > 0 && (
               <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
                 view === key
-                  ? key === 'tasks' && overdueCount > 0 ? 'bg-rose-100 text-rose-500' : 'bg-sky-100 text-sky-500'
-                  : 'bg-gray-200 text-gray-400'
+                  ? key === 'tasks' && overdueCount > 0 ? 'bg-rose-100 text-rose-500' : ''
+                  : 'bg-slate-200 text-slate-400'
               }`}>
                 {badge}
               </span>
