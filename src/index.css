@@ -3,27 +3,75 @@
 @tailwind utilities;
 
 :root {
-  /* Default: Cozy Coffee theme */
-  --theme-primary:       #f87171;
-  --theme-primary-light: #fff1f2;
-  --theme-primary-mid:   #fecdd3;
+  /* Default: Lavender Calm theme (BestieLife primary identity) */
+  --theme-primary:       #8b5cf6;
+  --theme-primary-light: #f5f3ff;
+  --theme-primary-mid:   #ddd6fe;
 
-  /* Default: Solid background skin */
-  --theme-bg-color: #f9fafb;
+  /* Default: Warm off-white background */
+  --theme-bg-color: #faf8f5;
   --theme-bg-image: none;
+
+  /* ── BestieLife Design System Tokens ────────────────────────────────────── */
+
+  /* Typography */
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body:    'Poppins', system-ui, sans-serif;
+
+  /* Text colors */
+  --text-primary:   #1e293b;   /* deep navy/charcoal */
+  --text-secondary: #64748b;   /* slate-500 */
+  --text-muted:     #94a3b8;   /* slate-400 */
+
+  /* Page background */
+  --bg-warm:        #faf8f5;   /* warm off-white */
+  --bg-warm-tint:   #faf5ff;   /* subtle lavender tint */
+  --bg-blush:       #fdf6f0;   /* subtle blush */
+
+  /* Card system */
+  --card-bg:        #ffffff;
+  --card-radius:    16px;
+  --card-padding:   16px;
+  --card-border:    1px solid #f1f5f9;
+  --card-shadow:    0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  --card-shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+
+  /* Module accent colors (soft pastels) */
+  --module-emma:      #a78bfa;  /* lavender/purple — Emma, Chat, My Bestie */
+  --module-emma-bg:   #f5f3ff;
+  --module-planner:   #60a5fa;  /* soft blue — Planner, Work, Goals */
+  --module-planner-bg: #eff6ff;
+  --module-grocery:   #fbbf24;  /* soft golden yellow — Grocery, Meals */
+  --module-grocery-bg: #fffbeb;
+  --module-movement:  #f472b6;  /* soft pink — Movement, Wellness, Self-Care */
+  --module-movement-bg: #fdf2f8;
+  --module-home:      #86efac;  /* soft sage green — Home, Routines */
+  --module-home-bg:   #f0fdf4;
+  --module-neutral:   #d6c5a8;  /* warm cream — general cards */
+  --module-neutral-bg: #faf8f5;
+
+  /* Button system */
+  --btn-height:      40px;
+  --btn-radius:      12px;
+  --btn-focus-ring:  0 0 0 3px rgba(139, 92, 246, 0.25);
 }
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-body);
     -webkit-tap-highlight-color: transparent;
     overflow-x: hidden;
+    color: var(--text-primary);
   }
 
   body {
     overscroll-behavior: none;
     overflow-x: hidden;
     max-width: 100vw;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-heading);
   }
 
   input[type='date'],
@@ -57,6 +105,111 @@
   }
   .theme-border-mid {
     border-color: var(--theme-primary-mid);
+  }
+
+  /* ── Page title (Playfair Display) ──────────────────────────────────────── */
+  .bl-page-title {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Card system ────────────────────────────────────────────────────────── */
+  .bl-card {
+    background-color: var(--card-bg);
+    border-radius: var(--card-radius);
+    padding: var(--card-padding);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
+  }
+
+  .bl-card-md {
+    background-color: var(--card-bg);
+    border-radius: var(--card-radius);
+    padding: var(--card-padding);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow-md);
+  }
+
+  /* Module accent strip — a 4px colored top border */
+  .bl-card-accent {
+    border-top: 4px solid var(--accent-color, var(--module-emma));
+  }
+
+  /* ── Button system ─────────────────────────────────────────────────────── */
+  .bl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--btn-height);
+    border-radius: var(--btn-radius);
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0 16px;
+    transition: all 0.15s ease;
+    min-height: 40px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bl-btn:active {
+    transform: scale(0.96);
+  }
+  .bl-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--btn-focus-ring);
+  }
+  .bl-btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .bl-btn-primary {
+    background-color: var(--theme-primary);
+    color: #ffffff;
+  }
+
+  .bl-btn-secondary {
+    background-color: var(--theme-primary-light);
+    color: var(--theme-primary);
+  }
+
+  .bl-btn-destructive {
+    background-color: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+
+  /* ── Form controls ──────────────────────────────────────────────────────── */
+  .bl-input {
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 0 12px;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    background-color: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    width: 100%;
+  }
+  .bl-input:focus {
+    outline: none;
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  }
+
+  /* ── Section heading ────────────────────────────────────────────────────── */
+  .bl-section-label {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
   }
 }
 

@@ -156,7 +156,7 @@ export default function HomePage(props: HomePageProps) {
             >
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">
+            <h1 className="bl-page-title leading-tight" style={{ fontSize: '1.5rem' }}>
               {greeting}
             </h1>
             <p className="text-sm text-gray-400 mt-1 leading-relaxed">

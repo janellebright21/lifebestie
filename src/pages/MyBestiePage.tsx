@@ -41,7 +41,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
 
   return (
     <div className="bestie-profile-shell min-h-[100dvh] theme-app-bg pb-24">
-      <div className="bg-white/95 backdrop-blur border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
+      <div className="border-b px-4 pt-12 pb-4 sticky top-0 z-10" style={{ backgroundColor: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="max-w-md mx-auto flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
@@ -50,7 +50,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
             <Heart size={18} style={{ color: 'var(--theme-primary)' }} />
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-gray-800 leading-none">My Bestie</h1>
+            <h1 className="bl-page-title leading-none">My Bestie</h1>
             <p className="text-xs mt-1 font-semibold" style={{ color: 'var(--theme-primary)' }}>
               {charDef.name} · {relationship.levelLabel}
             </p>

@@ -582,14 +582,14 @@ function ChatPageInner({
   return (
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
+      <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <BestieAvatar
           characterId={character ?? 'emma'}
           expression={isTyping ? 'thinking' : emmaEmotion}
           size="md"
         />
         <div>
-          <h1 className="text-sm font-bold text-gray-800">Emma</h1>
+          <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Emma</h1>
           <p className="text-xs font-medium" style={{ color: 'var(--theme-primary)' }}>Always here for you</p>
         </div>
         {memoryEnabled && savedMemories.length > 0 && (
@@ -687,8 +687,8 @@ function ChatPageInner({
       )}
 
       {/* Input */}
-      <div className="shrink-0 px-4 pb-24 pt-2 bg-white border-t border-gray-50">
-        <div className="flex gap-2 items-center bg-gray-50 rounded-2xl px-3 py-2">
+      <div className="shrink-0 px-4 pb-24 pt-2 border-t" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="flex gap-2 items-center rounded-2xl px-3 py-2" style={{ backgroundColor: 'var(--bg-warm)' }}>
           <input
             ref={inputRef}
             type="text"
