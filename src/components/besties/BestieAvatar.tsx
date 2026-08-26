@@ -233,8 +233,8 @@ export default function BestieAvatar({
   const imgStyle: React.CSSProperties = {
     width:      '100%',
     height:     '100%',
-    objectFit:  isPortrait ? 'contain' : 'contain',
-    objectPosition: isPortrait ? 'bottom center' : undefined,
+    objectFit:  isPortrait ? 'contain' : 'cover',
+    objectPosition: isPortrait ? 'bottom center' : 'center',
     display:    'block',
     userSelect: 'none',
   };

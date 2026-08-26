@@ -22,11 +22,11 @@ const DEFAULT_IMAGES: Record<CharacterId, string> = {
  */
 const EXPRESSION_IMAGES: Record<CharacterId, Partial<Record<AvatarExpression, string>>> = {
   emma: {
-    happy:        exprWebpUrl('emma_happy'),
-    thinking:     exprWebpUrl('emma_thinking'),
-    encouraging:  exprWebpUrl('emma_encouraging'),
-    proud:        exprWebpUrl('emma_proud'),
-    calm:         exprWebpUrl('emma_calm'),
+    happy:        '/assets/emma/expressions/emma-happy-app.png',
+    thinking:     '/assets/emma/expressions/emma-thinking-app.png',
+    encouraging:  '/assets/emma/expressions/emma-encouraging-app.png',
+    proud:        '/assets/emma/expressions/emma-proud-app.png',
+    calm:         '/assets/emma/expressions/emma-calm-app.png',
     listening:    exprWebpUrl('emma_listening'),
     empathetic:   exprWebpUrl('emma_empathetic'),
     focused:      exprWebpUrl('emma_focused'),

@@ -18,11 +18,11 @@ const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
 ];
 
 const EMMA_MOTION_IMAGE: Record<MotionState, string> = {
-  idle: '/characters/expression/emma_happy.webp',
-  thinking: '/characters/expression/emma_thinking.webp',
-  encouraging: '/characters/expression/emma_encouraging.webp',
-  calm: '/characters/expression/emma_calm.webp',
-  celebrating: '/characters/expression/emma_proud.webp',
+  idle: '/assets/emma/expressions/emma-happy-app.png',
+  thinking: '/assets/emma/expressions/emma-thinking-app.png',
+  encouraging: '/assets/emma/expressions/emma-encouraging-app.png',
+  calm: '/assets/emma/expressions/emma-calm-app.png',
+  celebrating: '/assets/emma/expressions/emma-proud-app.png',
 };
 
 function titleCase(value: string): string {
