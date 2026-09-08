@@ -6,7 +6,7 @@ import BestieAvatar from '../components/besties/BestieAvatar';
 import { CHARACTERS } from '../lib/supabase';
 
 type MyBestiePageProps = ComponentProps<typeof CoreMyBestiePage>;
-type MotionState = 'idle' | 'thinking' | 'encouraging' | 'calm' | 'celebrating';
+type MotionState = 'idle' | 'thinking' | 'encouraging' | 'calm' | 'celebrating' | 'playful';
 
 const EXPRESSIONS = ['happy', 'thinking', 'encouraging', 'proud', 'calm'] as const;
 const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
@@ -15,6 +15,7 @@ const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
   { id: 'encouraging', label: 'Encouraging' },
   { id: 'calm', label: 'Calm' },
   { id: 'celebrating', label: 'Celebrate' },
+  { id: 'playful', label: 'Playful' },
 ];
 
 const EMMA_MOTION_IMAGE: Record<MotionState, string> = {
@@ -23,6 +24,7 @@ const EMMA_MOTION_IMAGE: Record<MotionState, string> = {
   encouraging: '/assets/emma/expressions/emma-encouraging-app.png',
   calm: '/assets/emma/expressions/emma-calm-app.png',
   celebrating: '/assets/emma/expressions/emma-proud-app.png',
+  playful: '/assets/emma/expressions/emma-happy-app.png',
 };
 
 function titleCase(value: string): string {
@@ -260,6 +262,14 @@ export default function MyBestiePage(props: MyBestiePageProps) {
         .emma-motion-encouraging { animation: emmaEncourage 3.2s ease-in-out infinite; }
         .emma-motion-calm { animation: emmaCalm 5.8s ease-in-out infinite; }
         .emma-motion-celebrating { animation: emmaCelebrate .85s cubic-bezier(.2,.8,.3,1) both; }
+        @keyframes emmaPlayful {
+          0%   { transform: translateY(0) rotate(0deg); }
+          30%  { transform: translateY(-1px) rotate(2deg); }
+          55%  { transform: translateY(0) rotate(-1deg); }
+          80%  { transform: translateY(-0.5px) rotate(0.5deg); }
+          100% { transform: translateY(0) rotate(0deg); }
+        }
+        .emma-motion-playful { animation: emmaPlayful 1s cubic-bezier(.22,1,.36,1) both; }
         @media (prefers-reduced-motion: reduce) {
           .emma-motion-prototype { animation: none !important; transform: none !important; }
         }

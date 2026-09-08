@@ -387,6 +387,7 @@ function ChatPageInner({
   const [savingMemory, setSavingMemory]           = useState(false);
   const [lastUserText, setLastUserText]           = useState('');
   const [emmaEmotion, setEmmaEmotion]             = useState<AvatarExpression>('happy');
+  const [greetingMotion, setGreetingMotion]       = useState<'wave' | null>('wave');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -398,6 +399,13 @@ function ChatPageInner({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, pendingSuggestion]);
+
+  // Play one subtle greeting motion when Chat first opens
+  useEffect(() => {
+    if (!greetingMotion) return;
+    const t = setTimeout(() => setGreetingMotion(null), 1200);
+    return () => clearTimeout(t);
+  }, [greetingMotion]);
 
   async function sendMessage(text: string) {
     if (!text.trim() || isTyping) return;
@@ -587,6 +595,8 @@ function ChatPageInner({
           characterId={character ?? 'emma'}
           expression={isTyping ? 'thinking' : emmaEmotion}
           size="md"
+          motionOverride={greetingMotion ?? undefined}
+          onMotionEnd={() => setGreetingMotion(null)}
         />
         <div>
           <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Emma</h1>

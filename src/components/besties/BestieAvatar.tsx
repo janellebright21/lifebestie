@@ -4,7 +4,7 @@ import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase
 import { resolveExpressionSrc, getDefaultSrc } from '../../lib/characterAssets';
 import { use3DMotion } from '../../hooks/use3DMotion';
 
-export type BestieMotionState = 'idle' | 'wave' | 'lean' | 'thinking' | 'celebrating' | 'calm';
+export type BestieMotionState = 'idle' | 'wave' | 'lean' | 'thinking' | 'celebrating' | 'calm' | 'playful';
 
 export interface BestieAvatarProps {
   characterId: CharacterId;
@@ -44,7 +44,7 @@ const MOTION_BY_EXPRESSION: Record<AvatarExpression, BestieMotionState> = {
   playful:     'idle',
 };
 
-const ONE_SHOT_MOTIONS = new Set<BestieMotionState>(['wave', 'celebrating']);
+const ONE_SHOT_MOTIONS = new Set<BestieMotionState>(['wave', 'celebrating', 'playful']);
 
 type FallbackState = 'expression' | 'default' | 'initials';
 
