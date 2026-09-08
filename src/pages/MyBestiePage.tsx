@@ -80,7 +80,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
               </p>
             </div>
             <div className="shrink-0 -mr-2 -mt-2 min-w-[140px] flex justify-end">
-              {character === 'emma' ? (
+              {character === 'emma' && import.meta.env.DEV ? (
                 <div className={`emma-motion-prototype emma-motion-${labMotion}`}>
                   <img
                     src={EMMA_MOTION_IMAGE[labMotion]}
@@ -133,7 +133,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
           </div>
         </section>
 
-        {character === 'emma' && (
+        {character === 'emma' && import.meta.env.DEV && (
           <section
             className="bg-white rounded-3xl border shadow-sm px-4 py-4"
             style={{ borderColor: 'var(--theme-primary-mid)' }}
