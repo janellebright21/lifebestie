@@ -1899,7 +1899,8 @@ function PlanMyDaySheet({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+      {/* Above BottomNav (50), below the plan's secondary sheets (60). */}
+      <div className="fixed inset-0 z-[55] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
         <div className="absolute inset-0" onClick={onClose} />
         <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col">
           {/* Handle */}
@@ -1929,7 +1930,7 @@ function PlanMyDaySheet({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="px-5 py-4 space-y-4">
               {/* LifeBestie message */}
               <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
