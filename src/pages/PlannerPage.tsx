@@ -1850,13 +1850,18 @@ function PlanMyDaySheet({
   }
 
   // Load saved items on mount
+  const loadPlanItemsRef = useRef(loadPlanItems);
+  loadPlanItemsRef.current = loadPlanItems;
+  const savePlanItemsRef = useRef(savePlanItems);
+  savePlanItemsRef.current = savePlanItems;
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const saved = await loadPlanItems(selectedDate);
+        const saved = await loadPlanItemsRef.current(selectedDate);
         if (cancelled) return;
-        if (saved.length > 0) {
+        if (Array.isArray(saved) && saved.length > 0) {
           setItems(saved);
         } else if (dailyPlan?.plan_date === selectedDate) {
           const seeded = seedFromDailyPlan(dailyPlan);
@@ -1878,21 +1883,21 @@ function PlanMyDaySheet({
     if (!loadedRef.current) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      const result = await savePlanItems(selectedDate, itemsRef.current);
+      const result = await savePlanItemsRef.current(selectedDate, itemsRef.current);
       if (result.error) setSaveError(result.error);
       else setSaveError(null);
     }, 800);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [items, selectedDate, savePlanItems]);
+  }, [items, selectedDate]);
 
   // Flush pending save on close/unmount
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
-        savePlanItems(selectedDate, itemsRef.current);
+        savePlanItemsRef.current(selectedDate, itemsRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

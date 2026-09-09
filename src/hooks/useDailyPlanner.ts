@@ -503,7 +503,7 @@ export function useDailyPlanner() {
   }
 
   // ── Load Plan My Day items for a given date ──────────────────────────────
-  async function loadPlanItems(date: string): Promise<PlanItem[]> {
+  const loadPlanItems = useCallback(async (date: string): Promise<PlanItem[]> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Please sign in to load your plan.');
     const { data, error } = await supabase
@@ -513,13 +513,16 @@ export function useDailyPlanner() {
       .eq('plan_date', date)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return (data?.plan_items as PlanItem[] | undefined) ?? [];
-  }
+    const raw = data?.plan_items;
+    if (!Array.isArray(raw)) return [];
+    return raw as PlanItem[];
+  }, []);
 
   // ── Save Plan My Day items for a given date (upsert) ─────────────────────
-  async function savePlanItems(date: string, items: PlanItem[]): Promise<{ error: string | null }> {
+  const savePlanItems = useCallback(async (date: string, items: PlanItem[]): Promise<{ error: string | null }> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: 'Not signed in.' };
+    if (!memoryId) return { error: 'Missing memory ID — cannot save plan.' };
     const { error } = await supabase
       .from('daily_plans')
       .upsert(
@@ -533,7 +536,7 @@ export function useDailyPlanner() {
       );
     if (error) return { error: error.message };
     return { error: null };
-  }
+  }, [memoryId]);
 
   return {
     plan,
