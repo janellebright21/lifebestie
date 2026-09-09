@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1536" width="1024" height="1536">
+  <defs>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="0.6"/></filter>
+  </defs>
+  <!-- Branch-only arm accent: a subtle traced overlay matching Emma's approved open-hand pose. -->
+  <g opacity="0.18" filter="url(#soft)">
+    <path d="M198 381 C221 372 245 376 263 390 C281 404 291 424 309 438 C325 451 339 468 338 490 C337 516 320 539 295 551 C272 562 246 557 226 540 C208 524 202 500 191 481 C181 465 162 454 145 443 C132 435 120 424 121 410 C122 397 135 388 151 385 C166 382 181 384 198 381 Z" fill="#c88366"/>
+    <path d="M225 438 C246 428 270 432 291 446 C307 458 318 474 320 494 C322 515 310 534 291 545 C273 556 251 555 234 542 C219 531 211 514 203 496 C196 480 188 464 176 453 C187 448 205 446 225 438 Z" fill="#b37a66"/>
+  </g>
+  <g fill="none" stroke="#8b4f3b" stroke-width="2" stroke-linecap="round" opacity="0.45">
+    <path d="M129 405 C146 400 159 397 174 401"/>
+    <path d="M132 415 C150 411 165 410 180 415"/>
+    <path d="M139 425 C156 422 171 423 185 428"/>
+  </g>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Soft skin-toned cover patches hide the open eyes in the head artwork. -->
+    <ellipse cx="445" cy="201" rx="31" ry="15" fill="#F5A970" fill-opacity="0.94" stroke="none"/>
+    <ellipse cx="512" cy="182" rx="29" ry="14" fill="#F5A970" fill-opacity="0.94" stroke="none" transform="rotate(-8 512 182)"/>
+
+    <!-- Closed eyelids -->
+    <path d="M421 201 C433 209 450 211 468 202" stroke="#4D2314" stroke-width="5"/>
+    <path d="M490 183 C503 190 519 191 535 181" stroke="#4D2314" stroke-width="5"/>
+
+    <!-- Subtle outer lashes -->
+    <path d="M459 204 L468 199 M454 207 L463 203" stroke="#4D2314" stroke-width="3"/>
+    <path d="M527 183 L536 177 M522 187 L532 182" stroke="#4D2314" stroke-width="3"/>
+  </g>
+</svg>
