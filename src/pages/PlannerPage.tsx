@@ -15,6 +15,8 @@ import {
 import type { CharacterId } from '../lib/supabase';
 import { useCategoryColors, seedDefaultColors } from '../hooks/useCategoryColors';
 import PrepareForTomorrowBanner from '../components/PrepareForTomorrowBanner';
+import type { PlanItem, DailyPlan } from '../hooks/useDailyPlanner';
+import { localDateStr } from '../lib/localDate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +28,7 @@ interface PlannerPageProps {
   meals: Meal[];
   character?: CharacterId;
   onAddEvent: (title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) => Promise<Event>;
-  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<void>;
+  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task>;
   onToggleTask: (id: string, completed: boolean) => void;
   onUpdateTask: (id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) => Promise<void>;
   onDeleteTask: (id: string) => void;
@@ -43,6 +45,9 @@ interface PlannerPageProps {
   tomorrowRemindersError?: boolean;
   onDismissTomorrowReminder: (reminder: string) => void;
   onRefreshTomorrowReminders: () => void;
+  loadPlanItems: (date: string) => Promise<PlanItem[]>;
+  savePlanItems: (date: string, items: PlanItem[]) => Promise<{ error: string | null }>;
+  dailyPlan: DailyPlan | null;
 }
 
 type PageView = 'today' | 'tasks' | 'events';
@@ -97,13 +102,6 @@ function formatDate(dateStr: string, today: string) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   if (dateStr === localDateStr(tomorrow)) return 'Tomorrow';
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function localDateStr(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 function getToday() { return localDateStr(); }
@@ -568,13 +566,14 @@ function AddTaskForm({
 function AddEventForm({
   onAdd,
   onCancel,
+  defaultDate,
 }: {
   onAdd: PlannerPageProps['onAddEvent'];
   onCancel: () => void;
+  defaultDate: string;
 }) {
-  const today = getToday();
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState('');
   const [category, setCategory] = useState<EventCategory>('Other');
   const [location, setLocation] = useState('');
@@ -1393,17 +1392,7 @@ const [editNotes, setEditNotes] = useState(event.notes ?? '');
 
 // ─── Plan My Day ─────────────────────────────────────────────────────────────
 
-interface PlanItem {
-  taskId: string;
-  title: string;
-  priority: TaskPriority;
-  category: TaskCategory;
-  duration: number | null;
-  time: string;        // HH:MM or ''
-  notes: string;
-  completed: boolean;
-  locked: boolean;     // locked items survive replanning
-}
+// PlanItem type is imported from useDailyPlanner
 
 function buildInitialPlan(tasks: Task[], events: Event[], today: string): { items: PlanItem[]; message: string; suggestion: string } {
   const todayEvents = events.filter((e) => e.event_date === today);
@@ -1655,7 +1644,7 @@ function AddToPlanSheet({
   planTaskIds: Set<string>;
   today: string;
   onAdd: (task: Task) => void;
-  onAddNewTask: (title: string, category: TaskCategory, priority: TaskPriority) => void;
+  onAddNewTask: (title: string, category: TaskCategory, priority: TaskPriority) => Promise<void>;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<'existing' | 'new'>('existing');
@@ -1747,7 +1736,7 @@ function AddToPlanSheet({
                   })}
                 </div>
               </div>
-              <button onClick={() => { if (newTitle.trim()) { onAddNewTask(newTitle.trim(), newCategory, newPriority); onClose(); } }}
+              <button onClick={async () => { if (newTitle.trim()) { await onAddNewTask(newTitle.trim(), newCategory, newPriority); onClose(); } }}
                 disabled={!newTitle.trim()}
                 className="w-full py-3 rounded-xl bg-sky-500 text-white text-sm font-semibold disabled:opacity-40 hover:bg-sky-600 active:scale-[0.98] transition-all">
                 Add to today's plan
@@ -1811,6 +1800,9 @@ function PlanMyDaySheet({
   onDeleteTask,
   onAddTask,
   onClose,
+  loadPlanItems,
+  savePlanItems,
+  dailyPlan,
 }: {
   tasks: Task[];
   events: Event[];
@@ -1818,8 +1810,11 @@ function PlanMyDaySheet({
   selectedDate: string;
   onToggleTask: (id: string, completed: boolean) => void;
   onDeleteTask: (id: string) => void;
-  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<void>;
+  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task>;
   onClose: () => void;
+  loadPlanItems: (date: string) => Promise<PlanItem[]>;
+  savePlanItems: (date: string, items: PlanItem[]) => Promise<{ error: string | null }>;
+  dailyPlan: DailyPlan | null;
 }) {
   const initial = useMemo(() => buildInitialPlan(tasks, events, selectedDate), [tasks, events, selectedDate]);
   const [items, setItems] = useState<PlanItem[]>(initial.items);
@@ -1829,7 +1824,79 @@ function PlanMyDaySheet({
   const [movingItem, setMovingItem] = useState<PlanItem | null>(null);
   const [removingItem, setRemovingItem] = useState<PlanItem | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const getCatColor = useCatColor();
+
+  // ── Persistence: load saved plan items on open, debounce-save on change ──
+  const itemsRef = useRef<PlanItem[]>(initial.items);
+  itemsRef.current = items;
+  const loadedRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Seed from AI Morning Plan when plan_items is empty
+  function seedFromDailyPlan(plan: DailyPlan): PlanItem[] {
+    const aiTasks = [...(plan.high_impact ?? []), ...(plan.small_wins ?? [])];
+    return aiTasks.map((t) => ({
+      taskId: t.id,
+      title: t.title,
+      priority: 'medium' as TaskPriority,
+      category: 'Other' as TaskCategory,
+      duration: t.duration ?? null,
+      time: '',
+      notes: t.reason ?? '',
+      completed: t.completed,
+      locked: false,
+    }));
+  }
+
+  // Load saved items on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await loadPlanItems(selectedDate);
+        if (cancelled) return;
+        if (saved.length > 0) {
+          setItems(saved);
+        } else if (dailyPlan?.plan_date === selectedDate) {
+          const seeded = seedFromDailyPlan(dailyPlan);
+          if (seeded.length > 0) setItems(seeded);
+        }
+        loadedRef.current = true;
+      } catch (error) {
+        if (cancelled) return;
+        setSaveError(error instanceof Error ? error.message : 'Could not load your saved plan.');
+        loadedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
+
+  // Debounce-save on items change (only after initial load)
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      const result = await savePlanItems(selectedDate, itemsRef.current);
+      if (result.error) setSaveError(result.error);
+      else setSaveError(null);
+    }, 800);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [items, selectedDate, savePlanItems]);
+
+  // Flush pending save on close/unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        savePlanItems(selectedDate, itemsRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const planTaskIds = useMemo(() => new Set(items.map((i) => i.taskId)), [items]);
 
@@ -1890,10 +1957,12 @@ function PlanMyDaySheet({
   }
 
   async function addNewTask(title: string, category: TaskCategory, priority: TaskPriority) {
-    await onAddTask(title, selectedDate, undefined, undefined, category, priority);
-    // The new task will appear in the tasks prop on next render; add it optimistically
-    const tempId = `temp-${Date.now()}`;
-    setItems((prev) => [...prev, { taskId: tempId, title, priority, category, duration: null, time: '', notes: '', completed: false, locked: false }]);
+    const newTask = await onAddTask(title, selectedDate, undefined, undefined, category, priority);
+    setItems((prev) => [...prev, {
+      taskId: newTask.id, title: newTask.title, priority: newTask.priority ?? 'medium',
+      category: (newTask.category as TaskCategory) ?? 'Other', duration: newTask.duration,
+      time: '', notes: '', completed: false, locked: false,
+    }]);
   }
 
   const todayEvents = events.filter((e) => e.event_date === selectedDate).sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
@@ -1932,6 +2001,12 @@ function PlanMyDaySheet({
 
           <div className="flex-1 overflow-y-auto">
             <div className="px-5 py-4 space-y-4">
+              {saveError && (
+        <div className="mx-5 mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">
+          Could not save your plan: {saveError}
+        </div>
+      )}
+
               {/* LifeBestie message */}
               <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
                 <p className="text-sm text-amber-800 leading-relaxed font-medium">{message}</p>
@@ -2501,10 +2576,8 @@ function TodayView({
   }, [tasks, selectedDate, today, isToday]);
 
   // Progress counts for today's actual tasks
-  const completedCount = isToday
-    ? tasks.filter((t) => t.completed).length
-    : dayTasks.filter((t) => t.completed).length;
-  const totalCount = isToday ? tasks.length : dayTasks.length;
+  const completedCount = dayTasks.filter((t) => t.completed).length;
+  const totalCount = dayTasks.length;
 
   // Routines for the selected weekday
   const dayName = new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
@@ -2993,7 +3066,7 @@ export default function PlannerPage({
       )}
       {showAddEvent && (
         <div className="mb-4">
-          <AddEventForm onAdd={onAddEvent} onCancel={() => setShowAddEvent(false)} />
+          <AddEventForm onAdd={onAddEvent} onCancel={() => setShowAddEvent(false)} defaultDate={selectedDate} />
         </div>
       )}
 
@@ -3104,6 +3177,9 @@ export default function PlannerPage({
           onToggleTask={onToggleTask}
           onDeleteTask={onDeleteTask}
           onAddTask={onAddTask}
+          loadPlanItems={loadPlanItems}
+          savePlanItems={savePlanItems}
+          dailyPlan={dailyPlan}
           onClose={() => setShowPlanMyDay(false)}
         />
       )}

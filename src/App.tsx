@@ -262,7 +262,7 @@ export default function App() {
     : getBestieExpression(TAB_CONTEXT[activeTab] ?? 'default');
 
   // ── Action handlers ────────────────────────────────────────────────────────
-  async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
+  async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority): Promise<Task> {
     const { data, error } = await supabase
       .from('tasks')
       .insert({
@@ -278,15 +278,16 @@ export default function App() {
       .select()
       .single();
     dbError('tasks (insert)', error);
-    if (data) {
-      const task = data as Task;
-      setTasks((prev) => [task, ...prev]);
-      await userMemory.addHistoryAction(`Added task: ${title}`);
-      await bestieRelationship.awardPoints('add_task', task.id, 5, 'Added a task');
-      if (linkedGoalId) {
-        await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
-      }
+    if (error) throw error;
+    if (!data) throw new Error('The task could not be created.');
+    const task = data as Task;
+    setTasks((prev) => [task, ...prev]);
+    await userMemory.addHistoryAction(`Added task: ${title}`);
+    await bestieRelationship.awardPoints('add_task', task.id, 5, 'Added a task');
+    if (linkedGoalId) {
+      await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
     }
+    return task;
   }
 
   async function toggleTask(id: string, completed: boolean) {
@@ -618,6 +619,9 @@ export default function App() {
           tomorrowRemindersError={prepareForTomorrow.fetchError}
           onDismissTomorrowReminder={prepareForTomorrow.dismissReminder}
           onRefreshTomorrowReminders={prepareForTomorrow.refresh}
+          loadPlanItems={dailyPlanner.loadPlanItems}
+          savePlanItems={dailyPlanner.savePlanItems}
+          dailyPlan={dailyPlanner.plan}
         />
       )}
 
