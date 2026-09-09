@@ -34,7 +34,6 @@ export default function HomePage(props: HomePageProps) {
   const today = localDateKey(new Date());
   const pendingTasks = props.tasks.filter((task) => !task.completed);
   const hasOverdueTasks = pendingTasks.some((task) => task.due_date && task.due_date < today);
-  const homeExpression = getHomeExpression(pendingTasks.length, hasOverdueTasks, false);
   const { todayMovements } = useMovement(props.events);
 
   const characterId = props.character ?? 'emma';
@@ -61,6 +60,17 @@ export default function HomePage(props: HomePageProps) {
     groceryItems: props.groceryItems ?? [],
     movementPlanned: todayMovements.length > 0,
     firstVisitToday: showFirstUseGuide,
+  });
+
+  const homeExpression = getHomeExpression({
+    pendingTaskCount: pendingTasks.length,
+    hasOverdueTasks,
+    proudFlash: false,
+    firstVisitToday: showFirstUseGuide,
+    localTimePeriod: bestieContext.localTimePeriod,
+    hasMoved: todayMovements.length > 0,
+    hasCompletedMovement: false,
+    completedTaskCount: props.tasks.filter((t) => t.completed).length,
   });
 
   const greeting = generateEmmaGreeting(bestieContext);
@@ -146,7 +156,7 @@ export default function HomePage(props: HomePageProps) {
             >
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">
+            <h1 className="bl-page-title leading-tight" style={{ fontSize: '1.5rem' }}>
               {greeting}
             </h1>
             <p className="text-sm text-gray-400 mt-1 leading-relaxed">

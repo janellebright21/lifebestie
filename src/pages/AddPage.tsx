@@ -169,7 +169,7 @@ export default function AddPage({ onAddTask, onAddEvent, onAddGrocery }: AddPage
   return (
     <div className="px-4 pt-6 pb-28 max-w-md mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-800">Add New</h1>
+        <h1 className="bl-page-title">Add New</h1>
         {mode && (
           <button
             onClick={reset}

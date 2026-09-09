@@ -52,13 +52,26 @@ export function getBestieExpression(context: BestieContext | string): AvatarExpr
  * Derives the best expression for the Home screen based on live task state.
  * Priority: overdue/missed → encouraging | no tasks today → encouraging | default → happy
  */
-export function getHomeExpression(
-  pendingTaskCount: number,
-  hasOverdueTasks: boolean,
-  proudFlash: boolean,
-): AvatarExpression {
-  if (proudFlash) return 'proud';
-  if (hasOverdueTasks) return 'encouraging';
-  if (pendingTaskCount === 0) return 'encouraging';
+export interface HomeExpressionContext {
+  pendingTaskCount: number;
+  hasOverdueTasks: boolean;
+  proudFlash: boolean;
+  firstVisitToday: boolean;
+  localTimePeriod: string;
+  hasMoved: boolean;
+  hasCompletedMovement: boolean;
+  completedTaskCount: number;
+}
+
+export function getHomeExpression(ctx: HomeExpressionContext): AvatarExpression {
+  if (ctx.proudFlash) return 'proud';
+  if (ctx.hasOverdueTasks) return 'empathetic';
+  if (ctx.firstVisitToday) return 'excited';
+  if (ctx.pendingTaskCount === 0 && ctx.completedTaskCount > 0) return 'proud';
+  if (ctx.pendingTaskCount === 0) return 'encouraging';
+  if (ctx.hasCompletedMovement) return 'proud';
+  if (ctx.localTimePeriod === 'evening' || ctx.localTimePeriod === 'late_night') return 'calm';
+  if (ctx.pendingTaskCount >= 5) return 'focused';
+  if (ctx.pendingTaskCount >= 3) return 'listening';
   return 'happy';
 }

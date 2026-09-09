@@ -262,7 +262,7 @@ export default function App() {
     : getBestieExpression(TAB_CONTEXT[activeTab] ?? 'default');
 
   // ── Action handlers ────────────────────────────────────────────────────────
-  async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
+  async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority): Promise<Task> {
     const { data, error } = await supabase
       .from('tasks')
       .insert({
@@ -278,15 +278,16 @@ export default function App() {
       .select()
       .single();
     dbError('tasks (insert)', error);
-    if (data) {
-      const task = data as Task;
-      setTasks((prev) => [task, ...prev]);
-      await userMemory.addHistoryAction(`Added task: ${title}`);
-      await bestieRelationship.awardPoints('add_task', task.id, 5, 'Added a task');
-      if (linkedGoalId) {
-        await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
-      }
+    if (error) throw error;
+    if (!data) throw new Error('The task could not be created.');
+    const task = data as Task;
+    setTasks((prev) => [task, ...prev]);
+    await userMemory.addHistoryAction(`Added task: ${title}`);
+    await bestieRelationship.awardPoints('add_task', task.id, 5, 'Added a task');
+    if (linkedGoalId) {
+      await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
     }
+    return task;
   }
 
   async function toggleTask(id: string, completed: boolean) {
@@ -399,13 +400,17 @@ export default function App() {
       .insert({ name, category, memory_id: memoryId, user_id: userId })
       .select()
       .single();
-    dbError('grocery_items (insert)', error);
-    if (data) {
-      setGroceryItems((prev) => [...prev, data]);
-      await userMemory.addHistoryAction(`Added grocery: ${name}`);
-      await userMemory.upsertGroceryHabit(name, category);
-      await bestieRelationship.awardPoints('add_grocery', data.id, 5, `Added grocery: ${name}`);
+    if (error) {
+      dbError('grocery_items (insert)', error);
+      throw new Error(`Failed to add grocery item: ${error.message}`);
     }
+    if (!data) {
+      throw new Error('Failed to add grocery item: no data returned from database');
+    }
+    setGroceryItems((prev) => [...prev, data]);
+    await userMemory.addHistoryAction(`Added grocery: ${name}`);
+    await userMemory.upsertGroceryHabit(name, category);
+    await bestieRelationship.awardPoints('add_grocery', data.id, 5, `Added grocery: ${name}`);
   }
 
   async function toggleGrocery(id: string, checked: boolean) {
@@ -614,6 +619,9 @@ export default function App() {
           tomorrowRemindersError={prepareForTomorrow.fetchError}
           onDismissTomorrowReminder={prepareForTomorrow.dismissReminder}
           onRefreshTomorrowReminders={prepareForTomorrow.refresh}
+          loadPlanItems={dailyPlanner.loadPlanItems}
+          savePlanItems={dailyPlanner.savePlanItems}
+          dailyPlan={dailyPlanner.plan}
         />
       )}
 
@@ -677,7 +685,9 @@ export default function App() {
           goals={goalsHook.goals}
           groceryItems={groceryItems}
           weeklyList={weeklyGrocery.weeklyList}
-          onAddTask={addTask}
+          onAddTask={async (title) => {
+            await addTask(title);
+          }}
           onAddEvent={addEvent}
           onAddGrocery={addGrocery}
           onAddWeeklyItem={addWeeklyItem}
@@ -765,7 +775,9 @@ export default function App() {
       <QuickAddSheet
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
-        onAddTask={addTask}
+        onAddTask={async (title, dueDate) => {
+          await addTask(title, dueDate);
+        }}
         onAddEvent={addEvent}
         onAddGrocery={addGrocery}
       />

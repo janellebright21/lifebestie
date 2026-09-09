@@ -27,6 +27,18 @@ function authError(message: string): Response {
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-oss-20b";
 
+const EMOTION_ALLOWLIST = new Set([
+  "happy", "thinking", "encouraging", "proud", "calm",
+  "listening", "empathetic", "focused", "excited", "playful",
+]);
+
+function sanitizeEmotion(raw: unknown): string {
+  if (typeof raw !== "string") return "happy";
+  const cleaned = raw.trim().toLowerCase();
+  if (!EMOTION_ALLOWLIST.has(cleaned)) return "happy";
+  return cleaned;
+}
+
 const EMMA_SYSTEM = `You are Emma, a warm and supportive AI Life Bestie for busy moms and women managing daily life.
 
 Your personality:
@@ -68,12 +80,27 @@ Memory usage: when confirmed memories are provided, reference at most ONE per re
 RESPONSE FORMAT — return valid JSON only. No markdown fences. No extra keys.
 {
   "text": "Emma's response here",
+  "emotion": "one of: happy|thinking|encouraging|proud|calm|listening|empathetic|focused|excited|playful",
   "memory_suggestion": {
     "category": "Preference|Goal|Routine|Meal|Household|WorkSchedule|EncouragementStyle|Wellness|Challenge|Favorite|Budget|ImportantDate|Other",
     "title": "concise label max 80 chars",
     "value": "optional extra detail or empty string"
   }
 }
+
+Choose the emotion that best matches the meaning and tone of your response:
+- happy — general friendly conversation or greeting
+- thinking — considering information or planning
+- encouraging — user needs motivation or help getting started
+- proud — user completed a task, goal, routine, meal plan, or movement
+- calm — stress reduction, gentle reset, or calming guidance
+- listening — user is sharing information and Emma is attentively responding
+- empathetic — user is sad, disappointed, frustrated, or overwhelmed
+- focused — planning, groceries, budgeting, scheduling, or problem-solving
+- excited — good news, milestones, or something worth celebrating
+- playful — light jokes or fun casual conversation
+
+The emotion must be one of the exact values listed above. Never include image paths, URLs, filenames, CSS classes, or HTML in the emotion field.
 Only include memory_suggestion when the user shares a clear personal fact worth saving. Omit it entirely otherwise.`;
 
 interface ConversationMessage {
@@ -283,6 +310,7 @@ Deno.serve(async (req: Request) => {
 
     // ── Parse Emma's JSON text ────────────────────────────────────────────────
     let emmaText = rawContent;
+    let emotion = "happy";
     let memorySuggestion: { category: string; title: string; value: string } | null = null;
 
     try {
@@ -294,6 +322,9 @@ Deno.serve(async (req: Request) => {
 
       if (typeof parsed.text === "string" && parsed.text.trim()) {
         emmaText = parsed.text;
+      }
+      if (typeof parsed.emotion === "string") {
+        emotion = sanitizeEmotion(parsed.emotion);
       }
       if (
         parsed.memory_suggestion &&
@@ -313,9 +344,10 @@ Deno.serve(async (req: Request) => {
       console.log("[emma-chat] Response was plain text, not JSON — using as-is");
     }
 
-    console.log("[emma-chat] Returning text, length:", emmaText.length);
+    console.log("[emma-chat] Returning text, length:", emmaText.length, "| emotion:", emotion);
     return ok({
       text: emmaText,
+      emotion,
       ...(memorySuggestion ? { memory_suggestion: memorySuggestion } : {}),
       actions: [],
     });

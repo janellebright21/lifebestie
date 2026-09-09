@@ -1,79 +1,181 @@
 /* Layered Bestie motion foundations.
-   These classes remain dormant until a complete production rig is available. */
+   V1 intentionally favors subtle, low-amplitude movement so Emma feels alive
+   without looking floaty or distracting inside a phone UI. */
 
 @keyframes layered-bestie-breathe {
   0%, 100% { transform: translateY(0) scaleY(1); }
-  48% { transform: translateY(-0.7px) scaleY(1.008); }
+  48% { transform: translateY(-0.45px) scaleY(1.005); }
 }
 
 @keyframes layered-bestie-head-drift {
   0%, 100% { transform: translateY(0) rotate(0deg); }
-  38% { transform: translateY(-0.6px) rotate(-0.35deg); }
-  72% { transform: translateY(-0.2px) rotate(0.2deg); }
+  38% { transform: translateY(-0.4px) rotate(-0.22deg); }
+  72% { transform: translateY(-0.12px) rotate(0.12deg); }
 }
 
 @keyframes layered-bestie-thinking-head {
   0%, 100% { transform: translateY(0) rotate(0deg); }
-  45% { transform: translateY(-0.9px) rotate(-1.4deg); }
+  45% { transform: translateY(-0.55px) rotate(-0.8deg); }
 }
 
 @keyframes layered-bestie-encourage {
   0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-0.8px) rotate(-0.8deg); }
+  50% { transform: translateY(-0.5px) rotate(-0.45deg); }
 }
 
 @keyframes layered-bestie-celebrate {
   0% { transform: translateY(0) scale(1); }
-  28% { transform: translateY(-6px) scale(1.025); }
-  52% { transform: translateY(0) scale(0.995); }
-  76% { transform: translateY(-2px) scale(1.008); }
+  30% { transform: translateY(-2.6px) scale(1.012); }
+  58% { transform: translateY(0) scale(0.998); }
+  80% { transform: translateY(-0.8px) scale(1.003); }
   100% { transform: translateY(0) scale(1); }
 }
 
 @keyframes layered-bestie-calm {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-1.5px); }
+  50% { transform: translateY(-0.8px); }
+}
+
+@keyframes layered-bestie-hair-sway {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  38% { transform: translateX(-0.28px) rotate(-0.12deg); }
+  72% { transform: translateX(0.2px) rotate(0.09deg); }
+}
+
+@keyframes layered-bestie-hair-think {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  45% { transform: translateX(-0.4px) rotate(-0.18deg); }
+}
+
+@keyframes layered-bestie-hand-offer {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  45% { transform: translate(0.7px, -0.6px) rotate(0.42deg); }
+  72% { transform: translate(0.25px, -0.2px) rotate(0.16deg); }
+}
+
+@keyframes layered-bestie-hand-celebrate {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  35% { transform: translate(0.9px, -1.1px) rotate(0.7deg); }
+  70% { transform: translate(0.2px, -0.3px) rotate(0.16deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes layered-bestie-notebook-think {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  46% { transform: translate(-0.3px, -0.4px) rotate(-0.18deg); }
+  72% { transform: translate(-0.1px, -0.12px) rotate(-0.06deg); }
+}
+
+@keyframes layered-bestie-notebook-calm {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-0.22px) rotate(0.08deg); }
 }
 
 .layered-bestie__body {
   transform-origin: 50% 92%;
+  will-change: transform;
 }
 
 .layered-bestie__head-part {
   transform-origin: 50% 72%;
+  will-change: transform;
+}
+
+.layered-bestie__hairFront {
+  transform-origin: 50% 38%;
+  will-change: transform;
+}
+
+.layered-bestie__leftArm {
+  transform-origin: 29% 31%;
+  will-change: transform, opacity;
+}
+
+.layered-bestie__rightArm {
+  transform-origin: 57% 36%;
+  will-change: transform, opacity;
+}
+
+/* Branch-only safety: when the layered rig falls back to the legacy avatar,
+   suppress its older float/bounce animations so test results are unambiguous. */
+.layered-bestie__fallback .ba-body,
+.layered-bestie__fallback .ba-head,
+.layered-bestie__fallback .ba-blink,
+.layered-bestie__fallback .bestie-sparkle-dot {
+  animation: none !important;
+  transform: none !important;
 }
 
 .layered-bestie--idle .layered-bestie__body {
-  animation: layered-bestie-breathe 5.4s ease-in-out infinite;
-}
-
-.layered-bestie--idle .layered-bestie__head-part {
-  animation: layered-bestie-head-drift 7.2s ease-in-out infinite;
-}
-
-.layered-bestie--thinking .layered-bestie__body {
   animation: layered-bestie-breathe 5.8s ease-in-out infinite;
 }
 
+.layered-bestie--idle .layered-bestie__head-part {
+  animation: layered-bestie-head-drift 7.8s ease-in-out infinite;
+}
+
+.layered-bestie--idle .layered-bestie__hairFront {
+  animation: layered-bestie-hair-sway 9.2s ease-in-out 0.45s infinite;
+}
+
+.layered-bestie--thinking .layered-bestie__body {
+  animation: layered-bestie-breathe 6.1s ease-in-out infinite;
+}
+
 .layered-bestie--thinking .layered-bestie__head-part {
-  animation: layered-bestie-thinking-head 4.2s ease-in-out infinite;
+  animation: layered-bestie-thinking-head 4.8s ease-in-out infinite;
+}
+
+.layered-bestie--thinking .layered-bestie__hairFront {
+  animation: layered-bestie-hair-think 5.6s ease-in-out 0.2s infinite;
+}
+
+.layered-bestie--thinking .layered-bestie__rightArm {
+  animation: layered-bestie-notebook-think 5.8s ease-in-out infinite;
 }
 
 .layered-bestie--encouraging .layered-bestie__body {
-  animation: layered-bestie-encourage 3.8s ease-in-out infinite;
+  animation: layered-bestie-encourage 4.2s ease-in-out infinite;
+}
+
+.layered-bestie--encouraging .layered-bestie__hairFront {
+  animation: layered-bestie-hair-sway 7.4s ease-in-out infinite;
+}
+
+.layered-bestie--encouraging .layered-bestie__leftArm {
+  animation: layered-bestie-hand-offer 5s ease-in-out infinite;
 }
 
 .layered-bestie--celebrating .layered-bestie__body {
-  animation: layered-bestie-celebrate 0.85s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  animation: layered-bestie-celebrate 0.95s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.layered-bestie--celebrating .layered-bestie__hairFront {
+  animation: layered-bestie-hair-sway 1.15s ease-out 1;
+}
+
+.layered-bestie--celebrating .layered-bestie__leftArm {
+  animation: layered-bestie-hand-celebrate 1.05s ease-out 1;
 }
 
 .layered-bestie--calm .layered-bestie__body {
-  animation: layered-bestie-calm 6.2s ease-in-out infinite;
+  animation: layered-bestie-calm 6.8s ease-in-out infinite;
+}
+
+.layered-bestie--calm .layered-bestie__hairFront {
+  animation: layered-bestie-hair-sway 11.2s ease-in-out infinite;
+}
+
+.layered-bestie--calm .layered-bestie__rightArm {
+  animation: layered-bestie-notebook-calm 8.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .layered-bestie__body,
-  .layered-bestie__head-part {
+  .layered-bestie__head-part,
+  .layered-bestie__hairFront,
+  .layered-bestie__leftArm,
+  .layered-bestie__rightArm {
     animation: none !important;
     transform: none !important;
   }

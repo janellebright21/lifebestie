@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, Goal, Task, Event, Routine, UserMemory } from '../lib/supabase';
+import { supabase, Goal, Task, Event, Routine, UserMemory, TaskCategory, TaskPriority } from '../lib/supabase';
+import { localDateStr } from '../lib/localDate';
+
+/** Shape of a single item in the Plan My Day sheet, persisted in daily_plans.plan_items. */
+export interface PlanItem {
+  taskId: string;
+  title: string;
+  priority: TaskPriority;
+  category: TaskCategory;
+  duration: number | null;
+  time: string;
+  notes: string;
+  completed: boolean;
+  locked: boolean;
+}
 
 const MEMORY_ID_KEY = 'lifebestie_memory_id';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -116,7 +130,7 @@ function buildFallbackPlan(
   });
 
   // High-impact = high-priority tasks + tasks due today + skipped from yesterday
-  const dueToday = sorted.filter((t) => t.due_date === new Date().toISOString().split('T')[0]);
+  const dueToday = sorted.filter((t) => t.due_date === localDateStr());
   const highPriority = sorted.filter((t) => (t.priority ?? 'medium') === 'high');
   const rest = sorted.filter((t) => !dueToday.includes(t) && !highPriority.includes(t));
 
@@ -151,7 +165,7 @@ export function useDailyPlanner() {
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const memoryId = localStorage.getItem(MEMORY_ID_KEY); // kept for upsert payload; ownership is user_id
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   // Ref so callbacks always see latest plan without stale closure
   const planRef = useRef<DailyPlan | null>(null);
   planRef.current = plan;
@@ -176,7 +190,7 @@ export function useDailyPlanner() {
   async function loadYesterday(userId: string): Promise<DailyPlan | null> {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yDate = yesterday.toISOString().split('T')[0];
+    const yDate = localDateStr(yesterday);
     const { data } = await supabase
       .from('daily_plans')
       .select('*')
@@ -194,7 +208,7 @@ export function useDailyPlanner() {
       .from('daily_plans')
       .select('completion_rate, plan_date')
       .eq('user_id', userId)
-      .gte('plan_date', cutoff.toISOString().split('T')[0])
+      .gte('plan_date', localDateStr(cutoff))
       .order('plan_date', { ascending: true });
     if (!data) return [];
     return (data as { completion_rate: number | null }[])
@@ -210,7 +224,7 @@ export function useDailyPlanner() {
       .from('daily_plans')
       .select('completion_timestamps')
       .eq('user_id', userId)
-      .gte('plan_date', cutoff.toISOString().split('T')[0]);
+      .gte('plan_date', localDateStr(cutoff));
     if (!data) return [];
     return (data as { completion_timestamps: number[] }[]).flatMap((r) => r.completion_timestamps ?? []);
   }
@@ -488,6 +502,42 @@ export function useDailyPlanner() {
     return `You usually focus better around ${best} — want to do "${taskTitle}" then?`;
   }
 
+  // ── Load Plan My Day items for a given date ──────────────────────────────
+  const loadPlanItems = useCallback(async (date: string): Promise<PlanItem[]> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Please sign in to load your plan.');
+    const { data, error } = await supabase
+      .from('daily_plans')
+      .select('plan_items')
+      .eq('user_id', user.id)
+      .eq('plan_date', date)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const raw = data?.plan_items;
+    if (!Array.isArray(raw)) return [];
+    return raw as PlanItem[];
+  }, []);
+
+  // ── Save Plan My Day items for a given date (upsert) ─────────────────────
+  const savePlanItems = useCallback(async (date: string, items: PlanItem[]): Promise<{ error: string | null }> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Not signed in.' };
+    if (!memoryId) return { error: 'Missing memory ID — cannot save plan.' };
+    const { error } = await supabase
+      .from('daily_plans')
+      .upsert(
+        {
+          memory_id: memoryId,
+          user_id: user.id,
+          plan_date: date,
+          plan_items: items,
+        },
+        { onConflict: 'user_id,plan_date' },
+      );
+    if (error) return { error: error.message };
+    return { error: null };
+  }, [memoryId]);
+
   return {
     plan,
     loading,
@@ -498,5 +548,7 @@ export function useDailyPlanner() {
     dismissAdaptation,
     finaliseDay,
     getTimeHintForTask,
+    loadPlanItems,
+    savePlanItems,
   };
 }

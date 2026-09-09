@@ -527,14 +527,14 @@ export default function GoalsPage({
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">Goals</h1>
+          <h1 className="bl-page-title">Goals</h1>
           <p className="text-xs text-gray-400 mt-0.5">
             {totalGoals === 0 ? 'No goals yet' : `${doneCount} of ${totalGoals} complete · ${avgProgress}% avg`}
           </p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 bg-gray-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm active:scale-95 transition-transform" style={{ backgroundColor: 'var(--theme-primary)' }}
         >
           <Plus size={13} />
           New Goal
@@ -657,7 +657,7 @@ export default function GoalsPage({
           {filter === 'all' && (
             <button
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-2 bg-gray-800 text-white text-sm font-bold px-5 py-2.5 rounded-2xl active:scale-95 transition-transform"
+              className="flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-2xl active:scale-95 transition-transform" style={{ backgroundColor: 'var(--theme-primary)' }}
             >
               <Plus size={14} />
               Add Your First Goal
