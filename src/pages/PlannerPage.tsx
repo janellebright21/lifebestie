@@ -2988,6 +2988,9 @@ export default function PlannerPage({
   tomorrowRemindersError = false,
   onDismissTomorrowReminder,
   onRefreshTomorrowReminders,
+  loadPlanItems,
+  savePlanItems,
+  dailyPlan,
 }: PlannerPageProps) {
   const today = getToday();
   const [selectedDate, setSelectedDate] = useState(today);

@@ -685,7 +685,9 @@ export default function App() {
           goals={goalsHook.goals}
           groceryItems={groceryItems}
           weeklyList={weeklyGrocery.weeklyList}
-          onAddTask={addTask}
+          onAddTask={async (title) => {
+            await addTask(title);
+          }}
           onAddEvent={addEvent}
           onAddGrocery={addGrocery}
           onAddWeeklyItem={addWeeklyItem}
@@ -773,7 +775,9 @@ export default function App() {
       <QuickAddSheet
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
-        onAddTask={addTask}
+        onAddTask={async (title, dueDate) => {
+          await addTask(title, dueDate);
+        }}
         onAddEvent={addEvent}
         onAddGrocery={addGrocery}
       />
