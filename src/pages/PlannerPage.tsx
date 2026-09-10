@@ -1826,6 +1826,25 @@ function PlanMyDaySheet({
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const getCatColor = useCatColor();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // Keep the Planner and BottomNav inert while the plan or its editor is open.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    dialog.showModal();
+    return () => { dialog.close(); };
+  }, []);
+
+  const hasSecondarySheet = !!(editingItem || movingItem || removingItem || showAddSheet);
+
+  function dismissTopSheet() {
+    if (editingItem) setEditingItem(null);
+    else if (movingItem) setMovingItem(null);
+    else if (removingItem) setRemovingItem(null);
+    else if (showAddSheet) setShowAddSheet(false);
+    else onClose();
+  }
 
   // ── Persistence: load saved plan items on open, debounce-save on change ──
   const itemsRef = useRef<PlanItem[]>(initial.items);
@@ -1973,10 +1992,18 @@ function PlanMyDaySheet({
   const todayEvents = events.filter((e) => e.event_date === selectedDate).sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
 
   return (
-    <>
-      {/* Above BottomNav (50), below the plan's secondary sheets (60). */}
+    <dialog
+      ref={dialogRef}
+      aria-label="Plan My Day"
+      className="fixed inset-0 m-0 h-[100dvh] w-screen max-h-none max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent"
+      onCancel={(event) => {
+        event.preventDefault();
+        dismissTopSheet();
+      }}
+    >
+      {/* Secondary sheets stay above the plan within the browser modal. */}
       <div className="fixed inset-0 z-[55] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-        <div className="absolute inset-0" onClick={onClose} />
+        <div className="absolute inset-0" onClick={() => { if (!hasSecondarySheet) onClose(); }} />
         <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col">
           {/* Handle */}
           <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-gray-200" /></div>
@@ -2196,7 +2223,7 @@ function PlanMyDaySheet({
           onClose={() => setShowAddSheet(false)}
         />
       )}
-    </>
+    </dialog>
   );
 }
 
