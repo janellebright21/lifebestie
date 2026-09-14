@@ -66,7 +66,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                 characterId={character}
                 expression="happy"
                 size="full"
-                enableTilt={false}
+                enable3D={false}
               />
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function MyBestiePage(props: MyBestiePageProps) {
                     characterId={character}
                     expression={expression}
                     size="sm"
-                    enableTilt={false}
+                    enable3D={false}
                   />
                 </div>
                 <span className="text-[9px] font-semibold text-gray-500 text-center leading-tight truncate w-full">
