@@ -286,7 +286,9 @@ export default function App() {
       if (linkedGoalId) {
         await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
       }
+      return task;
     }
+    return null;
   }
 
   async function toggleTask(id: string, completed: boolean) {
@@ -596,6 +598,8 @@ export default function App() {
           goals={goalsHook.goals}
           meals={mealPlanner.meals}
           character={selectedCharacter}
+          userId={userId}
+          memoryId={memoryId}
           onAddEvent={addEvent}
           onAddTask={addTask}
           onToggleTask={toggleTask}
@@ -677,7 +681,7 @@ export default function App() {
           goals={goalsHook.goals}
           groceryItems={groceryItems}
           weeklyList={weeklyGrocery.weeklyList}
-          onAddTask={addTask}
+          onAddTask={async (title) => { await addTask(title); }}
           onAddEvent={addEvent}
           onAddGrocery={addGrocery}
           onAddWeeklyItem={addWeeklyItem}
@@ -765,7 +769,7 @@ export default function App() {
       <QuickAddSheet
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
-        onAddTask={addTask}
+        onAddTask={async (title, dueDate) => { await addTask(title, dueDate); }}
         onAddEvent={addEvent}
         onAddGrocery={addGrocery}
       />
