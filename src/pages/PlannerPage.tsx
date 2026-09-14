@@ -1431,7 +1431,7 @@ function normaliseSavedPlan(value: unknown, tasks: Task[]): PlanItem[] | null {
       duration: typeof raw.duration === 'number' && Number.isFinite(raw.duration) && raw.duration > 0
         ? raw.duration
         : null,
-      time: typeof raw.time === 'string' && /^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(raw.time)
+      time: typeof raw.time === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(raw.time)
         ? raw.time
         : '',
       notes: typeof raw.notes === 'string' ? raw.notes : '',
