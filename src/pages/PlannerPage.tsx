@@ -3,14 +3,14 @@ import {
   Plus, CheckCircle2, Circle, Clock, Trash2, Pencil, Repeat, Target,
   Timer, ChevronDown, ChevronUp, Sparkles, Calendar, MapPin,
   Flag, Zap, AlarmClock, X, Check,
-  Lock, Unlock, ArrowUp, ArrowDown, RefreshCw, ListPlus, Palette,
+  Lock, Unlock, ArrowUp, ArrowDown, RefreshCw, ListPlus, Palette, Save,
   UtensilsCrossed, ShoppingCart, MoreVertical, Copy, CalendarClock,
 } from 'lucide-react';
 import {
   Task, Event, Routine, Goal, Meal, MealType, MEAL_TYPES, MealIngredient,
   TASK_CATEGORIES, TaskCategory, TaskPriority,
   EVENT_CATEGORIES, EventCategory,
-  PASTEL_COLORS, PastelColorKey, PastelColor, PASTEL_COLOR_MAP,
+  PASTEL_COLORS, PastelColorKey, PastelColor, PASTEL_COLOR_MAP, supabase,
 } from '../lib/supabase';
 import type { CharacterId } from '../lib/supabase';
 import { useCategoryColors, seedDefaultColors } from '../hooks/useCategoryColors';
@@ -25,8 +25,10 @@ interface PlannerPageProps {
   goals: Goal[];
   meals: Meal[];
   character?: CharacterId;
+  userId: string;
+  memoryId: string | null;
   onAddEvent: (title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) => Promise<Event>;
-  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<void>;
+  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task | null>;
   onToggleTask: (id: string, completed: boolean) => void;
   onUpdateTask: (id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) => Promise<void>;
   onDeleteTask: (id: string) => void;
@@ -1404,6 +1406,41 @@ interface PlanItem {
   locked: boolean;     // locked items survive replanning
 }
 
+function normaliseSavedPlan(value: unknown, tasks: Task[]): PlanItem[] | null {
+  if (!Array.isArray(value)) return null;
+  const availableTaskIds = new Set(tasks.map((task) => task.id));
+
+  return value.flatMap((candidate): PlanItem[] => {
+    if (!candidate || typeof candidate !== 'object') return [];
+    const raw = candidate as Partial<PlanItem>;
+    if (typeof raw.taskId !== 'string' || !availableTaskIds.has(raw.taskId)) return [];
+    if (typeof raw.title !== 'string' || raw.title.trim().length === 0) return [];
+
+    const priority: TaskPriority =
+      raw.priority === 'high' || raw.priority === 'low' ? raw.priority : 'medium';
+    const category: TaskCategory =
+      typeof raw.category === 'string' && TASK_CATEGORIES.includes(raw.category as TaskCategory)
+        ? raw.category as TaskCategory
+        : 'Other';
+
+    return [{
+      taskId: raw.taskId,
+      title: raw.title,
+      priority,
+      category,
+      duration: typeof raw.duration === 'number' && Number.isFinite(raw.duration) && raw.duration > 0
+        ? raw.duration
+        : null,
+      time: typeof raw.time === 'string' && /^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(raw.time)
+        ? raw.time
+        : '',
+      notes: typeof raw.notes === 'string' ? raw.notes : '',
+      completed: raw.completed === true,
+      locked: raw.locked === true,
+    }];
+  });
+}
+
 function buildInitialPlan(tasks: Task[], events: Event[], today: string): { items: PlanItem[]; message: string; suggestion: string } {
   const todayEvents = events.filter((e) => e.event_date === today);
   const incomplete = tasks.filter((t) => !t.completed);
@@ -1654,16 +1691,33 @@ function AddToPlanSheet({
   planTaskIds: Set<string>;
   today: string;
   onAdd: (task: Task) => void;
-  onAddNewTask: (title: string, category: TaskCategory, priority: TaskPriority) => void;
+  onAddNewTask: (title: string, category: TaskCategory, priority: TaskPriority) => Promise<void>;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<'existing' | 'new'>('existing');
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<TaskCategory>('Other');
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium');
+  const [addingNew, setAddingNew] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const getCatColor = useCatColor();
 
   const available = tasks.filter((t) => !t.completed && !planTaskIds.has(t.id));
+
+  async function handleAddNew() {
+    if (!newTitle.trim() || addingNew) return;
+    setAddingNew(true);
+    setAddError(null);
+    try {
+      await onAddNewTask(newTitle.trim(), newCategory, newPriority);
+      onClose();
+    } catch (error) {
+      console.error('[PlanMyDay] Unable to create task:', error);
+      setAddError('That task could not be added. Please try again.');
+    } finally {
+      setAddingNew(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
@@ -1746,10 +1800,11 @@ function AddToPlanSheet({
                   })}
                 </div>
               </div>
-              <button onClick={() => { if (newTitle.trim()) { onAddNewTask(newTitle.trim(), newCategory, newPriority); onClose(); } }}
-                disabled={!newTitle.trim()}
+              {addError && <p className="text-xs text-rose-500 text-center">{addError}</p>}
+              <button onClick={handleAddNew}
+                disabled={!newTitle.trim() || addingNew}
                 className="w-full py-3 rounded-xl bg-sky-500 text-white text-sm font-semibold disabled:opacity-40 hover:bg-sky-600 active:scale-[0.98] transition-all">
-                Add to today's plan
+                {addingNew ? 'Adding…' : "Add to today's plan"}
               </button>
             </div>
           )}
@@ -1806,6 +1861,8 @@ function PlanMyDaySheet({
   events,
   today,
   selectedDate,
+  userId,
+  memoryId,
   onToggleTask,
   onDeleteTask,
   onAddTask,
@@ -1815,9 +1872,11 @@ function PlanMyDaySheet({
   events: Event[];
   today: string;
   selectedDate: string;
+  userId: string;
+  memoryId: string | null;
   onToggleTask: (id: string, completed: boolean) => void;
   onDeleteTask: (id: string) => void;
-  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<void>;
+  onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task | null>;
   onClose: () => void;
 }) {
   const initial = useMemo(() => buildInitialPlan(tasks, events, selectedDate), [tasks, events, selectedDate]);
@@ -1828,16 +1887,69 @@ function PlanMyDaySheet({
   const [movingItem, setMovingItem] = useState<PlanItem | null>(null);
   const [removingItem, setRemovingItem] = useState<PlanItem | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState(true);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
   const getCatColor = useCatColor();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSavedPlan() {
+      setLoadingPlan(true);
+      setSaveError(null);
+      try {
+        const { data, error } = await supabase
+          .from('daily_plans')
+          .select('planner_items, planner_items_saved_at')
+          .eq('user_id', userId)
+          .eq('plan_date', selectedDate)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (cancelled) return;
+
+        const restored = data?.planner_items_saved_at
+          ? normaliseSavedPlan(data.planner_items, tasks)
+          : null;
+        setItems(restored ?? initial.items);
+        setLastSavedAt(data?.planner_items_saved_at ?? null);
+        setDirty(false);
+      } catch (error) {
+        console.error('[PlanMyDay] Unable to restore saved plan:', error);
+        if (!cancelled) {
+          setItems(initial.items);
+          setSaveError('Your saved plan could not be restored. You can still plan your day and try saving again.');
+        }
+      } finally {
+        if (!cancelled) setLoadingPlan(false);
+      }
+    }
+
+    loadSavedPlan();
+    return () => { cancelled = true; };
+    // The sheet is mounted for one selected date. Parent task updates must not
+    // overwrite edits that are already in progress.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, userId]);
 
   const planTaskIds = useMemo(() => new Set(items.map((i) => i.taskId)), [items]);
 
+  const markDirty = useCallback(() => {
+    setDirty(true);
+    setSaveError(null);
+  }, []);
+
   const updateItem = useCallback((taskId: string, patch: Partial<PlanItem>) => {
     setItems((prev) => prev.map((i) => i.taskId === taskId ? { ...i, ...patch } : i));
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   function moveUp(idx: number) {
     if (idx === 0) return;
+    markDirty();
     setItems((prev) => {
       const next = [...prev];
       [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
@@ -1846,8 +1958,9 @@ function PlanMyDaySheet({
   }
 
   function moveDown(idx: number) {
+    if (idx >= items.length - 1) return;
+    markDirty();
     setItems((prev) => {
-      if (idx >= prev.length - 1) return prev;
       const next = [...prev];
       [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
       return next;
@@ -1878,6 +1991,7 @@ function PlanMyDaySheet({
     }));
 
     setItems([...lockedOrDone, ...newPicks]);
+    markDirty();
   }
 
   function addFromTask(task: Task) {
@@ -1886,13 +2000,60 @@ function PlanMyDaySheet({
       category: (task.category as TaskCategory) ?? 'Other', duration: task.duration,
       time: '', notes: '', completed: false, locked: false,
     }]);
+    markDirty();
   }
 
   async function addNewTask(title: string, category: TaskCategory, priority: TaskPriority) {
-    await onAddTask(title, selectedDate, undefined, undefined, category, priority);
-    // The new task will appear in the tasks prop on next render; add it optimistically
-    const tempId = `temp-${Date.now()}`;
-    setItems((prev) => [...prev, { taskId: tempId, title, priority, category, duration: null, time: '', notes: '', completed: false, locked: false }]);
+    const task = await onAddTask(title, selectedDate, undefined, undefined, category, priority);
+    if (!task) throw new Error('Task creation did not return a saved task.');
+
+    setItems((prev) => [...prev, {
+      taskId: task.id,
+      title: task.title,
+      priority: task.priority ?? priority,
+      category: (task.category as TaskCategory) ?? category,
+      duration: task.duration,
+      time: '',
+      notes: '',
+      completed: task.completed,
+      locked: false,
+    }]);
+    markDirty();
+  }
+
+  async function saveCurrentPlan() {
+    if (!memoryId || savingPlan) {
+      if (!memoryId) setSaveError('Your BestieLife profile is still loading. Close this sheet, reopen it, and try again.');
+      return;
+    }
+
+    setSavingPlan(true);
+    setSaveError(null);
+    try {
+      const savedAt = new Date().toISOString();
+      const { error } = await supabase
+        .from('daily_plans')
+        .upsert({
+          user_id: userId,
+          memory_id: memoryId,
+          plan_date: selectedDate,
+          planner_items: items,
+          planner_items_saved_at: savedAt,
+        }, { onConflict: 'user_id,plan_date' });
+
+      if (error) throw error;
+      setLastSavedAt(savedAt);
+      setDirty(false);
+    } catch (error) {
+      console.error('[PlanMyDay] Unable to save plan:', error);
+      setSaveError('Your plan was not saved. Nothing was lost here—please try again.');
+    } finally {
+      setSavingPlan(false);
+    }
+  }
+
+  function requestClose() {
+    if (!dirty || window.confirm('Discard your unsaved Plan My Day changes?')) onClose();
   }
 
   const todayEvents = events.filter((e) => e.event_date === selectedDate).sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
@@ -1901,8 +2062,8 @@ function PlanMyDaySheet({
     <>
       {/* Above BottomNav (50), below the plan's secondary sheets (60). */}
       <div className="fixed inset-0 z-[55] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-        <div className="absolute inset-0" onClick={onClose} />
-        <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col">
+        <div className="absolute inset-0" onClick={requestClose} />
+        <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col" role="dialog" aria-modal="true" aria-labelledby="plan-my-day-title">
           {/* Handle */}
           <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-gray-200" /></div>
 
@@ -1913,7 +2074,7 @@ function PlanMyDaySheet({
                 <Sparkles size={16} className="text-amber-400" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-gray-800">
+                <h2 id="plan-my-day-title" className="text-sm font-bold text-gray-800">
                   {selectedDate === today ? 'Plan My Day' : `Plan · ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                 </h2>
                 <p className="text-xs text-gray-400">{items.filter((i) => i.completed).length}/{items.length} done</p>
@@ -1921,16 +2082,22 @@ function PlanMyDaySheet({
             </div>
             <div className="flex items-center gap-2">
               <button onClick={replan}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 hover:bg-sky-100 transition-colors">
+                disabled={loadingPlan || savingPlan}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 hover:bg-sky-100 disabled:opacity-40 transition-colors">
                 <RefreshCw size={11} /> Replan
               </button>
-              <button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+              <button onClick={requestClose} aria-label="Close Plan My Day" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
                 <X size={13} className="text-gray-500" />
               </button>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {loadingPlan && (
+            <div className="px-5 py-2 bg-sky-50 border-b border-sky-100 text-xs font-medium text-sky-600" role="status">
+              Restoring your saved plan…
+            </div>
+          )}
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain transition-opacity ${loadingPlan ? 'pointer-events-none opacity-50' : ''}`}>
             <div className="px-5 py-4 space-y-4">
               {/* LifeBestie message */}
               <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
@@ -2076,6 +2243,29 @@ function PlanMyDaySheet({
               </div>
             </div>
           </div>
+
+          <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-3.5">
+            <div className="flex items-center gap-3">
+              <p className={`flex-1 text-xs ${saveError ? 'text-rose-500' : dirty ? 'text-amber-600' : 'text-gray-400'}`} role="status">
+                {saveError
+                  ?? (dirty
+                    ? 'Unsaved changes'
+                    : lastSavedAt
+                      ? `Saved at ${new Date(lastSavedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                      : 'Save this plan to restore it next time')}
+              </p>
+              <button
+                onClick={saveCurrentPlan}
+                disabled={loadingPlan || savingPlan || (!dirty && lastSavedAt !== null)}
+                className="flex items-center justify-center gap-2 min-w-[118px] px-4 py-2.5 rounded-xl bg-sky-500 text-white text-sm font-semibold hover:bg-sky-600 active:scale-[0.98] disabled:opacity-40 transition-all"
+              >
+                {savingPlan
+                  ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <Save size={14} />}
+                {savingPlan ? 'Saving…' : 'Save plan'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2097,9 +2287,13 @@ function PlanMyDaySheet({
       {removingItem && (
         <ConfirmRemoveSheet
           title={removingItem.title}
-          onRemoveFromPlan={() => setItems((prev) => prev.filter((i) => i.taskId !== removingItem.taskId))}
+          onRemoveFromPlan={() => {
+            setItems((prev) => prev.filter((i) => i.taskId !== removingItem.taskId));
+            markDirty();
+          }}
           onDeleteTask={() => {
             setItems((prev) => prev.filter((i) => i.taskId !== removingItem.taskId));
+            markDirty();
             onDeleteTask(removingItem.taskId);
           }}
           onClose={() => setRemovingItem(null)}
@@ -2887,6 +3081,8 @@ export default function PlannerPage({
   routines,
   goals,
   meals,
+  userId,
+  memoryId,
 
   onAddEvent,
   onAddTask,
@@ -3093,6 +3289,8 @@ export default function PlannerPage({
           events={events}
           today={today}
           selectedDate={selectedDate}
+          userId={userId}
+          memoryId={memoryId}
           onToggleTask={onToggleTask}
           onDeleteTask={onDeleteTask}
           onAddTask={onAddTask}
