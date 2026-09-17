@@ -40,6 +40,12 @@ interface MemorySuggestion {
   value: string;
 }
 
+interface EmmaAction {
+  type: string;
+  name: string;
+  category?: string;
+}
+
 interface ChatPageProps {
   tasks: Task[];
   events: Event[];
@@ -129,7 +135,7 @@ async function callEmmaChatFunction(
   messages: Message[],
   relevantMemories: LifeBestieMemory[],
   contextSummary?: EmmaContextSummary,
-): Promise<{ text: string; emotion: AvatarExpression; memory_suggestion?: MemorySuggestion }> {
+): Promise<{ text: string; emotion: AvatarExpression; memory_suggestion?: MemorySuggestion; action?: EmmaAction }> {
   // Build conversation history from existing messages (exclude the init greeting,
   // exclude the message we are about to send, cap at 10 turns).
   const conversation = messages
@@ -185,7 +191,27 @@ async function callEmmaChatFunction(
     // memory_suggestion parse failed — continue without it
   }
 
-  return { text, emotion, memory_suggestion };
+  let action: EmmaAction | undefined;
+  try {
+    const act = payload.action;
+    if (
+      act &&
+      typeof act === 'object' &&
+      typeof (act as Record<string, unknown>).type === 'string' &&
+      typeof (act as Record<string, unknown>).name === 'string'
+    ) {
+      const a = act as Record<string, unknown>;
+      action = {
+        type: a.type as string,
+        name: (a.name as string).trim(),
+        ...(typeof a.category === 'string' ? { category: a.category as string } : {}),
+      };
+    }
+  } catch {
+    // action parse failed — continue without it
+  }
+
+  return { text, emotion, memory_suggestion, action };
 }
 
 // ── Memory confirmation banner ─────────────────────────────────────────────────
@@ -298,42 +324,11 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
   }
 }
 
-// ── Grocery-add request detection ──────────────────────────────────────────────
-// Detects explicit grocery-add requests from the user's message text.
-// Returns the item name if detected, or null otherwise.
-// Supports phrasing like:
-//   "Add milk to my grocery list"
-//   "Can you add milk to my grocery list?"
-//   "Put eggs on the grocery list"
-//   "Add to my grocery list: bread"
-function detectGroceryAddRequest(input: string): string | null {
-  // Pattern 1: "add <item> to (my) grocery list"
-  let m = input.match(/\badd\s+(.+?)\s+to\s+(?:my\s+)?grocery\s+list\b/i);
-  if (m) return cleanItemName(m[1]);
-
-  // Pattern 2: "can/could you add <item> to (my) grocery list"
-  m = input.match(/\b(?:can|could)\s+you\s+add\s+(.+?)\s+to\s+(?:my\s+)?grocery\s+list\b/i);
-  if (m) return cleanItemName(m[1]);
-
-  // Pattern 3: "put <item> on (the/my) grocery list"
-  m = input.match(/\bput\s+(.+?)\s+on\s+(?:the\s+|my\s+)?grocery\s+list\b/i);
-  if (m) return cleanItemName(m[1]);
-
-  // Pattern 4: "add to (my) grocery list: <item>"
-  m = input.match(/\badd\s+to\s+(?:my\s+)?grocery\s+list\s*[:\-]\s*(.+)/i);
-  if (m) return cleanItemName(m[1]);
-
-  return null;
-}
-
-function cleanItemName(raw: string): string {
-  return raw
-    .replace(/[?.!,;]+$/, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
+// ── Grocery category validation ───────────────────────────────────────────────
+const VALID_GROCERY_CATEGORIES = new Set([
+  'Produce', 'Dairy', 'Meat', 'Seafood', 'Bakery', 'Frozen',
+  'Beverages', 'Pantry', 'Snacks', 'Personal Care', 'Household', 'Baby', 'Pet',
+]);
 
 // ── Main chat component ────────────────────────────────────────────────────────
 
@@ -341,10 +336,10 @@ function ChatPageInner({
   tasks: _tasks,
   events: _events,
   groceryItems: _groceryItems,
-  memory,
+  memory: _memory,
   onAddTask,
   onAddGrocery,
-  onUpdateMemory,
+  onUpdateMemory: _onUpdateMemory,
   getProactiveSuggestions: _getProactiveSuggestions,
   preferredName,
   avatarTheme: _avatarTheme,
@@ -441,53 +436,29 @@ function ChatPageInner({
 
       const replyText = result.text;
       setEmmaEmotion(result.emotion);
-      const lowerInput = trimmedText.toLowerCase();
 
-      // Detect explicit grocery-add requests from the user's message.
-      // We detect from the user's words — not Emma's reply — so we never
-      // claim an item was added unless onAddGrocery actually succeeded.
-      const groceryMatch = detectGroceryAddRequest(lowerInput);
-      let groceryAdded = false;
-      let groceryItemName = '';
-      if (groceryMatch) {
-        groceryItemName = groceryMatch;
-        try {
-          await onAddGrocery(groceryItemName, 'Pantry');
-          groceryAdded = true;
-        } catch (groceryErr) {
-          console.error('[Chat] Grocery add failed:', groceryErr);
-          groceryAdded = false;
-        }
-      }
-
-      // Side-effect: auto-add task from conversation — errors must not crash chat
-      try {
-        const taskMatch = lowerInput.match(/(?:add|remind me to|i need to)\s+(?:a\s+)?(?:task|to-do|reminder)\s+(?:to\s+)?(.+)/i);
-        if (taskMatch) {
-          await onAddTask(taskMatch[1].trim());
-        }
-      } catch (sideErr) {
-        console.error('[Chat] Auto-add side effect failed:', sideErr);
-      }
-
-      // Side-effect: save wake time — errors must not crash chat
-      try {
-        const wakeMatch = lowerInput.match(/(?:wake up|get up|start my day) (?:at )?([\d:]+\s*(?:am|pm)?)/i);
-        if (wakeMatch && memory) {
-          await onUpdateMemory({ ...memory.preferences, preferredWakeTime: wakeMatch[1] });
-        }
-      } catch (wakeErr) {
-        console.error('[Chat] Wake time save failed:', wakeErr);
-      }
-
-      // Build Emma's reply. If the user asked to add a grocery item, override
-      // the AI's text with an honest confirmation or failure message based on
-      // whether onAddGrocery actually succeeded.
+      // ── Perform structured action before displaying Emma's reply ──────────
       let finalReplyText = replyText;
-      if (groceryMatch) {
-        finalReplyText = groceryAdded
-          ? `Done! I added ${groceryItemName} to your grocery list 💛`
-          : `I'm sorry — I couldn't add ${groceryItemName} to your grocery list right now. Please try again in a moment.`;
+      const action = result.action;
+      if (action) {
+        if (action.type === 'add_grocery' && action.name) {
+          const category = action.category && VALID_GROCERY_CATEGORIES.has(action.category)
+            ? action.category as GroceryCategory
+            : 'Pantry';
+          try {
+            await onAddGrocery(action.name, category);
+          } catch (groceryErr) {
+            console.error('[Chat] Grocery add failed:', groceryErr);
+            finalReplyText = "I couldn't add that to your grocery list just now. Please try again in a moment 💛";
+          }
+        } else if (action.type === 'add_task' && action.name) {
+          try {
+            await onAddTask(action.name);
+          } catch (taskErr) {
+            console.error('[Chat] Task add failed:', taskErr);
+            finalReplyText = "I couldn't add that task just now. Please try again in a moment 💛";
+          }
+        }
       }
 
       setMessages((prev) => [

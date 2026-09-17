@@ -1,0 +1,26 @@
+[functions.budget-suggestions]
+verify_jwt = true
+
+[functions.chat]
+verify_jwt = true
+
+[functions.daily-planner]
+verify_jwt = true
+
+[functions.emma-chat]
+verify_jwt = true
+
+[functions.grocery-suggestions]
+verify_jwt = true
+
+[functions.meal-ingredients]
+verify_jwt = true
+
+[functions.prepare-for-tomorrow]
+verify_jwt = true
+
+[functions.scan-receipt]
+verify_jwt = true
+
+[functions.weekly-grocery-intro]
+verify_jwt = true

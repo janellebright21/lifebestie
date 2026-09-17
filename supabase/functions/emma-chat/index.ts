@@ -77,6 +77,22 @@ Using the current user context:
 
 Memory usage: when confirmed memories are provided, reference at most ONE per response naturally.
 
+## Structured Actions
+When the user explicitly asks you to add a grocery item or a task, include an "action" object in your JSON response. The app will perform the action and show your text reply.
+
+Rules for actions:
+- Include action.type = "add_grocery" when the user asks to add a grocery item (e.g., "add bananas", "put milk on the grocery list").
+- Include action.type = "add_task" when the user asks to add a task or reminder (e.g., "add call the dentist to my task list", "remind me to call the dentist").
+- For add_grocery, return only the actual item name in action.name, such as "bananas" — never "bananas to my list".
+- For add_grocery, choose the closest grocery category from this exact list:
+  Produce, Dairy, Meat, Seafood, Bakery, Frozen, Beverages, Pantry, Snacks, Personal Care, Household, Baby, Pet
+- Bananas and other fresh fruits or vegetables belong in Produce.
+- Milk, cheese, yogurt, and eggs belong in Dairy.
+- Bread and baked goods belong in Bakery.
+- Do NOT include an action when the user is only discussing groceries, asking a question, or making a general comment.
+- Do NOT include an action when the user says something vague like "add groceries" without a specific item.
+- Never claim an action succeeded unless the app successfully performs it. Your text should say what you'll do (e.g., "I'll add bananas to your grocery list") and the app will handle it.
+
 RESPONSE FORMAT — return valid JSON only. No markdown fences. No extra keys.
 {
   "text": "Emma's response here",
@@ -85,8 +101,18 @@ RESPONSE FORMAT — return valid JSON only. No markdown fences. No extra keys.
     "category": "Preference|Goal|Routine|Meal|Household|WorkSchedule|EncouragementStyle|Wellness|Challenge|Favorite|Budget|ImportantDate|Other",
     "title": "concise label max 80 chars",
     "value": "optional extra detail or empty string"
+  },
+  "action": {
+    "type": "add_grocery",
+    "name": "bananas",
+    "category": "Produce"
   }
 }
+
+For add_task, the action shape is:
+  "action": { "type": "add_task", "name": "call the dentist" }
+
+Omit the "action" key entirely when no action is needed.
 
 Choose the emotion that best matches the meaning and tone of your response:
 - happy — general friendly conversation or greeting
@@ -344,12 +370,38 @@ Deno.serve(async (req: Request) => {
       console.log("[emma-chat] Response was plain text, not JSON — using as-is");
     }
 
-    console.log("[emma-chat] Returning text, length:", emmaText.length, "| emotion:", emotion);
+    // ── Parse structured action ────────────────────────────────────────────
+    let action: { type: string; name: string; category?: string } | null = null;
+    try {
+      const cleanedAct = rawContent
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      const parsedAct = JSON.parse(cleanedAct);
+      if (
+        parsedAct.action &&
+        typeof parsedAct.action === "object" &&
+        typeof parsedAct.action.type === "string" &&
+        typeof parsedAct.action.name === "string"
+      ) {
+        action = {
+          type: parsedAct.action.type,
+          name: String(parsedAct.action.name).trim(),
+          ...(typeof parsedAct.action.category === "string"
+            ? { category: parsedAct.action.category }
+            : {}),
+        };
+      }
+    } catch {
+      // action not present or unparseable — continue without it
+    }
+
+    console.log("[emma-chat] Returning text, length:", emmaText.length, "| emotion:", emotion, "| action:", action ? action.type : "none");
     return ok({
       text: emmaText,
       emotion,
       ...(memorySuggestion ? { memory_suggestion: memorySuggestion } : {}),
-      actions: [],
+      ...(action ? { action } : {}),
     });
 
   } catch (err) {
