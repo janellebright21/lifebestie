@@ -41,7 +41,7 @@ const MOTION_BY_EXPRESSION: Record<AvatarExpression, BestieMotionState> = {
   empathetic:  'lean',
   focused:     'thinking',
   excited:     'celebrating',
-  playful:     'idle',
+  playful:     'playful',
 };
 
 const ONE_SHOT_MOTIONS = new Set<BestieMotionState>(['wave', 'celebrating', 'playful']);

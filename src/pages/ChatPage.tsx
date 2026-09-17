@@ -383,6 +383,7 @@ function ChatPageInner({
   const [lastUserText, setLastUserText]           = useState('');
   const [emmaEmotion, setEmmaEmotion]             = useState<AvatarExpression>('happy');
   const [greetingMotion, setGreetingMotion]       = useState<'wave' | null>('wave');
+  const [celebrationMotion, setCelebrationMotion] = useState<'celebrating' | 'playful' | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -401,6 +402,13 @@ function ChatPageInner({
     const t = setTimeout(() => setGreetingMotion(null), 1200);
     return () => clearTimeout(t);
   }, [greetingMotion]);
+
+  // Play a one-shot celebration or playful motion after an accomplishment
+  useEffect(() => {
+    if (!celebrationMotion) return;
+    const t = setTimeout(() => setCelebrationMotion(null), 1800);
+    return () => clearTimeout(t);
+  }, [celebrationMotion]);
 
   async function sendMessage(text: string) {
     if (!text.trim() || isTyping) return;
@@ -440,6 +448,7 @@ function ChatPageInner({
       // ── Perform structured action before displaying Emma's reply ──────────
       let finalReplyText = replyText;
       const action = result.action;
+      let actionSucceeded = false;
       if (action) {
         if (action.type === 'add_grocery' && action.name) {
           const category = action.category && VALID_GROCERY_CATEGORIES.has(action.category)
@@ -447,6 +456,8 @@ function ChatPageInner({
             : 'Pantry';
           try {
             await onAddGrocery(action.name, category);
+            actionSucceeded = true;
+            finalReplyText = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} ${action.name.toLowerCase().endsWith('s') ? 'are' : 'is'} on the list 🍌 One less thing to remember.`;
           } catch (groceryErr) {
             console.error('[Chat] Grocery add failed:', groceryErr);
             finalReplyText = "I couldn't add that to your grocery list just now. Please try again in a moment 💛";
@@ -454,11 +465,22 @@ function ChatPageInner({
         } else if (action.type === 'add_task' && action.name) {
           try {
             await onAddTask(action.name);
+            actionSucceeded = true;
+            finalReplyText = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} is on your task list.`;
           } catch (taskErr) {
             console.error('[Chat] Task add failed:', taskErr);
             finalReplyText = "I couldn't add that task just now. Please try again in a moment 💛";
           }
         }
+      }
+
+      // ── Trigger one-shot celebration motion for accomplishments ───────────
+      if (actionSucceeded) {
+        setCelebrationMotion(result.emotion === 'playful' ? 'playful' : 'celebrating');
+      } else if (result.emotion === 'proud' || result.emotion === 'excited') {
+        setCelebrationMotion('celebrating');
+      } else if (result.emotion === 'playful') {
+        setCelebrationMotion('playful');
       }
 
       setMessages((prev) => [
@@ -566,8 +588,8 @@ function ChatPageInner({
           characterId={character ?? 'emma'}
           expression={isTyping ? 'thinking' : emmaEmotion}
           size="md"
-          motionOverride={greetingMotion ?? undefined}
-          onMotionEnd={() => setGreetingMotion(null)}
+          motionOverride={celebrationMotion ?? greetingMotion ?? undefined}
+          onMotionEnd={() => { setGreetingMotion(null); setCelebrationMotion(null); }}
         />
         <div>
           <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Emma</h1>
