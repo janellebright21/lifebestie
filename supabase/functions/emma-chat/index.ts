@@ -190,10 +190,11 @@ Deno.serve(async (req: Request) => {
 
     // ── Secret check ───────────────────────────────────────────────────────────
     const groqApiKey = Deno.env.get("GROQ_API_KEY") ?? "";
-    const model = Deno.env.get("GROQ_MODEL") || DEFAULT_MODEL;
+    const secretModel = Deno.env.get("GROQ_MODEL") ?? "";
+    const model = DEFAULT_MODEL;
 
     console.log("[emma-chat] GROQ_API_KEY present:", groqApiKey.length > 0);
-    console.log("[emma-chat] Model:", model);
+    console.log("[emma-chat] Model:", model, secretModel ? `(ignoring stale GROQ_MODEL secret: "${secretModel}")` : "(no GROQ_MODEL secret set)");
 
     if (!groqApiKey) {
       return ok({
