@@ -194,6 +194,26 @@ Deno.serve(async (req: Request) => {
     }
     console.log("[emma-chat] Auth: OK, user", user.id.slice(0, 8) + "...");
 
+    // ── Access check: verify subscription/trial/owner access ────────────────────
+    const AI_DAILY_LIMIT = parseInt(Deno.env.get("AI_DAILY_LIMIT") ?? "50", 10);
+    const { data: hasAccess } = await supabase.rpc("has_access", { p_user_id: user.id });
+    if (!hasAccess) {
+      return ok({
+        error: "ACCESS_DENIED",
+        message: "Your free trial has ended. Subscribe to continue chatting with Emma.",
+      });
+    }
+
+    // ── AI usage limit check ────────────────────────────────────────────────────
+    const { data: usageRows } = await supabase.rpc("get_ai_usage_today", { p_user_id: user.id });
+    const totalCalls = (usageRows as Array<{ call_count: number }>)?.reduce((sum, r) => sum + r.call_count, 0) ?? 0;
+    if (totalCalls >= AI_DAILY_LIMIT) {
+      return ok({
+        error: "AI_LIMIT_REACHED",
+        message: `You've reached your daily AI limit of ${AI_DAILY_LIMIT} messages. Try again tomorrow!`,
+      });
+    }
+
     // ── Secret check ───────────────────────────────────────────────────────────
     const groqApiKey = Deno.env.get("GROQ_API_KEY") ?? "";
     const secretModel = Deno.env.get("GROQ_MODEL") ?? "";
@@ -401,6 +421,18 @@ Deno.serve(async (req: Request) => {
       }
     } catch {
       // action not present or unparseable — continue without it
+    }
+
+    // ── Record AI usage (after successful response) ──────────────────────────────
+    try {
+      await supabase.rpc("record_ai_usage", {
+        p_user_id: user.id,
+        p_function: "emma-chat",
+        p_provider: "groq",
+        p_cost_cents: 1,
+      });
+    } catch (usageErr) {
+      console.warn("[emma-chat] Failed to record AI usage:", usageErr);
     }
 
     console.log("[emma-chat] Returning text, length:", emmaText.length, "| emotion:", emotion, "| action:", action ? action.type : "none");

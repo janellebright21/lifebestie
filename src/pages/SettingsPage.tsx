@@ -6,6 +6,8 @@ import {
   ThemeId, BgSkinId, AvatarThemeId,
 } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
+import MembershipSection from '../components/MembershipSection';
+import { useSubscription } from '../hooks/useSubscription';
 
 interface SettingsPageProps {
   isEnabled: (id: ModuleId) => boolean;
@@ -217,6 +219,8 @@ export default function SettingsPage({
   onSetTheme, onSetBgSkin, onSetAvatarTheme,
   memoryEnabled, onSetMemoryEnabled,
 }: SettingsPageProps) {
+  const subscription = useSubscription();
+
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
@@ -259,6 +263,12 @@ export default function SettingsPage({
           memoryEnabled={memoryEnabled}
           onSetMemoryEnabled={onSetMemoryEnabled}
         />
+
+        {/* Divider */}
+        <div className="border-t border-gray-100" />
+
+        {/* Membership */}
+        <MembershipSection subscription={subscription} />
 
         {/* Divider */}
         <div className="border-t border-gray-100" />
