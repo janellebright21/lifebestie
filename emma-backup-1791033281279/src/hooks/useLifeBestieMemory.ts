@@ -8,7 +8,7 @@ function isSimilarTitle(a: string, b: string): boolean {
   const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
   const na = normalize(a);
   const nb = normalize(b);
-  return Boolean(na && nb) && na === nb;
+  return na === nb || na.includes(nb) || nb.includes(na);
 }
 
 export function useLifeBestieMemory() {
@@ -60,7 +60,7 @@ export function useLifeBestieMemory() {
     if (existing) {
       // Update the existing memory so corrections don't create duplicates.
       await updateMemory(existing.id, { category, title, value });
-      return { ...existing, category, title, value };
+      return memories.find((m) => m.id === existing.id) ?? null;
     }
 
     const now = new Date().toISOString();
@@ -92,8 +92,6 @@ export function useLifeBestieMemory() {
       .single();
 
     dbError('user_memories (update)', error);
-    if (error) throw error;
-    if (!data) throw new Error('Memory update returned no saved record');
     if (data) {
       const updated = data as LifeBestieMemory;
       setMemories((prev) => prev.map((m) => (m.id === id ? updated : m)));
@@ -107,7 +105,6 @@ export function useLifeBestieMemory() {
       .eq('id', id);
 
     dbError('user_memories (delete)', error);
-    if (error) throw error;
     setMemories((prev) => prev.filter((m) => m.id !== id));
   }
 

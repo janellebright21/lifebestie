@@ -4,7 +4,7 @@ import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase
 import { resolveExpressionSrc, getDefaultSrc } from '../../lib/characterAssets';
 import { use3DMotion } from '../../hooks/use3DMotion';
 
-export type BestieMotionState = 'idle' | 'wave' | 'lean' | 'thinking' | 'celebrating' | 'calm' | 'playful' | 'listening';
+export type BestieMotionState = 'idle' | 'wave' | 'lean' | 'thinking' | 'celebrating' | 'calm' | 'playful';
 
 export interface BestieAvatarProps {
   characterId: CharacterId;
@@ -37,7 +37,7 @@ const MOTION_BY_EXPRESSION: Record<AvatarExpression, BestieMotionState> = {
   calm:        'calm',
   thinking:    'thinking',
   tired:       'calm',
-  listening:   'listening',
+  listening:   'idle',
   empathetic:  'lean',
   focused:     'thinking',
   excited:     'celebrating',
@@ -89,22 +89,10 @@ function FadingImage({
   const [current, setCurrent] = useState(src);
   const [next, setNext]       = useState<string | null>(null);
   const [fading, setFading]   = useState(false);
-  const [readySrc, setReadySrc] = useState<string | null>(null);
 
   useEffect(() => {
-    if (src === current) {
-      setNext(null);
-      setFading(false);
-      setReadySrc(null);
-      return;
-    }
+    if (src === current) return;
     setNext(src);
-    setReadySrc(null);
-    setFading(false);
-  }, [src, current]);
-
-  useEffect(() => {
-    if (readySrc !== src || !next) return;
     setFading(true);
     const t = setTimeout(() => {
       setCurrent(src);
@@ -112,7 +100,7 @@ function FadingImage({
       setFading(false);
     }, 450);
     return () => clearTimeout(t);
-  }, [src, readySrc, next]);
+  }, [src, current]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -137,10 +125,7 @@ function FadingImage({
         <img
           key={next}
           src={next}
-          alt=""
-          aria-hidden="true"
-          onLoad={() => setReadySrc(next)}
-          onError={onError}
+          alt={alt}
           loading="eager"
           decoding="async"
           draggable={false}
@@ -204,7 +189,7 @@ export default function BestieAvatar({
   const { tilt, ref: tiltRef } = use3DMotion(want3D);
 
   // Max rotation: ±12° for full, ±8° for lg
-  const maxRot = size === 'full' ? 5 : 3;
+  const maxRot = size === 'full' ? 12 : 8;
   // Portrait is a static illustrated area — no tilt, no parallax
   const portraitStatic = isPortrait;
   const rotX   = -tilt.y * maxRot;  // tilt up → positive rotX (face tips toward viewer)
@@ -223,16 +208,7 @@ export default function BestieAvatar({
   const shadowX = tilt.x * 6;
   const shadowY = tilt.y * 6 + 4;
 
-  const requestedMotion = motionOverride ?? MOTION_BY_EXPRESSION[expression] ?? 'idle';
-  const [completedMotion, setCompletedMotion] = useState<BestieMotionState | null>(null);
-  useEffect(() => { setCompletedMotion(null); }, [requestedMotion, characterId, expression]);
-  // The timer also completes a gesture when reduced motion disables animation events.
-  useEffect(() => {
-    if (!ONE_SHOT_MOTIONS.has(requestedMotion)) return;
-    const timer = setTimeout(() => setCompletedMotion(requestedMotion), 1250);
-    return () => clearTimeout(timer);
-  }, [requestedMotion, characterId, expression]);
-  const motion = completedMotion === requestedMotion ? 'idle' : requestedMotion;
+  const motion     = motionOverride ?? MOTION_BY_EXPRESSION[expression] ?? 'idle';
   const stateClass = `ba-state-${motion}`;
 
   const blinkStyle = useMemo<React.CSSProperties>(() => ({
@@ -251,16 +227,13 @@ export default function BestieAvatar({
 
   const handleAnimationEnd = (event: React.AnimationEvent<HTMLDivElement>) => {
     if (event.currentTarget !== event.target) return;
-    if (ONE_SHOT_MOTIONS.has(motion)) {
-      setCompletedMotion(requestedMotion);
-      onMotionEnd?.();
-    }
+    if (ONE_SHOT_MOTIONS.has(motion)) onMotionEnd?.();
   };
 
   const imgStyle: React.CSSProperties = {
     width:      '100%',
     height:     '100%',
-    objectFit: 'contain',
+    objectFit:  isPortrait ? 'contain' : 'cover',
     objectPosition: isPortrait ? 'bottom center' : 'center',
     display:    'block',
     userSelect: 'none',
@@ -383,7 +356,7 @@ export default function BestieAvatar({
           </div>
 
           {want3D && !portraitStatic && <div className="ba-shimmer" aria-hidden="true" />}
-          {characterId !== 'emma' && !portraitStatic && <div className="ba-blink" style={blinkStyle} aria-hidden="true" />}
+          {!portraitStatic && <div className="ba-blink" style={blinkStyle} />}
         </div>
       </div>
 

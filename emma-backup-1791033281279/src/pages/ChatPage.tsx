@@ -143,7 +143,7 @@ async function callEmmaChatFunction(
     .slice(-10)
     .map((m) => ({ role: m.role, content: m.text }));
 
-  const memories = relevantMemories.map((m) => ({ category: m.category, title: m.title, value: m.value }));
+  const memories = relevantMemories.map((m) => ({ category: m.category, title: m.title }));
 
   const { data, error } = await supabase.functions.invoke('emma-chat', {
     body: { message: currentMessage, conversation, memories, context: contextSummary },
@@ -554,13 +554,9 @@ function ChatPageInner({
     if (!pendingSuggestion || !onSaveMemory) return;
     setSavingMemory(true);
     try {
-      const saved = await onSaveMemory(pendingSuggestion.category, pendingSuggestion.title, pendingSuggestion.value);
-      if (!saved) throw new Error('Memory was not saved');
+      await onSaveMemory(pendingSuggestion.category, pendingSuggestion.title, pendingSuggestion.value);
     } catch (err) {
       console.error('[Chat] Memory save failed:', err);
-      setSavingMemory(false);
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: "I couldn't save that memory yet. You can try again.", timestamp: new Date(), isError: true }]);
-      return;
     }
     setSavingMemory(false);
     setPendingSuggestion(null);

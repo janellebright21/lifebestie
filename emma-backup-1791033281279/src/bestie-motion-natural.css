@@ -143,14 +143,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ba-head img {
-    transition: none !important;
-    transform: none !important;
-  }
-  .bestie-sparkle-dot,
-  .ba-shimmer {
-    display: none !important;
-  }
   .ba-state-idle .ba-body,
   .ba-state-idle .ba-head,
   .ba-state-idle .ba-blink,
@@ -172,16 +164,4 @@
   .ba-state-wave .ba-blink {
     animation: none !important;
   }
-}
-
-/* Attentive listening: a small, unhurried nod with a pause. */
-@keyframes ba-natural-listen {
-  0%, 25%, 75%, 100% { transform: translateY(0) rotate(0); }
-  42% { transform: translateY(1.5px) rotate(-0.6deg); }
-  57% { transform: translateY(0) rotate(-0.3deg); }
-}
-.ba-state-listening .ba-body { animation: ba-natural-calm 7.4s ease-in-out infinite !important; }
-.ba-state-listening .ba-head { animation: ba-natural-listen 5.8s ease-in-out infinite !important; }
-@media (prefers-reduced-motion: reduce) {
-  .ba-state-listening .ba-body, .ba-state-listening .ba-head { animation: none !important; }
 }
