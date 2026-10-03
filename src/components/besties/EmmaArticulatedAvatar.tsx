@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import type { AvatarExpression } from '../../lib/supabase';
 import './EmmaArticulatedAvatar.css';
-const ATLAS='/assets/emma/rig/emma-atlas-v1.png';
-function Part({column,row,x,y,size}: {column:number;row:number;x:number;y:number;size:number}) {
- return <svg x={x} y={y} width={size} height={size} viewBox={`${column*512} ${row*512} 512 512`} overflow="hidden"><image href={ATLAS} width="1536" height="1024" /></svg>;
+const ATLAS='/assets/emma/rig/emma-unified-v2.png';
+function Part({viewBox,x,y,width,height}: {viewBox:string;x:number;y:number;width:number;height:number}) {
+ return <svg x={x} y={y} width={width} height={height} viewBox={viewBox} overflow="hidden"><image href={ATLAS} width="1254" height="1254" /></svg>;
 }
 export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:AvatarExpression}) {
+ const clipId=useId();
  const [blink,setBlink]=useState(false);
  const [gesture,setGesture]=useState(0);
  const [failed,setFailed]=useState(false);
@@ -21,12 +22,10 @@ export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:
  if(failed)return <img src="/assets/emma/expressions/emma-happy-v3.png" alt="Emma" style={{width:'100%',height:'100%',objectFit:'contain'}}/>;
  return <button type="button" className={`emma-rig ${expression==='thinking'||expression==='focused'?'emma-rig--thinking':''}`} aria-label="Say hi to Emma" onClick={()=>setGesture(n=>n+1)}>
  <svg viewBox="0 0 600 650" role="img" aria-label="Emma, your animated bestie">
- <g className="emma-rig__left"><Part column={0} row={1} x={8} y={302} size={317}/></g>
- <g className="emma-rig__right"><g key={gesture} className="emma-rig__wave"><Part column={1} row={1} x={328} y={210} size={256}/></g></g>
- <g className="emma-rig__head">
- <g opacity={blink?0:1}><Part column={0} row={0} x={100} y={20} size={307}/></g>
- <g opacity={blink?1:0}><Part column={1} row={0} x={118} y={20} size={307}/></g>
- </g>
- <Part column={2} row={0} x={110} y={209} size={358}/>
+ <defs><clipPath id={clipId}><rect x="217" y="170" width="190" height="78"/></clipPath></defs>
+ <g className="emma-rig__left"><Part viewBox="0 785 627 469" x={-25} y={344} width={400} height={299}/></g>
+ <g className="emma-rig__right"><g key={gesture} className="emma-rig__wave"><Part viewBox="627 785 627 469" x={330} y={197} width={376} height={281}/></g></g>
+ <Part viewBox="0 0 627 785" x={60} y={0} width={480} height={600}/>
+ <g opacity={blink?1:0} clipPath={`url(#${clipId})`}><Part viewBox="627 0 627 785" x={93} y={0} width={480} height={600}/></g>
  </svg></button>;
 }

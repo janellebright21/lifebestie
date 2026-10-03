@@ -2,9 +2,9 @@
 .emma-rig:focus-visible {outline:2px solid #9060ca;outline-offset:4px;border-radius:16px}
 .emma-rig > svg {display:block;width:100%;height:100%;overflow:visible}
 .emma-rig__head {transform-origin:279px 290px;animation:emma-rig-nod 7s ease-in-out infinite;}
-.emma-rig__left {transform-origin:155px 355px;animation:emma-rig-rest 9s ease-in-out infinite;}
-.emma-rig__right {transform-origin:400px 350px;animation:emma-rig-hand 10s ease-in-out infinite;}
-.emma-rig__wave {transform-origin:400px 350px;animation:emma-rig-wave 1.8s ease-in-out both;}
+.emma-rig__left {transform-origin:175px 350px;animation:emma-rig-rest 9s ease-in-out infinite;}
+.emma-rig__right {transform-origin:455px 350px;animation:emma-rig-hand 10s ease-in-out infinite;}
+.emma-rig__wave {transform-origin:455px 350px;animation:emma-rig-wave 1.8s ease-in-out both;}
 .emma-rig--thinking .emma-rig__head {animation:emma-rig-think 6s ease-in-out infinite;}
 @keyframes emma-rig-nod {0%,30%,65%,100%{transform:rotate(0)}42%{transform:rotate(-2deg)}52%{transform:rotate(1.5deg)}}
 @keyframes emma-rig-think {0%,20%,100%{transform:rotate(0)}40%,70%{transform:rotate(-3deg)}}
