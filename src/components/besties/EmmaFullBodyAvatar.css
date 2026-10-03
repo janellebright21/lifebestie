@@ -4,3 +4,7 @@
 .emma-full-body__interaction {position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;background:transparent;cursor:pointer;touch-action:manipulation}
 .emma-full-body__interaction:focus-visible {outline:2px solid var(--theme-primary);outline-offset:3px;border-radius:24px}
 @media(prefers-reduced-motion:reduce){.emma-full-body__reference{transition:none}}
+
+.emma-full-body__sprite{display:block;position:relative;width:100%;height:100%;border:0;padding:0;background:transparent;cursor:pointer;touch-action:manipulation}
+.emma-full-body__sprite svg{display:block;width:100%;height:100%;overflow:hidden}
+.emma-full-body__sprite:focus-visible{outline:2px solid var(--theme-primary);outline-offset:3px;border-radius:24px}
