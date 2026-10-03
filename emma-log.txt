@@ -1,7 +1,0 @@
-ReferenceError: require is not defined in ES module scope, you can use import instead
-    at eval (file:///home/project/.gitignore:10:10)
-    at ModuleJob.run (node:internal/modules/esm/module_job:170:4963)
-    at async Y.tracePromise.__proto__ (node:internal/modules/esm/loader:169:6866)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:179:817)
-
-Node.js v22.22.3
