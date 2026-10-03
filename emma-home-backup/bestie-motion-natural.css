@@ -185,24 +185,3 @@
 @media (prefers-reduced-motion: reduce) {
   .ba-state-listening .ba-body, .ba-state-listening .ba-head { animation: none !important; }
 }
-
-/* Home hero: movement scales with the larger portrait, without shifting layout. */
-@keyframes ba-home-breathe {
-  0%, 100% { transform: translateY(0) scale(1); }
-  45% { transform: translateY(-7px) scale(1.025); }
-  70% { transform: translateY(-2px) scale(1.01); }
-}
-@keyframes ba-home-attentive {
-  0%, 18%, 100% { transform: rotate(0deg); }
-  40% { transform: rotate(-2.5deg); }
-  65% { transform: rotate(1.5deg); }
-}
-.emma-home-avatar .ba-state-idle .ba-body,
-.emma-home-avatar .ba-state-lean .ba-body,
-.emma-home-avatar .ba-state-calm .ba-body { animation: ba-home-breathe 4.2s ease-in-out infinite !important; }
-.emma-home-avatar .ba-state-idle .ba-head,
-.emma-home-avatar .ba-state-lean .ba-head,
-.emma-home-avatar .ba-state-calm .ba-head { animation: ba-home-attentive 5.6s ease-in-out infinite !important; }
-@media (prefers-reduced-motion: reduce) {
- .emma-home-avatar .ba-body, .emma-home-avatar .ba-head { animation: none !important; }
-}
