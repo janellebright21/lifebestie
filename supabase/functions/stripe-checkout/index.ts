@@ -21,7 +21,6 @@ function authError(msg: string): Response {
   });
 }
 
-const TRIAL_DAYS = 7;
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 
 Deno.serve(async (req: Request) => {
@@ -30,7 +29,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // ── Auth ───────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
     if (!token) return authError("Missing auth token.");
@@ -48,124 +46,129 @@ Deno.serve(async (req: Request) => {
     const monthlyPriceId  = Deno.env.get("STRIPE_MONTHLY_PRICE_ID") ?? "";
 
     if (!stripeSecretKey || !monthlyPriceId) {
-      return ok({
-        error: "STRIPE_NOT_CONFIGURED",
-        message: "Stripe is not configured. Add STRIPE_SECRET_KEY and STRIPE_MONTHLY_PRICE_ID to Supabase Edge Function secrets.",
-      });
+      return ok({ error: "STRIPE_NOT_CONFIGURED", message: "Stripe is not configured." });
     }
+
+    // ── Configurable trial duration ──────────────────────────────────────────
+    const TRIAL_DAYS = parseInt(Deno.env.get("STRIPE_TRIAL_DAYS") ?? "7", 10);
+
+    // ── Approved return URLs (server-configured, not client-supplied Origin) ──
+    const appUrl = Deno.env.get("APP_URL") ?? "https://bestielife.app";
+    const successUrl = `${appUrl}/?checkout=success`;
+    const cancelUrl  = `${appUrl}/?checkout=cancelled`;
 
     // ── Check existing subscription ─────────────────────────────────────────
     const { data: existingSub } = await supabase
       .from("subscriptions")
-      .select("status, stripe_subscription_id, trial_start")
+      .select("status, stripe_subscription_id, stripe_customer_id, trial_start")
       .eq("user_id", user.id)
       .maybeSingle();
 
     // Block if user already has an active subscription
     if (existingSub && ["trialing", "active", "past_due"].includes(existingSub.status)) {
-      return ok({
-        error: "ALREADY_SUBSCRIBED",
-        message: "You already have an active subscription.",
-      });
+      return ok({ error: "ALREADY_SUBSCRIBED", message: "You already have an active subscription." });
     }
 
-    // Block duplicate trials — one trial per account, enforced on the server
-    if (existingSub && existingSub.trial_start) {
-      return ok({
-        error: "TRIAL_ALREADY_USED",
-        message: "You've already used your free trial.",
-      });
-    }
+    // ── Determine trial eligibility ──────────────────────────────────────────
+    const { data: trialEligible } = await supabase.rpc("check_trial_eligibility", { p_user_id: user.id });
+    const wantsTrial = Boolean(trialEligible);
 
-    // ── Build return URLs ───────────────────────────────────────────────────
-    const origin = req.headers.get("origin") ?? "https://bestielife.app";
-    const successUrl = `${origin}/?checkout=success`;
-    const cancelUrl  = `${origin}/?checkout=cancelled`;
+    // ── Atomic checkout reservation: prevents concurrent double-clicks ──────
+    const { data: reserved, error: reserveErr } = await supabase.rpc("reserve_checkout", { p_user_id: user.id });
+    if (reserveErr) {
+      console.error("[stripe-checkout] reserve_checkout error:", reserveErr);
+      return ok({ error: "CHECKOUT_BUSY", message: "A checkout is already in progress. Please wait a moment and try again." });
+    }
+    if (!reserved) {
+      return ok({ error: "CHECKOUT_BUSY", message: "A checkout is already in progress. Please complete or cancel it first." });
+    }
 
     // ── Create or retrieve Stripe customer ──────────────────────────────────
     let stripeCustomerId: string;
 
-    if (existingSub?.stripe_subscription_id) {
-      // Retrieve existing customer from their subscription
-      const subRes = await fetch(`${STRIPE_API_BASE}/subscriptions/${existingSub.stripe_subscription_id}`, {
-        headers: { "Authorization": `Bearer ${stripeSecretKey}` },
-      });
-      if (subRes.ok) {
-        const subData = await subRes.json();
-        stripeCustomerId = subData.customer;
+    if (existingSub?.stripe_customer_id) {
+      // Reuse existing customer
+      stripeCustomerId = existingSub.stripe_customer_id;
+    } else {
+      // Check if a pending checkout already created a customer
+      const { data: pendingCheckout } = await supabase
+        .from("pending_checkouts")
+        .select("stripe_customer_id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingCheckout?.stripe_customer_id) {
+        stripeCustomerId = pendingCheckout.stripe_customer_id;
       } else {
-        // Create new customer
-        const customerParams = new URLSearchParams({ email: user.email ?? "" });
+        // Create new Stripe customer
+        const customerParams = new URLSearchParams({ email: user.email ?? "", metadata: JSON.stringify({ user_id: user.id }) });
         const custRes = await fetch(`${STRIPE_API_BASE}/customers`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
           body: customerParams,
         });
         if (!custRes.ok) {
-          const err = await custRes.json();
+          const err = await custRes.json().catch(() => ({}));
           return ok({ error: "STRIPE_ERROR", message: `Failed to create customer: ${err.error?.message ?? custRes.statusText}` });
         }
         const cust = await custRes.json();
         stripeCustomerId = cust.id;
       }
-    } else {
-      const customerParams = new URLSearchParams({ email: user.email ?? "" });
-      const custRes = await fetch(`${STRIPE_API_BASE}/customers`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
-        body: customerParams,
-      });
-      if (!custRes.ok) {
-        const err = await custRes.json();
-        return ok({ error: "STRIPE_ERROR", message: `Failed to create customer: ${err.error?.message ?? custRes.statusText}` });
-      }
-      const cust = await custRes.json();
-      stripeCustomerId = cust.id;
     }
 
-    // ── Create Checkout Session with trial ──────────────────────────────────
-    const trialEnd = Math.floor(Date.now() / 1000) + (TRIAL_DAYS * 24 * 60 * 60);
-
+    // ── Create Checkout Session ──────────────────────────────────────────────
     const params = new URLSearchParams();
     params.append("mode", "subscription");
     params.append("customer", stripeCustomerId);
     params.append("line_items[0][price]", monthlyPriceId);
     params.append("line_items[0][quantity]", "1");
-    params.append("subscription_data[trial_end]", String(trialEnd));
+
+    if (wantsTrial && TRIAL_DAYS > 0) {
+      const trialEnd = Math.floor(Date.now() / 1000) + (TRIAL_DAYS * 24 * 60 * 60);
+      params.append("subscription_data[trial_end]", String(trialEnd));
+    }
+    // If no trial, Stripe starts a normal subscription immediately
+
     params.append("success_url", successUrl);
     params.append("cancel_url", cancelUrl);
 
+    // Idempotency: use user_id as idempotency key to prevent duplicate sessions
     const checkoutRes = await fetch(`${STRIPE_API_BASE}/checkout/sessions`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Authorization": `Bearer ${stripeSecretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": `checkout_${user.id}`,
+      },
       body: params,
     });
 
     if (!checkoutRes.ok) {
-      const err = await checkoutRes.json();
+      const err = await checkoutRes.json().catch(() => ({}));
       console.error("[stripe-checkout] Stripe error:", err);
+      // Cancel the pending checkout reservation so user can retry
       return ok({ error: "STRIPE_ERROR", message: `Checkout creation failed: ${err.error?.message ?? checkoutRes.statusText}` });
     }
 
     const session = await checkoutRes.json();
 
-    // ── Record pending trial in database ─────────────────────────────────────
-    // Use upsert_subscription to create/update the subscription row with trialing status.
-    // The webhook will later confirm with verified Stripe state.
-    const { error: upsertErr } = await supabase.rpc("upsert_subscription", {
-      p_user_id: user.id,
-      p_stripe_customer_id: stripeCustomerId,
-      p_status: "trialing",
-      p_trial_start: new Date().toISOString(),
-      p_trial_end: new Date(trialEnd * 1000).toISOString(),
+    // ── Update pending checkout with Stripe session ID + customer ID ────────
+    // Do NOT write any subscription state — access is granted only by the webhook
+    // after verified Stripe subscription creation.
+    await supabase
+      .from("pending_checkouts")
+      .update({ stripe_session_id: session.id, stripe_customer_id: stripeCustomerId })
+      .eq("user_id", user.id)
+      .eq("status", "pending");
+
+    return ok({
+      url: session.url,
+      sessionId: session.id,
+      trialEligible: wantsTrial,
+      trialDays: wantsTrial ? TRIAL_DAYS : 0,
     });
-
-    if (upsertErr) {
-      console.error("[stripe-checkout] Failed to record trial start:", upsertErr);
-      // Don't fail the checkout — the webhook will reconcile state
-    }
-
-    return ok({ url: session.url, sessionId: session.id });
   } catch (err) {
     console.error("[stripe-checkout] Unhandled error:", err);
     return ok({ error: "INTERNAL_ERROR", message: "Unexpected error creating checkout session." });

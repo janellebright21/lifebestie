@@ -5,6 +5,12 @@ export type SubscriptionStatus =
   | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'expired' | 'incomplete'
   | 'none';
 
+export interface PriceInfo {
+  amount: number;       // cents
+  currency: string;     // e.g. "usd"
+  interval: string;     // e.g. "month"
+}
+
 export interface SubscriptionState {
   hasAccess: boolean;
   trialEligible: boolean;
@@ -15,6 +21,9 @@ export interface SubscriptionState {
   loading: boolean;
   error: string | null;
   notConfigured: boolean;
+  devAccess: boolean;
+  priceInfo: PriceInfo | null;
+  trialDays: number;
   aiUsageToday: Array<{ function_name: string; call_count: number }>;
   refresh: () => Promise<void>;
 }
@@ -29,6 +38,9 @@ export function useSubscription(): SubscriptionState {
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
   const [notConfigured, setNotConfigured] = useState(false);
+  const [devAccess, setDevAccess]         = useState(false);
+  const [priceInfo, setPriceInfo]         = useState<PriceInfo | null>(null);
+  const [trialDays, setTrialDays]         = useState(7);
   const [aiUsageToday, setAiUsageToday]   = useState<Array<{ function_name: string; call_count: number }>>([]);
 
   const refresh = useCallback(async () => {
@@ -43,21 +55,25 @@ export function useSubscription(): SubscriptionState {
       }
 
       const payload = data as Record<string, unknown>;
-      if (payload.error === 'STRIPE_NOT_CONFIGURED') {
+
+      if (payload.notConfigured === true) {
         setNotConfigured(true);
-        setHasAccess(true); // Dev mode: allow access when Stripe not configured
+        setHasAccess(true);
         setTrialEligible(true);
         setStatus('none');
+        setDevAccess(false);
+        setPriceInfo(null);
         setLoading(false);
         return;
       }
 
+      setNotConfigured(false);
       setHasAccess(Boolean(payload.hasAccess));
       setTrialEligible(Boolean(payload.trialEligible));
-      setNotConfigured(false);
+      setDevAccess(Boolean(payload.devAccess));
 
       const sub = payload.subscription as Record<string, unknown> | null;
-      if (sub) {
+      if (sub && typeof sub === 'object' && !Array.isArray(sub) && Object.keys(sub).length > 0) {
         setStatus((sub.status as SubscriptionStatus) ?? 'none');
         setTrialEnd(sub.trial_end as string | null);
         setCurrentPeriodEnd(sub.current_period_end as string | null);
@@ -71,6 +87,11 @@ export function useSubscription(): SubscriptionState {
 
       const usage = payload.aiUsageToday as Array<{ function_name: string; call_count: number }> | null;
       setAiUsageToday(usage ?? []);
+
+      const price = payload.priceInfo as PriceInfo | null;
+      setPriceInfo(price ?? null);
+
+      if (typeof payload.trialDays === 'number') setTrialDays(payload.trialDays);
     } catch {
       setError('Could not check membership status.');
     } finally {
@@ -92,6 +113,9 @@ export function useSubscription(): SubscriptionState {
     loading,
     error,
     notConfigured,
+    devAccess,
+    priceInfo,
+    trialDays,
     aiUsageToday,
     refresh,
   };

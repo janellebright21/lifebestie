@@ -84,9 +84,14 @@ Deno.serve(async (req: Request) => {
     const AI_DAILY_LIMIT = parseInt(Deno.env.get("AI_DAILY_LIMIT") ?? "50", 10);
     const { data: hasAccess } = await supabase.rpc("has_access", { p_user_id: user.id });
     if (!hasAccess) return new Response(JSON.stringify({ error: "ACCESS_DENIED", message: "Your free trial has ended." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const { data: usageRows } = await supabase.rpc("get_ai_usage_today", { p_user_id: user.id });
-    const totalCalls = (usageRows as Array<{ call_count: number }>)?.reduce((sum, r) => sum + r.call_count, 0) ?? 0;
-    if (totalCalls >= AI_DAILY_LIMIT) return new Response(JSON.stringify({ error: "AI_LIMIT_REACHED", message: "Daily AI limit reached." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Atomic quota reservation — safe under concurrent requests
+    const { data: quotaReserved, error: quotaErr } = await supabase.rpc("reserve_ai_quota", { p_user_id: user.id, p_function: "grocery-suggestions", p_provider: "anthropic", p_limit: AI_DAILY_LIMIT });
+    if (quotaErr) {
+      console.error("[grocery-suggestions] reserve_ai_quota error:", quotaErr);
+      return new Response(JSON.stringify({ error: "INTERNAL_ERROR", message: "Could not verify usage limit." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!quotaReserved) return new Response(JSON.stringify({ error: "AI_LIMIT_REACHED", message: "Daily AI limit reached." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
@@ -146,6 +151,7 @@ Deno.serve(async (req: Request) => {
 
     if (!response.ok) {
       const err = await response.text();
+      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "grocery-suggestions" }); } catch {}
       return new Response(
         JSON.stringify({ error: "AI request failed", detail: err }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -168,7 +174,7 @@ Deno.serve(async (req: Request) => {
       };
     }
 
-    try { await supabase.rpc("record_ai_usage", { p_user_id: user.id, p_function: "grocery-suggestions", p_provider: "anthropic", p_cost_cents: 2 }); } catch {}
+    // Quota already reserved atomically before the API call
 
     return new Response(
       JSON.stringify(parsed),

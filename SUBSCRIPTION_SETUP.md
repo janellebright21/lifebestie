@@ -4,26 +4,85 @@ This document covers everything needed to configure the free trial + monthly sub
 
 ---
 
-## 1. Stripe Test-Mode Configuration
+## Verified Deployment Status
 
-### 1.1 Create a Stripe account (if needed)
-- Go to https://dashboard.stripe.com/register
-- Once logged in, ensure you're in **test mode** (toggle in the top right).
+The following have been verified in the current deployment:
 
-### 1.2 Get your API keys
-- Navigate to Developers > API Keys
-- Copy the **Secret key** (starts with `sk_test_`)
+- **Database migration applied**: `20261003000001_security_repair_revoke_grants_add_checks.sql`
+- **Privilege audit confirmed**: All privileged mutation functions (upsert_subscription, record_ai_usage, reserve_ai_quota, release_ai_quota, reserve_checkout, complete_checkout, cancel_pending_checkout) are `service_role` only — `anon=NO, authenticated=NO`.
+- **Read functions** (has_access, check_trial_eligibility, get_ai_usage_today, get_subscription_status): `authenticated=YES, anon=NO` with internal caller identity checks.
+- **13 Edge Functions deployed**: All functions updated and deployed.
+- **TypeScript typecheck**: PASS
+- **Production build**: PASS
 
-### 1.3 Create the monthly product and price
-1. Go to Products in the Stripe Dashboard
-2. Click **Add product**
-3. Name it "BestieLife Monthly"
-4. Set pricing to **recurring** with the monthly interval
-5. Set the price amount (this is your monthly subscription fee)
-6. Save the product
-7. Copy the **Price ID** (starts with `price_`)
+## Remaining Manual Configuration
 
-### 1.4 Create the webhook endpoint
+The following require Stripe secrets that are not yet configured:
+
+1. **Create a Stripe account** (if you don't have one) — https://dashboard.stripe.com/register
+2. **Switch to test mode** in the Stripe dashboard
+3. **Create the monthly product/price** in Stripe Products (recurring, monthly interval)
+4. **Copy the Price ID** (`price_...`)
+5. **Copy the Secret key** (`sk_test_...`)
+6. **Create the webhook endpoint** pointing to your Supabase function URL
+7. **Copy the webhook signing secret** (`whsec_...`)
+8. **Add these Supabase Edge Function secrets:**
+   - `STRIPE_SECRET_KEY` = `sk_test_...`
+   - `STRIPE_MONTHLY_PRICE_ID` = `price_...`
+   - `STRIPE_WEBHOOK_SECRET` = `whsec_...`
+   - `APP_URL` = your app's URL (e.g. `https://bestielife.app`)
+   - (Optional) `STRIPE_TRIAL_DAYS` = `7` (default: 7)
+   - (Optional) `AI_DAILY_LIMIT` = `50` (default: 50, provisional test limit)
+9. **Add redirect URL** in Supabase Auth settings: `https://<your-domain>/?type=recovery`
+10. **Grant dev access** for existing development users (see below)
+11. **Test the webhook** by sending a test event from the Stripe dashboard
+12. **Test trial start** by signing in, going to Settings > Membership, and clicking "Start Free Trial"
+
+---
+
+## Development Access Policy
+
+### How dev access works
+
+The `dev_access_policy` table keeps currently authorized development users usable before billing is configured. When Stripe secrets are added, these users continue to have access — they are not locked out.
+
+**This is NOT the same as app_owners** (which is for admins). Dev access is for development users who need to keep using the app.
+
+### Granting dev access (per user, not bulk)
+
+```sql
+INSERT INTO dev_access_policy (email, policy)
+VALUES ('devuser@example.com', 'allow')
+ON CONFLICT (email) DO NOTHING;
+```
+
+### Granting owner access (for admins)
+
+```sql
+INSERT INTO app_owners (user_id)
+VALUES ('<user-uuid-here>')
+ON CONFLICT (user_id) DO NOTHING;
+```
+
+### Removing dev access (when billing goes live)
+
+```sql
+DELETE FROM dev_access_policy WHERE email = 'devuser@example.com';
+```
+
+### When Stripe is NOT configured
+
+The `check-subscription` edge function returns `notConfigured: true` with `hasAccess: true`. All AI functions check `has_access()` which checks both dev_access_policy and app_owners. Development users listed in either table continue to have access.
+
+### When Stripe secrets are added
+
+Users NOT in dev_access_policy or app_owners will need to start a trial or subscribe. Users in the tables continue to have access. This prevents existing users from being unexpectedly locked out.
+
+---
+
+## Stripe Test-Mode Configuration
+
+### Create the webhook endpoint
 1. Go to Developers > Webhooks
 2. Click **Add endpoint**
 3. Set the endpoint URL to:
@@ -42,171 +101,56 @@ This document covers everything needed to configure the free trial + monthly sub
 
 ---
 
-## 2. Supabase Edge Function Secrets
+## Security Architecture
 
-Add these secrets to Supabase (via the dashboard under Edge Functions > Secrets, or via the Supabase management API):
+### Privileged mutation functions (service_role only)
+- `upsert_subscription` — creates/updates subscription records
+- `record_ai_usage` — records AI usage (legacy, kept for compatibility)
+- `reserve_ai_quota` — atomically reserves an AI quota slot
+- `release_ai_quota` — releases a quota reservation on failure
+- `reserve_checkout` — atomically reserves a checkout slot (prevents concurrent duplicates)
+- `complete_checkout` — marks a checkout as completed
+- `cancel_pending_checkout` — marks a checkout as cancelled
 
-| Secret Name | Value | Required |
-|---|---|---|
-| `STRIPE_SECRET_KEY` | `sk_test_...` | Yes |
-| `STRIPE_MONTHLY_PRICE_ID` | `price_...` | Yes |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Yes |
-| `AI_DAILY_LIMIT` | `50` (provisional) | Optional (default: 50) |
+### Read functions (authenticated, caller-checked)
+- `has_access(uuid)` — checks if caller has access; rejects anonymous and cross-user queries
+- `check_trial_eligibility(uuid)` — checks trial eligibility; rejects cross-user
+- `get_ai_usage_today(uuid)` — returns today's usage; rejects cross-user; qualified columns
+- `get_subscription_status(uuid)` — consolidated read; rejects cross-user
 
-The following are already configured:
-- `GROQ_API_KEY` — for Emma chat
-- `ANTHROPIC_API_KEY` — for other AI functions (check if set)
+### Tables with RLS
+- `subscriptions` — SELECT own row only, no client mutations
+- `ai_usage_daily` — SELECT own rows only, no client mutations
+- `app_owners` — SELECT own row only, no client mutations
+- `dev_access_policy` — SELECT own row (by email match) only, no client mutations
+- `pending_checkouts` — SELECT own rows only, no client mutations
+- `stripe_event_log` — no client access (service_role only)
 
-**Never put Stripe secret keys in VITE_ variables or browser code.**
+### Webhook security
+- Raw body signature verification using HMAC-SHA256
+- 5-minute timestamp tolerance
+- Idempotency via `stripe_event_log` table — duplicate events are acknowledged but not reprocessed
+- Non-2xx response on processing failure so Stripe retries
+- Reconciliation from Stripe API (not event snapshots) to avoid stale state
 
----
+### Checkout security
+- No premature entitlement — subscription state is written ONLY by the webhook after verified Stripe events
+- Abandoned checkouts do NOT grant access or consume the trial
+- Atomic per-user checkout reservation prevents concurrent duplicate sessions
+- Stripe Idempotency-Key on checkout creation
+- Server-configured `APP_URL` for return URLs, not client-supplied Origin
+- Returning customers can subscribe without another trial (trial eligibility checked server-side)
+- Trial duration configurable via `STRIPE_TRIAL_DAYS` secret
 
-## 3. Webhook URL and Event Types
-
-**URL:** `https://<your-supabase-project>.supabase.co/functions/v1/stripe-webhook`
-
-**Required events:**
-- `checkout.session.completed`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `customer.subscription.trial_will_end`
-- `invoice.payment_succeeded`
-- `invoice.payment_failed`
-
-The webhook function verifies the Stripe-Signature header against the raw request body using HMAC-SHA256. It is safe for retries and out-of-order events.
-
----
-
-## 4. Migration and Edge Function Deployment
-
-### 4.1 Database Migration
-The migration `20261001000000_create_subscriptions_and_ai_usage.sql` has been applied. It created:
-
-- **subscriptions** table — tracks Stripe subscription state per user
-- **ai_usage_daily** table — tracks AI API calls per user per day
-- **app_owners** table — server-managed owner access for development
-- **SECURITY DEFINER functions:**
-  - `has_access(uuid)` — checks if a user has active access
-  - `check_trial_eligibility(uuid)` — checks if a user can start a trial
-  - `record_ai_usage(uuid, text, text, integer)` — records AI usage
-  - `get_ai_usage_today(uuid)` — returns today's usage
-  - `upsert_subscription(...)` — creates/updates subscription records (service role only)
-
-### 4.2 Edge Functions
-All 13 edge functions are deployed:
-- `stripe-checkout` — creates Stripe Checkout sessions with 7-day trial
-- `stripe-portal` — creates Stripe Billing Portal sessions
-- `stripe-webhook` — handles Stripe webhook events (verify_jwt = false)
-- `check-subscription` — returns the user's subscription status
-- `emma-chat` + 8 other AI functions — now include access checks and usage limits
+### AI quota security
+- Atomic reservation via `reserve_ai_quota` DB function — checks limit AND increments in one statement
+- Failed requests release the quota via `release_ai_quota`
+- DB errors during reservation reject the request (never silently allow)
+- Daily limit configurable via `AI_DAILY_LIMIT` secret
 
 ---
 
-## 5. Owner Access and Existing User Migration
-
-### 5.1 Grant owner access (for development/testing)
-To give a user unrestricted access without a subscription, insert their user ID into the `app_owners` table:
-
-```sql
-INSERT INTO app_owners (user_id)
-VALUES ('<user-uuid-here>')
-ON CONFLICT (user_id) DO NOTHING;
-```
-
-This is server-managed only — users cannot grant themselves owner access. The `has_access()` function checks `app_owners` first and returns true immediately.
-
-### 5.2 Existing users
-Existing users are **not** automatically locked out. The `check-subscription` function returns `hasAccess: true` when Stripe is not configured (notConfigured state), so development users continue to have access. Once Stripe secrets are added, users will need to start a trial or subscribe.
-
-To grant all existing users owner access (optional, for development):
-
-```sql
-INSERT INTO app_owners (user_id)
-SELECT id FROM auth.users
-ON CONFLICT (user_id) DO NOTHING;
-```
-
-### 5.3 Removing owner access
-```sql
-DELETE FROM app_owners WHERE user_id = '<user-uuid-here>';
-```
-
----
-
-## 6. AI Usage Limits
-
-### 6.1 Configuration
-The `AI_DAILY_LIMIT` edge function secret controls how many AI calls a user can make per day. Default: **50 calls/day** (provisional test limit).
-
-All 9 AI edge functions check the limit:
-- emma-chat (Groq)
-- chat (Anthropic)
-- daily-planner (Anthropic)
-- grocery-suggestions (Anthropic)
-- meal-ingredients (Anthropic)
-- prepare-for-tomorrow (Anthropic)
-- scan-receipt (Anthropic)
-- weekly-grocery-intro (Anthropic)
-- budget-suggestions (Anthropic)
-
-### 6.2 Usage tracking
-Each successful AI call records:
-- User ID
-- Function name
-- Provider (groq/anthropic)
-- Estimated cost in cents
-- Timestamp
-
-**No conversation content is stored.** Only call counts and cost estimates are recorded for cost estimation purposes.
-
-### 6.3 Failed requests
-Usage is only recorded **after** a successful AI response. Failed requests (rate limits, API errors, network issues) do not count against the user's daily limit.
-
-### 6.4 Concurrent request safety
-The `record_ai_usage` function uses `ON CONFLICT ... DO UPDATE SET call_count = call_count + 1`, which is atomic at the row level in PostgreSQL, making it safe under concurrent requests.
-
-### 6.5 Limit message
-When the limit is reached, the edge function returns:
-```json
-{ "error": "AI_LIMIT_REACHED", "message": "You've reached your daily AI limit of 50 messages. Try again tomorrow!" }
-```
-
----
-
-## 7. Password Recovery Configuration
-
-### 7.1 How it works
-The AuthPage now includes:
-- **Forgot Password** link on the sign-in screen
-- **Password reset** screen (shown when Supabase redirects with `?type=recovery`)
-
-### 7.2 Required redirect URL
-The redirect URL for password reset emails is:
-```
-https://<your-app-domain>/?type=recovery
-```
-
-### 7.3 Email configuration
-Supabase Auth handles password reset emails. Ensure:
-1. In the Supabase Dashboard, go to Authentication > URL Configuration
-2. Add your app URL to the **Redirect URLs** allowlist:
-   - `https://<your-app-domain>/?type=recovery`
-3. Email confirmation can stay OFF for password resets (the recovery link itself is the verification)
-
-### 7.4 Testing password reset
-1. Sign out and go to the sign-in page
-2. Click "Forgot password?"
-3. Enter an email address
-4. Check the email for a reset link (in test mode, check the Supabase Auth logs)
-5. Click the link — it redirects to the app with `?type=recovery`
-6. Enter a new password and click "Update Password"
-
----
-
-## 8. Access Enforcement Policy
-
-### 8.1 Status mapping
+## Access Enforcement Policy
 
 | Stripe Status | Internal Status | Has Access? |
 |---|---|---|
@@ -217,55 +161,94 @@ Supabase Auth handles password reset emails. Ensure:
 | `canceled` (immediate) | canceled | No |
 | `unpaid` | unpaid | No |
 | `incomplete`/`expired` | expired | No |
-| No subscription | none | No (unless owner) |
-| Owner | — | Always yes |
+| No subscription | none | No (unless dev_access_policy or app_owners) |
+| Dev access policy | — | Yes |
+| Owner | — | Yes |
 
-### 8.2 Server enforcement
+### Server enforcement
 - Every AI edge function checks `has_access()` before processing
-- The `has_access()` SECURITY DEFINER function checks both subscription state and owner table
-- Users cannot modify their own subscription record (RLS blocks INSERT/UPDATE/DELETE)
-- The `upsert_subscription` function is only callable with the service role key
+- `has_access()` checks subscription state, dev_access_policy, and app_owners
+- Users cannot modify their own subscription record (RLS blocks mutations)
+- Privileged functions are service_role only
 
-### 8.3 Data preservation
-When access expires, all saved data (tasks, meals, groceries, memories, etc.) is preserved. The user can still sign in, see their data, and access billing/sign-out. Only AI functions and new trial starts are blocked.
-
----
-
-## 9. Exact Remaining Manual Steps
-
-1. **Create a Stripe account** (if you don't have one) — https://dashboard.stripe.com/register
-2. **Switch to test mode** in the Stripe dashboard
-3. **Create the monthly product/price** in Stripe Products (recurring, monthly interval)
-4. **Copy the Price ID** (`price_...`)
-5. **Copy the Secret key** (`sk_test_...`)
-6. **Create the webhook endpoint** pointing to your Supabase function URL
-7. **Copy the webhook signing secret** (`whsec_...`)
-8. **Add these Supabase Edge Function secrets:**
-   - `STRIPE_SECRET_KEY` = `sk_test_...`
-   - `STRIPE_MONTHLY_PRICE_ID` = `price_...`
-   - `STRIPE_WEBHOOK_SECRET` = `whsec_...`
-   - (Optional) `AI_DAILY_LIMIT` = `50`
-9. **Add redirect URL** in Supabase Auth settings: `https://<your-domain>/?type=recovery`
-10. **Grant owner access** for your dev account: `INSERT INTO app_owners (user_id) VALUES ('<your-uuid>');`
-11. **Test the webhook** by sending a test event from the Stripe dashboard
-12. **Test trial start** by signing in, going to Settings > Membership, and clicking "Start 7-Day Free Trial"
+### Data preservation
+When access expires, all saved data is preserved. The user can still sign in, see their data, and access billing/sign-out. Only AI functions and new trial starts are blocked.
 
 ---
 
-## 10. Testing Checklist
+## Password Recovery Configuration
 
-Test the following in order (requires Stripe test mode configured):
+### How it works
+1. User clicks "Forgot password?" on the sign-in screen
+2. Enters their email — a reset link is sent
+3. User clicks the link in their email
+4. Supabase redirects to the app with a session (PASSWORD_RECOVERY event)
+5. App detects PASSWORD_RECOVERY and shows the password reset screen
+6. User enters a new password
+7. After update, the app returns to normal signed-in state
 
-- [ ] Trial start: Settings > Membership > Start Free Trial → redirects to Stripe Checkout
-- [ ] Repeated trial: after trial starts, clicking again shows "TRIAL_ALREADY_USED"
-- [ ] Checkout confirmation: after completing checkout, webhook updates subscription to `trialing`
-- [ ] Webhook retry: resend a webhook event → no duplicate records
-- [ ] Renewal: simulate `invoice.payment_succeeded` → status stays `active`
-- [ ] Cancellation: cancel via Stripe portal → `cancel_at_period_end = true`, access preserved
-- [ ] Expired access: simulate `customer.subscription.deleted` → access denied, data preserved
-- [ ] Payment failure: simulate `invoice.payment_failed` → `past_due`, grace period active
-- [ ] Cross-user protection: user A cannot see user B's subscription (RLS)
-- [ ] AI limits: make 50+ AI calls → "AI_LIMIT_REACHED" message
-- [ ] Password reset: forgot password → email → reset link → new password → sign in
-- [ ] Owner access: owner user can use AI without subscription
-- [ ] Not configured: without Stripe secrets, app shows "Payments coming soon" and access is granted
+### Required redirect URL
+```
+https://<your-app-domain>/?type=recovery
+```
+
+### Supabase Auth settings
+1. In the Supabase Dashboard, go to Authentication > URL Configuration
+2. Add your app URL to the **Redirect URLs** allowlist:
+   - `https://<your-app-domain>/?type=recovery`
+
+### App.tsx PASSWORD_RECOVERY handling
+The App component handles the `PASSWORD_RECOVERY` auth event before normal signed-in rendering. When Supabase creates a session from the recovery link, the app shows the reset screen instead of the normal app. After the password is updated, `isPasswordRecovery` is cleared and normal rendering resumes.
+
+---
+
+## AI Usage Limits
+
+### Configuration
+- `AI_DAILY_LIMIT` edge function secret (default: 50, provisional)
+- All 9 AI edge functions use atomic `reserve_ai_quota` — safe under concurrent requests
+- Failed requests release the quota via `release_ai_quota`
+- DB errors during reservation reject the request
+
+### Usage tracking
+Each successful AI call records:
+- User ID, function name, provider (groq/anthropic)
+- Call count and estimated cost in cents
+- Timestamp
+
+**No conversation content is stored.**
+
+---
+
+## Test Results
+
+| Test | Result |
+|---|---|
+| TypeScript typecheck | PASS |
+| Production build | PASS |
+| Edge functions deployed (13) | PASS |
+| Privilege audit (DB) | PASS — confirmed via SQL query |
+| Trial start → Stripe Checkout | NOT TESTED — requires Stripe secrets |
+| Repeated trial blocked | NOT TESTED — requires Stripe secrets |
+| Concurrent checkout prevention | NOT TESTED — requires Stripe secrets |
+| Checkout webhook confirmation | NOT TESTED — requires Stripe secrets |
+| Webhook retry (idempotent) | NOT TESTED — requires Stripe secrets |
+| Renewal (payment_succeeded) | NOT TESTED — requires Stripe secrets |
+| Cancellation preserves access | NOT TESTED — requires Stripe secrets |
+| Expired access denies AI, preserves data | NOT TESTED — requires Stripe secrets |
+| Payment failure → past_due grace | NOT TESTED — requires Stripe secrets |
+| Cross-user RLS protection | PASS — confirmed via privilege audit |
+| Atomic AI quota under concurrency | NOT TESTED — requires running edge functions with secrets |
+| AI limit enforcement | NOT TESTED — requires AI secrets |
+| Password reset flow | NOT TESTED — requires email configuration |
+| Owner access bypasses subscription | PASS — confirmed via has_access() function logic |
+| Dev access policy | PASS — confirmed via has_access() function logic |
+| Not-configured graceful degradation | PASS — check-subscription returns notConfigured: true |
+| Returning customer subscribes without trial | NOT TESTED — requires Stripe secrets |
+| Actual price display | NOT TESTED — requires Stripe secrets |
+| checkout.session.completed handling | NOT TESTED — requires Stripe secrets |
+
+### Blockers
+- **Stripe secrets not configured**: `STRIPE_SECRET_KEY`, `STRIPE_MONTHLY_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` are not set. All Stripe-dependent tests cannot run until these are added.
+- **APP_URL not configured**: The approved return URL for checkout/portal uses this. Without it, defaults to `https://bestielife.app`.
+- **ANTHROPIC_API_KEY**: May not be configured for all AI functions. Check via Supabase dashboard.

@@ -1,23 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 type Mode = 'signin' | 'signup' | 'forgot' | 'reset';
 
-export default function AuthPage() {
+interface AuthPageProps {
+  initialMode?: Mode;
+  onResetComplete?: () => void;
+}
+
+export default function AuthPage({ initialMode, onResetComplete }: AuthPageProps = {}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<Mode>('signin');
+  const [mode, setMode] = useState<Mode>(initialMode ?? 'signin');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Check URL for recovery token (Supabase redirects to ?type=recovery)
-  useState(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('type') === 'recovery') {
       setMode('reset');
     }
-  });
+  }, []);
 
   async function handleSubmit() {
     setMessage(null);
@@ -48,7 +53,11 @@ export default function AuthPage() {
         return;
       }
       setMessage('Password updated! You can now sign in.');
-      setMode('signin');
+      if (onResetComplete) {
+        onResetComplete();
+      } else {
+        setMode('signin');
+      }
       return;
     }
 

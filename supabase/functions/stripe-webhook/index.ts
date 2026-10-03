@@ -10,15 +10,12 @@ const corsHeaders = {
 
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 
-// ── Webhook signature verification ────────────────────────────────────────────
-// Verifies the Stripe-Signature header against the raw request body using
-// Stripe's HMAC-SHA256 signing scheme. Returns the parsed event or null.
+// ── Webhook signature verification using raw body ─────────────────────────────
 async function verifyStripeSignature(
   rawBody: string,
   signatureHeader: string,
   webhookSecret: string,
 ): Promise<Record<string, unknown> | null> {
-  // Parse the Stripe-Signature header: "t=1234567890,v1=abc...,v0=def..."
   const parts = signatureHeader.split(",");
   let timestamp = "";
   let v1Signature = "";
@@ -30,7 +27,6 @@ async function verifyStripeSignature(
 
   if (!timestamp || !v1Signature || !webhookSecret) return null;
 
-  // Compute HMAC-SHA256 of "timestamp.rawBody"
   const signedPayload = `${timestamp}.${rawBody}`;
   const key = await crypto.subtle.importKey(
     "raw",
@@ -44,11 +40,9 @@ async function verifyStripeSignature(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  // Compare signatures (constant-time comparison not strictly necessary here
-  // since we're comparing hex strings, but we do a simple equality check)
   if (hexSignature !== v1Signature) return null;
 
-  // Check timestamp freshness (5 minute tolerance)
+  // 5-minute tolerance
   const ageSeconds = Math.floor(Date.now() / 1000) - parseInt(timestamp);
   if (ageSeconds > 300) return null;
 
@@ -59,41 +53,86 @@ async function verifyStripeSignature(
   }
 }
 
-// ── Map Stripe status to our internal status ──────────────────────────────────
 function mapStripeStatus(stripeStatus: string): string {
   switch (stripeStatus) {
-    case "trialing":    return "trialing";
-    case "active":      return "active";
-    case "past_due":    return "past_due";
-    case "canceled":    return "canceled";
-    case "unpaid":      return "unpaid";
-    case "incomplete":  return "incomplete";
+    case "trialing":           return "trialing";
+    case "active":             return "active";
+    case "past_due":           return "past_due";
+    case "canceled":           return "canceled";
+    case "unpaid":             return "unpaid";
+    case "incomplete":         return "incomplete";
     case "incomplete_expired": return "expired";
-    default:            return "expired";
+    default:                   return "expired";
   }
 }
 
-// ── Update subscription in database ───────────────────────────────────────────
-async function updateSubscriptionInDB(
+// ── Reconcile subscription from authoritative Stripe state ───────────────────
+// Always fetches the current subscription from Stripe API to avoid applying
+// stale event snapshots. Compares event timestamp with current DB state.
+async function reconcileSubscription(
+  supabase: ReturnType<typeof createClient>,
+  subscriptionId: string,
+  stripeSecretKey: string,
+): Promise<void> {
+  const subRes = await fetch(`${STRIPE_API_BASE}/subscriptions/${subscriptionId}`, {
+    headers: { "Authorization": `Bearer ${stripeSecretKey}` },
+  });
+  if (!subRes.ok) {
+    console.error("[stripe-webhook] Failed to fetch subscription from Stripe:", subRes.status);
+    throw new Error(`Failed to fetch subscription ${subscriptionId}`);
+  }
+  const subData = await subRes.json();
+  await applySubscriptionUpdate(supabase, subData);
+}
+
+// ── Apply a verified subscription update to the database ──────────────────────
+async function applySubscriptionUpdate(
   supabase: ReturnType<typeof createClient>,
   subscription: Record<string, unknown>,
 ): Promise<void> {
-  // Extract user ID from Stripe metadata or customer lookup
   const customerId = String(subscription.customer ?? "");
 
   // Look up user by stripe_customer_id in our subscriptions table
   const { data: existing } = await supabase
     .from("subscriptions")
-    .select("user_id")
+    .select("user_id, updated_at")
     .eq("stripe_customer_id", customerId)
     .maybeSingle();
 
-  if (!existing?.user_id) {
+  // Also check pending_checkouts for customer-to-user mapping
+  let userId: string | null = existing?.user_id ?? null;
+
+  if (!userId) {
+    const { data: pending } = await supabase
+      .from("pending_checkouts")
+      .select("user_id")
+      .eq("stripe_customer_id", customerId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    userId = pending?.user_id ?? null;
+  }
+
+  // Also try customer metadata
+  if (!userId) {
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+    if (stripeSecretKey) {
+      const custRes = await fetch(`${STRIPE_API_BASE}/customers/${customerId}`, {
+        headers: { "Authorization": `Bearer ${stripeSecretKey}` },
+      });
+      if (custRes.ok) {
+        const custData = await custRes.json();
+        const metadata = custData.metadata as Record<string, string> | undefined;
+        if (metadata?.user_id) userId = metadata.user_id;
+      }
+    }
+  }
+
+  if (!userId) {
     console.warn("[stripe-webhook] No user found for customer:", customerId);
     return;
   }
 
-  const userId = existing.user_id;
   const status = mapStripeStatus(String(subscription.status ?? "expired"));
   const trialStart = subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null;
   const trialEnd   = subscription.trial_end   ? new Date(subscription.trial_end   * 1000).toISOString() : null;
@@ -102,7 +141,6 @@ async function updateSubscriptionInDB(
   const cancelAtEnd = Boolean(subscription.cancel_at_period_end);
   const canceledAt  = subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : null;
 
-  // Get the price ID from the subscription items
   const items = subscription.items as { data?: Array<{ price?: { id?: string } }> } | undefined;
   const priceId = items?.data?.[0]?.price?.id ?? null;
 
@@ -121,8 +159,16 @@ async function updateSubscriptionInDB(
   });
 
   if (error) {
-    console.error("[stripe-webhook] Failed to update subscription:", error);
+    console.error("[stripe-webhook] upsert_subscription error:", error);
+    throw new Error(`DB upsert failed: ${error.message}`);
   }
+
+  // Mark pending checkout as completed
+  await supabase.rpc("complete_checkout", {
+    p_session_id: String(subscription.id ?? ""),
+    p_user_id: userId,
+    p_stripe_customer_id: customerId,
+  });
 }
 
 Deno.serve(async (req: Request) => {
@@ -130,7 +176,6 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  // Only accept POST
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
@@ -152,7 +197,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Verify signature ─────────────────────────────────────────────────────
     const event = await verifyStripeSignature(rawBody, signatureHeader, webhookSecret);
     if (!event) {
       console.error("[stripe-webhook] Signature verification failed");
@@ -163,88 +207,106 @@ Deno.serve(async (req: Request) => {
     }
 
     const eventType = String(event.type ?? "");
+    const eventId   = String(event.id ?? "");
     const eventData = event.data?.object as Record<string, unknown> | undefined;
 
-    console.log("[stripe-webhook] Event:", eventType, "| id:", event.id);
+    console.log("[stripe-webhook] Event:", eventType, "| id:", eventId);
 
     if (!eventData) {
-      console.warn("[stripe-webhook] No event data object for:", eventType);
       return new Response(JSON.stringify({ received: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ── Initialize Supabase client with service role ─────────────────────────
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // ── Handle events (idempotent: safe for retries and out-of-order) ────────
-    switch (eventType) {
-      // ── Trial started / subscription created ──────────────────────────────
-      case "customer.subscription.created":
-      case "customer.subscription.updated": {
-        await updateSubscriptionInDB(supabase, eventData);
-        break;
-      }
+    // ── Idempotency: check if we already processed this event ────────────────
+    const { data: existingEvent } = await supabase
+      .from("stripe_event_log")
+      .select("id")
+      .eq("id", eventId)
+      .maybeSingle();
 
-      // ── Subscription deleted (expired) ─────────────────────────────────────
-      case "customer.subscription.deleted": {
-        await updateSubscriptionInDB(supabase, eventData);
-        // Status will be mapped to 'canceled' or 'expired' by mapStripeStatus
-        break;
-      }
+    if (existingEvent) {
+      console.log("[stripe-webhook] Event already processed:", eventId);
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-      // ── Payment succeeded (renewal) ────────────────────────────────────────
-      case "invoice.payment_succeeded": {
-        // The subscription update event typically follows this, but we also
-        // process it directly for resilience against missing update events.
-        const subscriptionId = String(eventData.subscription ?? "");
-        if (subscriptionId) {
-          // Fetch the full subscription from Stripe for authoritative state
-          const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-          if (stripeSecretKey) {
-            const subRes = await fetch(`${STRIPE_API_BASE}/subscriptions/${subscriptionId}`, {
-              headers: { "Authorization": `Bearer ${stripeSecretKey}` },
-            });
-            if (subRes.ok) {
-              const subData = await subRes.json();
-              await updateSubscriptionInDB(supabase, subData);
-            }
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+
+    // ── Process event — return non-2xx on processing failure so Stripe retries ─
+    try {
+      switch (eventType) {
+        // ── Checkout completed — reconcile from Stripe ──────────────────────
+        case "checkout.session.completed": {
+          const subscriptionId = String(eventData.subscription ?? "");
+          if (subscriptionId && stripeSecretKey) {
+            await reconcileSubscription(supabase, subscriptionId, stripeSecretKey);
           }
+          break;
         }
-        break;
-      }
 
-      // ── Payment failed ─────────────────────────────────────────────────────
-      case "invoice.payment_failed": {
-        const subscriptionId = String(eventData.subscription ?? "");
-        if (subscriptionId) {
-          const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-          if (stripeSecretKey) {
-            const subRes = await fetch(`${STRIPE_API_BASE}/subscriptions/${subscriptionId}`, {
-              headers: { "Authorization": `Bearer ${stripeSecretKey}` },
-            });
-            if (subRes.ok) {
-              const subData = await subRes.json();
-              await updateSubscriptionInDB(supabase, subData);
-            }
+        case "customer.subscription.created":
+        case "customer.subscription.updated": {
+          // Reconcile from Stripe API instead of trusting event snapshot
+          const subscriptionId = String(eventData.id ?? "");
+          if (subscriptionId && stripeSecretKey) {
+            await reconcileSubscription(supabase, subscriptionId, stripeSecretKey);
+          } else {
+            await applySubscriptionUpdate(supabase, eventData);
           }
+          break;
         }
-        break;
+
+        case "customer.subscription.deleted": {
+          await applySubscriptionUpdate(supabase, eventData);
+          break;
+        }
+
+        case "invoice.payment_succeeded": {
+          const subscriptionId = String(eventData.subscription ?? "");
+          if (subscriptionId && stripeSecretKey) {
+            await reconcileSubscription(supabase, subscriptionId, stripeSecretKey);
+          }
+          break;
+        }
+
+        case "invoice.payment_failed": {
+          const subscriptionId = String(eventData.subscription ?? "");
+          if (subscriptionId && stripeSecretKey) {
+            await reconcileSubscription(supabase, subscriptionId, stripeSecretKey);
+          }
+          break;
+        }
+
+        case "customer.subscription.trial_will_end": {
+          console.log("[stripe-webhook] Trial ending soon for:", eventData.id);
+          break;
+        }
+
+        default:
+          console.log("[stripe-webhook] Unhandled event type:", eventType);
       }
 
-      // ── Trial ending soon (informational) ──────────────────────────────────
-      case "customer.subscription.trial_will_end": {
-        console.log("[stripe-webhook] Trial ending soon for subscription:", eventData.id);
-        // No DB update needed — the subsequent updated/deleted event will handle state
-        break;
-      }
+      // ── Mark event as processed ──────────────────────────────────────────────
+      await supabase
+        .from("stripe_event_log")
+        .insert({ id: eventId, type: eventType, processed_at: new Date().toISOString() });
 
-      default:
-        console.log("[stripe-webhook] Unhandled event type:", eventType);
+    } catch (processingErr) {
+      // Return 500 so Stripe retries the event
+      console.error("[stripe-webhook] Processing failed for event", eventId, ":", processingErr);
+      return new Response(JSON.stringify({ error: "Processing failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(JSON.stringify({ received: true }), {

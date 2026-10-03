@@ -70,6 +70,7 @@ export default function App() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [appProudFlash, setAppProudFlash] = useState(false);
   const appProudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   // Persists the tab to sessionStorage and updates state.
   function setActiveTab(tab: TabName) {
@@ -128,6 +129,12 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // PASSWORD_RECOVERY: Supabase creates a session from the recovery link.
+      // We must show the password reset screen instead of the normal app.
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        return;
+      }
       // TOKEN_REFRESHED, INITIAL_SESSION, and USER_UPDATED are not sign-outs.
       // Only clear user data on an explicit SIGNED_OUT event to avoid wiping state
       // during background token refresh, which would navigate back to Home.
@@ -136,6 +143,7 @@ export default function App() {
         setTasks([]);
         setEvents([]);
         setGroceryItems([]);
+        setIsPasswordRecovery(false);
         // Reset tab on real sign-out so next user starts at Home
         setActiveTabState('home');
         try { sessionStorage.removeItem(ACTIVE_TAB_KEY); } catch { /* ignore */ }
@@ -232,6 +240,13 @@ export default function App() {
   // ── Guard: show auth page if not signed in ─────────────────────────────────
   if (!session) {
     return <AuthPage />;
+  }
+
+  // ── Guard: password recovery takes priority over normal app rendering ──────
+  // Supabase creates a session from the recovery link, so session is non-null,
+  // but we must show the reset screen instead of the normal app.
+  if (isPasswordRecovery) {
+    return <AuthPage initialMode="reset" onResetComplete={() => setIsPasswordRecovery(false)} />;
   }
 
   // ── Guard: show onboarding only when profile is confirmed incomplete ────────

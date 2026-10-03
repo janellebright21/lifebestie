@@ -194,8 +194,7 @@ Deno.serve(async (req: Request) => {
     }
     console.log("[emma-chat] Auth: OK, user", user.id.slice(0, 8) + "...");
 
-    // ── Access check: verify subscription/trial/owner access ────────────────────
-    const AI_DAILY_LIMIT = parseInt(Deno.env.get("AI_DAILY_LIMIT") ?? "50", 10);
+    // ── Access check: verify subscription/trial/owner/dev access ──────────────
     const { data: hasAccess } = await supabase.rpc("has_access", { p_user_id: user.id });
     if (!hasAccess) {
       return ok({
@@ -204,10 +203,22 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── AI usage limit check ────────────────────────────────────────────────────
-    const { data: usageRows } = await supabase.rpc("get_ai_usage_today", { p_user_id: user.id });
-    const totalCalls = (usageRows as Array<{ call_count: number }>)?.reduce((sum, r) => sum + r.call_count, 0) ?? 0;
-    if (totalCalls >= AI_DAILY_LIMIT) {
+    // ── AI usage limit: atomic reservation (safe under concurrent requests) ────
+    // reserve_ai_quota checks the limit AND increments in one DB statement,
+    // so simultaneous requests cannot all pass before any increment lands.
+    const AI_DAILY_LIMIT = parseInt(Deno.env.get("AI_DAILY_LIMIT") ?? "50", 10);
+    const { data: quotaReserved, error: quotaErr } = await supabase.rpc("reserve_ai_quota", {
+      p_user_id: user.id,
+      p_function: "emma-chat",
+      p_provider: "groq",
+      p_limit: AI_DAILY_LIMIT,
+    });
+    if (quotaErr) {
+      // Reject on DB errors — never silently allow or silently block
+      console.error("[emma-chat] reserve_ai_quota error:", quotaErr);
+      return ok({ error: "INTERNAL_ERROR", message: "Could not verify usage limit. Please try again." });
+    }
+    if (!quotaReserved) {
       return ok({
         error: "AI_LIMIT_REACHED",
         message: `You've reached your daily AI limit of ${AI_DAILY_LIMIT} messages. Try again tomorrow!`,
@@ -298,6 +309,8 @@ Deno.serve(async (req: Request) => {
       });
     } catch (netErr) {
       console.error("[emma-chat] Network error reaching Groq:", netErr);
+      // Release the quota reservation — failed requests don't consume the limit
+      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
       return ok({ error: "FUNCTION_NETWORK_ERROR", message: "Could not reach Groq. Check your network." });
     }
 
@@ -305,6 +318,9 @@ Deno.serve(async (req: Request) => {
 
     // ── Handle Groq errors ─────────────────────────────────────────────────────
     if (!groqRes.ok) {
+      // Release quota on API error — failed requests don't consume the limit
+      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+
       let groqErr: Record<string, unknown> = {};
       try { groqErr = await groqRes.json(); } catch { /* ignore */ }
 
@@ -348,6 +364,7 @@ Deno.serve(async (req: Request) => {
       groqData = await groqRes.json();
     } catch {
       console.error("[emma-chat] Failed to parse Groq JSON response");
+      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
       return ok({ error: "GROQ_INVALID_RESPONSE", message: "Groq response was not valid JSON." });
     }
 
@@ -423,17 +440,8 @@ Deno.serve(async (req: Request) => {
       // action not present or unparseable — continue without it
     }
 
-    // ── Record AI usage (after successful response) ──────────────────────────────
-    try {
-      await supabase.rpc("record_ai_usage", {
-        p_user_id: user.id,
-        p_function: "emma-chat",
-        p_provider: "groq",
-        p_cost_cents: 1,
-      });
-    } catch (usageErr) {
-      console.warn("[emma-chat] Failed to record AI usage:", usageErr);
-    }
+    // ── Quota already reserved atomically before the API call ──────────────────
+    // On success, the reservation stands. On failure, we release it below.
 
     console.log("[emma-chat] Returning text, length:", emmaText.length, "| emotion:", emotion, "| action:", action ? action.type : "none");
     return ok({

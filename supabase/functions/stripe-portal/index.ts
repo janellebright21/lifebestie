@@ -47,23 +47,39 @@ Deno.serve(async (req: Request) => {
       return ok({ error: "STRIPE_NOT_CONFIGURED", message: "Stripe is not configured." });
     }
 
-    // ── Get user's Stripe customer ID ────────────────────────────────────────
+    // ── Get user's Stripe customer ID from subscriptions OR pending_checkouts ──
     const { data: sub } = await supabase
       .from("subscriptions")
       .select("stripe_customer_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!sub?.stripe_customer_id) {
-      return ok({ error: "NO_SUBSCRIPTION", message: "You don't have a billing account yet." });
+    let stripeCustomerId = sub?.stripe_customer_id ?? null;
+
+    // Also check pending_checkouts for a customer ID (for users who started but
+    // didn't complete a checkout, or expired subscriptions)
+    if (!stripeCustomerId) {
+      const { data: pending } = await supabase
+        .from("pending_checkouts")
+        .select("stripe_customer_id")
+        .eq("user_id", user.id)
+        .not("stripe_customer_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      stripeCustomerId = pending?.stripe_customer_id ?? null;
+    }
+
+    if (!stripeCustomerId) {
+      return ok({ error: "NO_STRIPE_CUSTOMER", message: "You don't have a billing account yet." });
     }
 
     // ── Create Billing Portal session ────────────────────────────────────────
-    const origin = req.headers.get("origin") ?? "https://bestielife.app";
-    const returnUrl = `${origin}/?portal=return`;
+    const appUrl = Deno.env.get("APP_URL") ?? "https://bestielife.app";
+    const returnUrl = `${appUrl}/?portal=return`;
 
     const params = new URLSearchParams();
-    params.append("customer", sub.stripe_customer_id);
+    params.append("customer", stripeCustomerId);
     params.append("return_url", returnUrl);
 
     const portalRes = await fetch(`${STRIPE_API_BASE}/billing_portal/sessions`, {
@@ -73,7 +89,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!portalRes.ok) {
-      const err = await portalRes.json();
+      const err = await portalRes.json().catch(() => ({}));
       console.error("[stripe-portal] Stripe error:", err);
       return ok({ error: "STRIPE_ERROR", message: `Could not open billing portal: ${err.error?.message ?? portalRes.statusText}` });
     }

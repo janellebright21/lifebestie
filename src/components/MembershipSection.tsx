@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CreditCard, CheckCircle2, Loader2, AlertCircle, Calendar, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { SubscriptionState } from '../hooks/useSubscription';
@@ -16,35 +16,56 @@ function formatDate(iso: string | null): string {
   }
 }
 
+function formatPrice(priceInfo: { amount: number; currency: string; interval: string } | null): string {
+  if (!priceInfo) return '';
+  const dollars = (priceInfo.amount / 100).toFixed(2);
+  const currencySymbol: Record<string, string> = { usd: '$', eur: '€', gbp: '£' };
+  const symbol = currencySymbol[priceInfo.currency] ?? priceInfo.currency.toUpperCase() + ' ';
+  return `${symbol}${dollars}/${priceInfo.interval}`;
+}
+
 export default function MembershipSection({ subscription }: MembershipSectionProps) {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading]     = useState(false);
   const [actionError, setActionError]         = useState<string | null>(null);
   const [pendingCheckout, setPendingCheckout] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const subscriptionRef = useRef(subscription);
+  subscriptionRef.current = subscription;
 
   // Check for checkout redirect result on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('checkout') === 'success') {
       setPendingCheckout(true);
-      // Clean the URL
       window.history.replaceState({}, '', window.location.pathname);
-      // Poll for webhook confirmation
-      const pollInterval = setInterval(async () => {
-        await subscription.refresh();
-        if (!subscription.loading && subscription.hasAccess && subscription.status !== 'none') {
+
+      // Poll for webhook confirmation using a ref to avoid stale closure
+      pollRef.current = setInterval(async () => {
+        await subscriptionRef.current.refresh();
+        const s = subscriptionRef.current;
+        if (!s.loading && s.hasAccess && s.status !== 'none') {
           setPendingCheckout(false);
-          clearInterval(pollInterval);
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
         }
       }, 3000);
-      // Stop polling after 30 seconds
-      setTimeout(() => { clearInterval(pollInterval); setPendingCheckout(false); }, 30000);
-      return () => clearInterval(pollInterval);
+
+      // Timeout: keep pending state with retry option (don't imply success)
+      timeoutRef.current = setTimeout(() => {
+        if (pollRef.current) clearInterval(pollRef.current);
+        // Keep pendingCheckout true — user sees a retry button instead of implied success
+      }, 30000);
+
+      return () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      };
     }
     if (params.get('checkout') === 'cancelled') {
       window.history.replaceState({}, '', window.location.pathname);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleStartTrial() {
@@ -63,8 +84,8 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
           setActionError('Payments are not yet configured. Please check back soon.');
         } else if (code === 'ALREADY_SUBSCRIBED') {
           setActionError('You already have an active subscription.');
-        } else if (code === 'TRIAL_ALREADY_USED') {
-          setActionError("You've already used your free trial.");
+        } else if (code === 'CHECKOUT_BUSY') {
+          setActionError('A checkout is already in progress. Please wait a moment.');
         } else {
           setActionError(String(payload.message ?? 'Checkout failed.'));
         }
@@ -143,8 +164,9 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
     );
   }
 
-  // ── Pending checkout confirmation ──────────────────────────────────────────
+  // ── Pending checkout confirmation (with retry on timeout) ──────────────────
   if (pendingCheckout) {
+    const stillPending = subscription.status === 'none' || !subscription.hasAccess;
     return (
       <div>
         <div className="flex items-center gap-2 mb-3">
@@ -152,19 +174,36 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-0">Membership</h2>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-6 flex flex-col items-center gap-3">
-          <Loader2 size={20} className="animate-spin text-gray-400" />
-          <p className="text-sm font-semibold text-gray-600">Confirming your trial…</p>
-          <p className="text-xs text-gray-400 text-center leading-relaxed">
-            We're verifying your payment with Stripe. This only takes a moment.
-          </p>
+          {stillPending ? (
+            <>
+              <Loader2 size={20} className="animate-spin text-gray-400" />
+              <p className="text-sm font-semibold text-gray-600">Confirming your subscription…</p>
+              <p className="text-xs text-gray-400 text-center leading-relaxed">
+                We're verifying your payment with Stripe. This usually takes a few seconds.
+              </p>
+              <button
+                onClick={() => subscription.refresh()}
+                className="mt-1 text-xs font-semibold text-gray-500 underline"
+              >
+                Refresh status
+              </button>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={20} className="text-emerald-500" />
+              <p className="text-sm font-semibold text-gray-600">Subscription confirmed!</p>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
   const hasActiveSub = subscription.status === 'active' || subscription.status === 'trialing' || subscription.status === 'past_due';
-  const isCanceled = subscription.status === 'canceled' && subscription.cancelAtPeriodEnd;
-  const isExpired = !subscription.hasAccess && !hasActiveSub;
+  const isCanceledWithAccess = subscription.status === 'canceled' && subscription.cancelAtPeriodEnd && subscription.hasAccess;
+  const isCanceledExpired = subscription.status === 'canceled' && !subscription.hasAccess;
+  const isExpired = !subscription.hasAccess && !hasActiveSub && subscription.status !== 'none';
+  const hasStripeCustomer = Boolean(subscription.status !== 'none' || subscription.currentPeriodEnd);
 
   return (
     <div>
@@ -186,12 +225,24 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
               {subscription.status === 'trialing' && 'Free Trial Active'}
               {subscription.status === 'active' && 'Subscribed'}
               {subscription.status === 'past_due' && 'Payment Retry'}
-              {isCanceled && 'Canceled (access until period end)'}
+              {isCanceledWithAccess && 'Canceled (access until period end)'}
+              {isCanceledExpired && 'Subscription Ended'}
               {isExpired && 'No Active Plan'}
               {subscription.status === 'none' && 'Free Trial Available'}
+              {subscription.devAccess && subscription.status === 'none' && ' (Development Access)'}
             </span>
           </div>
         </div>
+
+        {/* Price display */}
+        {subscription.priceInfo && (
+          <div className="text-xs text-gray-500 leading-relaxed">
+            <span className="font-semibold text-gray-700">{formatPrice(subscription.priceInfo)}</span>
+            {subscription.trialEligible && subscription.trialDays > 0 && (
+              <span> after a {subscription.trialDays}-day free trial</span>
+            )}
+          </div>
+        )}
 
         {/* Trial info */}
         {subscription.status === 'trialing' && subscription.trialEnd && (
@@ -202,24 +253,24 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
         )}
 
         {/* Billing date */}
-        {hasActiveSub && subscription.currentPeriodEnd && (
+        {(hasActiveSub || isCanceledWithAccess) && subscription.currentPeriodEnd && (
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <Calendar size={12} className="text-gray-400" />
             <span>
-              {isCanceled ? 'Access until' : 'Next billing date'}: {formatDate(subscription.currentPeriodEnd)}
+              {isCanceledWithAccess ? 'Access until' : 'Next billing date'}: {formatDate(subscription.currentPeriodEnd)}
             </span>
           </div>
         )}
 
         {/* Cancellation note */}
-        {isCanceled && (
+        {isCanceledWithAccess && (
           <p className="text-[11px] text-gray-400 leading-relaxed">
             You'll keep access until your current billing period ends. No further charges will be made.
           </p>
         )}
 
         {/* Expired / no access */}
-        {isExpired && (
+        {(isExpired || isCanceledExpired) && (
           <p className="text-xs text-gray-500 leading-relaxed">
             Your subscription has ended. Resubscribe to regain access to Emma chat and AI features.
             Your saved data is safe and ready when you return.
@@ -228,8 +279,8 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
 
         {/* Action buttons */}
         <div className="space-y-2 pt-1">
-          {/* Start trial / subscribe */}
-          {(subscription.status === 'none' || isExpired) && subscription.trialEligible && (
+          {/* Start trial (eligible) */}
+          {subscription.status === 'none' && subscription.trialEligible && (
             <button
               onClick={handleStartTrial}
               disabled={checkoutLoading}
@@ -238,12 +289,13 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
               {checkoutLoading ? (
                 <><Loader2 size={14} className="animate-spin" /> Starting trial…</>
               ) : (
-                <><Sparkles size={14} /> Start 7-Day Free Trial</>
+                <><Sparkles size={14} /> Start {subscription.trialDays}-Day Free Trial</>
               )}
             </button>
           )}
 
-          {(subscription.status === 'none' || isExpired) && !subscription.trialEligible && (
+          {/* Subscribe without trial (returning customer or trial used) */}
+          {(subscription.status === 'none' || isExpired || isCanceledExpired) && !subscription.trialEligible && (
             <button
               onClick={handleStartTrial}
               disabled={checkoutLoading}
@@ -257,8 +309,23 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
             </button>
           )}
 
-          {/* Manage billing */}
-          {hasActiveSub && (
+          {/* Resubscribe (expired/canceled) with trial eligible */}
+          {(isExpired || isCanceledExpired) && subscription.trialEligible && (
+            <button
+              onClick={handleStartTrial}
+              disabled={checkoutLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-50 theme-bg-primary"
+            >
+              {checkoutLoading ? (
+                <><Loader2 size={14} className="animate-spin" /> Starting trial…</>
+              ) : (
+                <><Sparkles size={14} /> Start {subscription.trialDays}-Day Free Trial</>
+              )}
+            </button>
+          )}
+
+          {/* Manage billing — available for any existing Stripe customer, even after expiration */}
+          {hasStripeCustomer && (
             <button
               onClick={handleManageBilling}
               disabled={portalLoading}
@@ -273,15 +340,21 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
           )}
         </div>
 
-        {/* Trial terms */}
+        {/* Trial terms — show actual price, trial length, charge date, and cancellation terms */}
         {subscription.trialEligible && subscription.status === 'none' && (
-          <p className="text-[11px] text-gray-400 leading-relaxed">
-            Start your 7-day free trial. You'll be charged the monthly subscription fee after your trial ends.
-            Cancel anytime before your trial ends to avoid being charged.
-          </p>
+          <div className="text-[11px] text-gray-400 leading-relaxed space-y-1">
+            <p>
+              Start your {subscription.trialDays}-day free trial.
+              {subscription.priceInfo
+                ? ` You'll be charged ${formatPrice(subscription.priceInfo)} after your trial ends.`
+                : ' You\'ll be charged the monthly subscription fee after your trial ends.'
+              }
+            </p>
+            <p>Cancel anytime before your trial ends to avoid being charged.</p>
+          </div>
         )}
 
-        {/* Error message */}
+        {/* Error messages */}
         {actionError && (
           <div className="flex items-start gap-2 bg-red-50 rounded-xl px-3 py-2.5">
             <AlertCircle size={14} className="text-red-400 shrink-0 mt-0.5" />
@@ -289,7 +362,6 @@ export default function MembershipSection({ subscription }: MembershipSectionPro
           </div>
         )}
 
-        {/* Subscription error */}
         {subscription.error && (
           <div className="flex items-start gap-2 bg-red-50 rounded-xl px-3 py-2.5">
             <AlertCircle size={14} className="text-red-400 shrink-0 mt-0.5" />
