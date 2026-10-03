@@ -1,10 +1,10 @@
-import { useEffect, useState, type ComponentProps } from 'react';
-import BestieAvatar from '../components/besties/BestieAvatar';
+import type { ComponentProps } from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import CoreHomePage from './HomePageCore';
 import FirstUseGuideCard from '../components/FirstUseGuideCard';
 import { CHARACTERS } from '../lib/supabase';
 import type { TabName } from '../components/BottomNav';
+import { resolveExpressionSrc, getDefaultSrc } from '../lib/characterAssets';
 import { getHomeExpression } from '../lib/bestieExpression';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { useMovement } from '../hooks/useMovement';
@@ -31,11 +31,6 @@ function localDateKey(date: Date): string {
 }
 
 export default function HomePage(props: HomePageProps) {
-  const [greetingMotion, setGreetingMotion] = useState<'wave' | undefined>('wave');
-  useEffect(() => {
-    const timer = setTimeout(() => setGreetingMotion(undefined), 1250);
-    return () => clearTimeout(timer);
-  }, []);
   const today = localDateKey(new Date());
   const pendingTasks = props.tasks.filter((task) => !task.completed);
   const hasOverdueTasks = pendingTasks.some((task) => task.due_date && task.due_date < today);
@@ -132,15 +127,25 @@ export default function HomePage(props: HomePageProps) {
                 zIndex: 2,
               }}
             />
-            <BestieAvatar
-              characterId={characterId}
-              expression={homeExpression}
-              size="portrait"
-              className="emma-home-avatar"
-              style={{ width: '100%', height: '100%' }}
-              motionOverride={greetingMotion}
-              onMotionEnd={() => setGreetingMotion(undefined)}
-              enable3D={false}
+            <img
+              src={resolveExpressionSrc(characterId, homeExpression)}
+              alt={`${characterDef.name} ${homeExpression}`}
+              onError={(event) => {
+                const target = event.currentTarget;
+                const fallback = getDefaultSrc(characterId);
+                if (!target.src.endsWith(fallback)) target.src = fallback;
+              }}
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'center',
+                userSelect: 'none',
+                pointerEvents: 'none',
+              }}
             />
           </div>
 
