@@ -45,11 +45,11 @@ export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:
  if(failed)return <img src="/assets/emma/expressions/emma-happy-v3.png" alt="Emma" style={{width:'100%',height:'100%',objectFit:'contain'}}/>;
  return <button type="button" className={`emma-rig ${paused?'emma-rig--paused':''}`} aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={wave}>
  <svg viewBox="60 0 650 710" role="img" aria-label="Emma, your animated bestie">
- <defs><filter id={`${clipId}-soft`}><feGaussianBlur stdDeviation="1.8"/></filter><mask id={clipId} maskUnits="userSpaceOnUse" x="210" y="170" width="205" height="85"><rect x="220" y="180" width="180" height="60" rx="18" fill="white" filter={`url(#${clipId}-soft)`}/></mask></defs>
- <g className="emma-rig__left"><Part viewBox="0 785 627 469" x={-25} y={344} width={400} height={350}/></g>
- <g className="emma-rig__pose" opacity={waving?0:1}><g transform="translate(650 0) scale(-1 1)"><g className="emma-rig__left"><Part viewBox="0 785 627 469" x={-25} y={344} width={400} height={350}/></g></g></g>
- <g className="emma-rig__pose" opacity={waving?1:0}><g key={gesture} className={waving?'emma-rig__wave':''}><Part viewBox="627 785 627 469" x={309} y={171} width={440} height={329}/></g></g>
- <Part viewBox="0 0 627 785" x={60} y={0} width={480} height={600}/>
- <g opacity={blink?1:0} mask={`url(#${clipId})`}><Part viewBox="627 0 627 785" x={93} y={0} width={480} height={600}/></g>
+ <defs><filter id={`${clipId}-soft`}><feGaussianBlur stdDeviation="1.8"/></filter><mask id={clipId} maskUnits="userSpaceOnUse" x="210" y="170" width="205" height="85"><rect x="226" y="174" width="165" height="58" rx="18" fill="white" filter={`url(#${clipId}-soft)`}/></mask></defs>
+ <g className="emma-rig__left"><Part viewBox="0 785 627 469" x={-13} y={344} width={400} height={350}/></g>
+ <g className="emma-rig__pose" opacity={waving?0:1}><g transform="translate(650 0) scale(-1 1)"><g className="emma-rig__left"><Part viewBox="0 785 627 469" x={-13} y={344} width={400} height={350}/></g></g></g>
+ <g className="emma-rig__pose" opacity={waving?1:0}><g key={gesture} className={waving?'emma-rig__wave':''}><Part viewBox="627 785 627 469" x={297} y={171} width={440} height={329}/></g></g>
+ <Part viewBox="0 0 627 785" x={80} y={0} width={440} height={580}/>
+ <g opacity={blink?1:0} mask={`url(#${clipId})`}><Part viewBox="627 0 627 785" x={110} y={0} width={440} height={580}/></g>
  </svg></button>;
 }
