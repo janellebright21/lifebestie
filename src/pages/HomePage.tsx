@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentProps } from 'react';
 import BestieAvatar from '../components/besties/BestieAvatar';
-import EmmaArticulatedAvatar from '../components/besties/EmmaArticulatedAvatar';
+import EmmaFullBodyAvatar from '../components/besties/EmmaFullBodyAvatar';
 import { ArrowRight } from 'lucide-react';
 import CoreHomePage from './HomePageCore';
 import FirstUseGuideCard from '../components/FirstUseGuideCard';
@@ -105,7 +105,7 @@ export default function HomePage(props: HomePageProps) {
             className="relative shrink-0"
             style={{
               width: 'clamp(88px, 22vw, 140px)',
-              height: 'clamp(112px, 28vw, 172px)',
+              height: characterId === 'emma' ? 'clamp(180px, 38vw, 248px)' : 'clamp(112px, 28vw, 172px)',
             }}
           >
             <div
@@ -121,7 +121,7 @@ export default function HomePage(props: HomePageProps) {
               }}
             />
             {characterId === 'emma' ? (
-              <EmmaArticulatedAvatar expression={homeExpression} />
+              <EmmaFullBodyAvatar expression={homeExpression} />
             ) : (
             <BestieAvatar
               characterId={characterId}
