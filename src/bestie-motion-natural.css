@@ -206,3 +206,6 @@
 @media (prefers-reduced-motion: reduce) {
  .emma-home-avatar .ba-body, .emma-home-avatar .ba-head { animation: none !important; }
 }
+
+/* Home portrait stays planted while the articulated rig replaces it. */
+.emma-home-avatar .ba-body, .emma-home-avatar .ba-head {animation:none !important;transform:none !important;}
