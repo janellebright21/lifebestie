@@ -23,10 +23,10 @@ export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:
  <svg viewBox="0 0 600 650" role="img" aria-label="Emma, your animated bestie">
  <g className="emma-rig__left"><Part column={0} row={1} x={8} y={302} size={317}/></g>
  <g className="emma-rig__right"><g key={gesture} className="emma-rig__wave"><Part column={1} row={1} x={328} y={210} size={256}/></g></g>
- <Part column={2} row={0} x={110} y={209} size={358}/>
  <g className="emma-rig__head">
- <g opacity={blink?0:1}><Part column={0} row={0} x={140} y={30} size={307}/></g>
- <g opacity={blink?1:0}><Part column={1} row={0} x={158} y={30} size={307}/></g>
+ <g opacity={blink?0:1}><Part column={0} row={0} x={100} y={20} size={307}/></g>
+ <g opacity={blink?1:0}><Part column={1} row={0} x={118} y={20} size={307}/></g>
  </g>
+ <Part column={2} row={0} x={110} y={209} size={358}/>
  </svg></button>;
 }
