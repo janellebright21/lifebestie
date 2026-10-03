@@ -1,4 +1,4 @@
-import { useEffect, useState, useId } from 'react';
+import { useEffect, useState, useId, useRef } from 'react';
 import type { AvatarExpression } from '../../lib/supabase';
 import './EmmaArticulatedAvatar.css';
 const ATLAS='/assets/emma/rig/emma-unified-v2.png';
@@ -7,6 +7,9 @@ function Part({viewBox,x,y,width,height}: {viewBox:string;x:number;y:number;widt
 }
 export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:AvatarExpression}) {
  const clipId=useId();
+ const greeted=useRef(false);
+ const lastWave=useRef(-Infinity);
+ const wave=()=>{const now=performance.now();if(now-lastWave.current<2400)return;lastWave.current=now;setGesture(n=>n+1);};
  const [blink,setBlink]=useState(false);
  const [gesture,setGesture]=useState(0);
  const [failed,setFailed]=useState(false);
@@ -27,7 +30,7 @@ export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:
   const schedule=(greet=false)=>{
    clearTimeout(timer);setPaused(document.hidden);
    if(!loaded||media.matches||document.hidden)return;
-   if(greet)setGesture(n=>n+1);
+   if(greet&&!greeted.current){greeted.current=true;setGesture(n=>n+1);}
    timer=setTimeout(()=>{setGesture(n=>n+1);schedule();},(attentive?42000:24000)+Math.random()*10000);
   };
   const resume=()=>schedule();schedule(true);
@@ -35,8 +38,8 @@ export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:
   return()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',resume);media.removeEventListener('change',resume);};
  },[loaded,attentive]);
  if(failed)return <img src="/assets/emma/expressions/emma-happy-v3.png" alt="Emma" style={{width:'100%',height:'100%',objectFit:'contain'}}/>;
- return <button type="button" className={`emma-rig ${paused?'emma-rig--paused':''}`} aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={()=>setGesture(n=>n+1)}>
- <svg viewBox="0 0 600 650" role="img" aria-label="Emma, your animated bestie">
+ return <button type="button" className={`emma-rig ${paused?'emma-rig--paused':''}`} aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={wave}>
+ <svg viewBox="60 0 650 650" role="img" aria-label="Emma, your animated bestie">
  <defs><filter id={`${clipId}-soft`}><feGaussianBlur stdDeviation="1.8"/></filter><mask id={clipId} maskUnits="userSpaceOnUse" x="210" y="170" width="205" height="85"><rect x="220" y="180" width="180" height="60" rx="18" fill="white" filter={`url(#${clipId}-soft)`}/></mask></defs>
  <g className="emma-rig__left"><Part viewBox="0 785 627 469" x={-25} y={344} width={400} height={299}/></g>
  <g className="emma-rig__right"><g key={gesture} className="emma-rig__wave"><Part viewBox="627 785 627 469" x={330} y={197} width={376} height={281}/></g></g>
