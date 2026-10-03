@@ -1,1 +1,11 @@
-Emma package transferred; temporary files restored.
+Error: File differs from reviewed version; refusing to overwrite: src/components/besties/BestieAvatar.tsx
+    at Object.eval (/home/project/.emma-update/apply-emma.cjs:6:169)
+    at Module._compile (node:internal/modules/cjs/loader:160:19302)
+    at Module._extensions..js (node:internal/modules/cjs/loader:160:20043)
+    at Module.load (node:internal/modules/cjs/loader:160:17661)
+    at Module._load (node:internal/modules/cjs/loader:160:15179)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:160:4199)
+    at Module.executeUserEntryPoint (node:internal/modules/run_main:179:2179)
+    at internal/main/run_main_module (node:internal/main/run_main_module:155:484)
+
+Node.js v22.22.3
