@@ -1,4 +1,4 @@
-const fs=require('fs'),z=require('zlib'),p=require('path');
+import fs from 'node:fs'; import z from 'node:zlib'; import p from 'node:path';
 const t=fs.readFileSync('README.md','utf8');
 const e=JSON.parse(z.gunzipSync(Buffer.from(t.slice(14),'base64')));
 for(const [n,d] of Object.entries(e)){const f=p.join('.emma-update',n);fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,Buffer.from(d,'base64'));}
