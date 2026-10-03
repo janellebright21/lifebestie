@@ -7,3 +7,7 @@ added 8 packages in 10s
 > vite-react-typescript-starter@0.0.0 typecheck
 > tsc --noEmit -p tsconfig.app.json
 
+
+> vite-react-typescript-starter@0.0.0 build
+> vite build
+
