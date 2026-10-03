@@ -102,7 +102,7 @@ export default function HomePage(props: HomePageProps) {
       <div className="px-4 sm:px-6 pt-6 pb-2 w-full max-w-2xl mx-auto">
         <div className="flex flex-row-reverse items-center gap-3 sm:gap-5 rounded-3xl p-4 sm:p-5" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid var(--theme-primary-light)' }}>
           <div
-            className="relative shrink-0"
+            className={`relative shrink-0 ${characterId === 'emma' ? 'mb-10' : ''}`}
             style={{
               width: 'clamp(88px, 22vw, 140px)',
               height: 'clamp(112px, 28vw, 172px)',
@@ -134,6 +134,7 @@ export default function HomePage(props: HomePageProps) {
               enable3D={false}
             />
             )}
+            {characterId === 'emma' && <p className="emma-welcome-bubble"><span>Hey you.</span> <span>I’m here.</span></p>}
           </div>
 
           <div className="flex-1 min-w-0 pt-1">

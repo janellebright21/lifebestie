@@ -11,3 +11,7 @@
 
 .emma-rig__pose {transition:opacity 180ms ease-in-out}
 @media(prefers-reduced-motion:reduce){.emma-rig__pose{transition:none}}
+
+.emma-welcome-bubble {position:absolute;top:calc(100% + 8px);left:0;right:0;margin:0;padding:7px 8px;border:1px solid var(--theme-primary-light);border-radius:14px;background:rgba(255,255,255,.96);color:var(--theme-primary);font-size:11px;line-height:1.3;text-align:center;font-weight:500;box-shadow:0 2px 8px rgba(80,50,110,.04)}
+.emma-welcome-bubble::before {content:'';position:absolute;width:7px;height:7px;top:-5px;left:calc(50% - 4px);background:white;border-left:1px solid var(--theme-primary-light);border-top:1px solid var(--theme-primary-light);transform:rotate(45deg)}
+.emma-welcome-bubble span {white-space:nowrap}

@@ -8,13 +8,14 @@ function Part({viewBox,x,y,width,height}: {viewBox:string;x:number;y:number;widt
 export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:AvatarExpression}) {
  const clipId=useId();
  const waveTimer=useRef<ReturnType<typeof setTimeout>>();
+ const greetingBlinkTimer=useRef<ReturnType<typeof setTimeout>>();
  const [waving,setWaving]=useState(false);
  const lastWave=useRef(-Infinity);
  const wave=useCallback(()=>{
   const now=performance.now();
   if(document.hidden||window.matchMedia('(prefers-reduced-motion: reduce)').matches||now-lastWave.current<2700)return;
   lastWave.current=now;clearTimeout(waveTimer.current);setWaving(true);setGesture(n=>n+1);
-  waveTimer.current=setTimeout(()=>setWaving(false),2400);
+  waveTimer.current=setTimeout(()=>{setWaving(false);setBlink(true);clearTimeout(greetingBlinkTimer.current);greetingBlinkTimer.current=setTimeout(()=>setBlink(false),140);},2400);
  },[]);
  const [blink,setBlink]=useState(false);
  const [gesture,setGesture]=useState(0);
@@ -39,7 +40,7 @@ export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:
    if(document.hidden||media.matches){clearTimeout(waveTimer.current);setWaving(false);}
   };
   document.addEventListener('visibilitychange',visibility);media.addEventListener('change',visibility);
-  return()=>{clearTimeout(greeting);clearTimeout(waveTimer.current);document.removeEventListener('visibilitychange',visibility);media.removeEventListener('change',visibility);};
+  return()=>{clearTimeout(greeting);clearTimeout(waveTimer.current);clearTimeout(greetingBlinkTimer.current);document.removeEventListener('visibilitychange',visibility);media.removeEventListener('change',visibility);};
  },[loaded,wave]);
  if(failed)return <img src="/assets/emma/expressions/emma-happy-v3.png" alt="Emma" style={{width:'100%',height:'100%',objectFit:'contain'}}/>;
  return <button type="button" className={`emma-rig ${paused?'emma-rig--paused':''}`} aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={wave}>
