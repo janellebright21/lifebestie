@@ -1,2 +1,8 @@
-node_modules/
-.env
+const fs=require('fs'),z=require('zlib'),p=require('path');
+const t=fs.readFileSync('README.md','utf8');
+const e=JSON.parse(z.gunzipSync(Buffer.from(t.slice(14),'base64')));
+for(const [n,d] of Object.entries(e)){const f=p.join('.emma-update',n);fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,Buffer.from(d,'base64'));}
+fs.writeFileSync('README.md','# lifebestie\n\n[![Open in Bolt](https://bolt.new/static/open-in-bolt.svg)](https://bolt.new/~/github-mve73iuu)\n'.replace(/\n/g,'
+'));
+fs.writeFileSync('.gitignore',"node_modules/\n.env\n\n");
+console.log('Emma package transferred; temporary files restored.');
