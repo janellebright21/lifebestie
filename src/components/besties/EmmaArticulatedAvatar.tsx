@@ -21,12 +21,12 @@ export default function EmmaArticulatedAvatar({expression='happy'}:{expression?:
  if(failed)return <img src="/assets/emma/expressions/emma-happy-v3.png" alt="Emma" style={{width:'100%',height:'100%',objectFit:'contain'}}/>;
  return <button type="button" className={`emma-rig ${expression==='thinking'||expression==='focused'?'emma-rig--thinking':''}`} aria-label="Say hi to Emma" onClick={()=>setGesture(n=>n+1)}>
  <svg viewBox="0 0 600 650" role="img" aria-label="Emma, your animated bestie">
- <g className="emma-rig__left"><Part column={0} row={1} x={-27} y={318} size={317}/></g>
+ <g className="emma-rig__left"><Part column={0} row={1} x={8} y={302} size={317}/></g>
+ <g className="emma-rig__right"><g key={gesture} className="emma-rig__wave"><Part column={1} row={1} x={328} y={210} size={256}/></g></g>
  <Part column={2} row={0} x={110} y={209} size={358}/>
  <g className="emma-rig__head">
- <g opacity={blink?0:1}><Part column={0} row={0} x={140} y={18} size={307}/></g>
- <g opacity={blink?1:0}><Part column={1} row={0} x={158} y={18} size={307}/></g>
+ <g opacity={blink?0:1}><Part column={0} row={0} x={140} y={30} size={307}/></g>
+ <g opacity={blink?1:0}><Part column={1} row={0} x={158} y={30} size={307}/></g>
  </g>
- <g className="emma-rig__right"><g key={gesture} className="emma-rig__wave"><Part column={1} row={1} x={350} y={200} size={256}/></g></g>
  </svg></button>;
 }
