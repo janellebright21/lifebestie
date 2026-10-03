@@ -1,6 +1,5 @@
 import { useEffect, useState, type ComponentProps } from 'react';
 import BestieAvatar from '../components/besties/BestieAvatar';
-import EmmaArticulatedAvatar from '../components/besties/EmmaArticulatedAvatar';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import CoreHomePage from './HomePageCore';
 import FirstUseGuideCard from '../components/FirstUseGuideCard';
@@ -133,9 +132,6 @@ export default function HomePage(props: HomePageProps) {
                 zIndex: 2,
               }}
             />
-            {characterId === 'emma' ? (
-              <EmmaArticulatedAvatar expression={homeExpression} />
-            ) : (
             <BestieAvatar
               characterId={characterId}
               expression={homeExpression}
@@ -146,7 +142,6 @@ export default function HomePage(props: HomePageProps) {
               onMotionEnd={() => setGreetingMotion(undefined)}
               enable3D={false}
             />
-            )}
           </div>
 
           <div className="flex-1 min-w-0 pt-1">
