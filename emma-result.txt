@@ -1,0 +1,9 @@
+
+added 8 packages in 10s
+
+61 packages are looking for funding
+  run `npm fund` for details
+
+> vite-react-typescript-starter@0.0.0 typecheck
+> tsc --noEmit -p tsconfig.app.json
+
