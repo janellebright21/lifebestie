@@ -3,24 +3,29 @@ import type { ComponentProps } from 'react';
 import { Heart, Sparkles, Star, TrendingUp } from 'lucide-react';
 import CoreMyBestiePage from './MyBestiePageCore';
 import BestieAvatar from '../components/besties/BestieAvatar';
-import EmmaFullBodyAvatar from '../components/besties/EmmaFullBodyAvatar';
-import { type AvatarExpression, CHARACTERS } from '../lib/supabase';
+import { CHARACTERS } from '../lib/supabase';
 
 type MyBestiePageProps = ComponentProps<typeof CoreMyBestiePage>;
-type MotionState = 'idle' | 'thinking' | 'encouraging' | 'calm' | 'celebrating' | 'playful' | 'listening';
+type MotionState = 'idle' | 'thinking' | 'encouraging' | 'calm' | 'celebrating' | 'playful';
 
 const EXPRESSIONS = ['happy', 'thinking', 'encouraging', 'proud', 'calm'] as const;
 const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
-  { id: 'idle', label: 'Happy' },
+  { id: 'idle', label: 'Idle' },
   { id: 'thinking', label: 'Thinking' },
   { id: 'encouraging', label: 'Encouraging' },
   { id: 'calm', label: 'Calm' },
   { id: 'celebrating', label: 'Celebrate' },
-  { id: 'playful', label: 'Excited' },
-  { id: 'listening', label: 'Listening' },
+  { id: 'playful', label: 'Playful' },
 ];
 
-const EMMA_MOODS: Record<MotionState, AvatarExpression> = {idle:'happy',thinking:'thinking',encouraging:'encouraging',calm:'calm',celebrating:'proud',playful:'excited',listening:'empathetic'};
+const EMMA_MOTION_IMAGE: Record<MotionState, string> = {
+  idle: '/assets/emma/expressions/emma-happy-app.png',
+  thinking: '/assets/emma/expressions/emma-thinking-app.png',
+  encouraging: '/assets/emma/expressions/emma-encouraging-app.png',
+  calm: '/assets/emma/expressions/emma-calm-app.png',
+  celebrating: '/assets/emma/expressions/emma-proud-app.png',
+  playful: '/assets/emma/expressions/emma-happy-app.png',
+};
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -75,8 +80,15 @@ export default function MyBestiePage(props: MyBestiePageProps) {
               </p>
             </div>
             <div className="shrink-0 -mr-2 -mt-2 min-w-[140px] flex justify-end">
-              {character === 'emma' ? (
-                <div style={{width:110,height:220}}><EmmaFullBodyAvatar expression={EMMA_MOODS[labMotion]} /></div>
+              {character === 'emma' && import.meta.env.DEV ? (
+                <div className={`emma-motion-prototype emma-motion-${labMotion}`}>
+                  <img
+                    src={EMMA_MOTION_IMAGE[labMotion]}
+                    alt={`Emma ${labMotion}`}
+                    className="emma-motion-image"
+                    draggable={false}
+                  />
+                </div>
               ) : (
                 <BestieAvatar characterId={character} expression="happy" size="full" enable3D={false} />
               )}
@@ -121,6 +133,56 @@ export default function MyBestiePage(props: MyBestiePageProps) {
           </div>
         </section>
 
+        {character === 'emma' && import.meta.env.DEV && (
+          <section
+            className="bg-white rounded-3xl border shadow-sm px-4 py-4"
+            style={{ borderColor: 'var(--theme-primary-mid)' }}
+          >
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-primary)' }}>
+                  Motion Prototype · Stable
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Known-good Emma images with reliable motion states</p>
+              </div>
+              <Sparkles size={16} style={{ color: 'var(--theme-primary)' }} />
+            </div>
+
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(34,197,94,.12)', color: 'rgb(21,128,61)' }}>
+                No layered assets required
+              </span>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}>
+                Blink: deferred to true rig
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {LAB_MOTIONS.map((motion) => {
+                const active = labMotion === motion.id;
+                return (
+                  <button
+                    key={motion.id}
+                    type="button"
+                    onClick={() => setLabMotion(motion.id)}
+                    className="text-[11px] font-semibold px-3 py-2 rounded-xl border transition-all active:scale-95"
+                    style={{
+                      borderColor: active ? 'var(--theme-primary)' : 'var(--theme-primary-mid)',
+                      backgroundColor: active ? 'var(--theme-primary)' : 'var(--theme-primary-light)',
+                      color: active ? 'white' : 'var(--theme-primary)',
+                    }}
+                  >
+                    {motion.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
+              This prototype intentionally stops using the unreliable body/head layer files. First we are validating Emma's motion personality and expression changes. True independent blinking, hair and arm motion will be rebuilt as a separate rig after this visual behavior is approved.
+            </p>
+          </section>
+        )}
 
         <section className="bg-white rounded-3xl border border-gray-100 shadow-sm px-4 py-4">
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -131,7 +193,6 @@ export default function MyBestiePage(props: MyBestiePageProps) {
             <Sparkles size={16} style={{ color: 'var(--theme-primary)' }} />
           </div>
 
-          {character === 'emma' ? <div className="flex flex-wrap gap-2">{LAB_MOTIONS.map(motion=><button key={motion.id} type="button" aria-pressed={labMotion===motion.id} onClick={()=>setLabMotion(motion.id)} className="text-xs font-semibold px-3 py-2 rounded-xl border" style={{borderColor:'var(--theme-primary-mid)',backgroundColor:labMotion===motion.id?'var(--theme-primary)':'var(--theme-primary-light)',color:labMotion===motion.id?'white':'var(--theme-primary)'}}>{motion.label}</button>)}</div> : (
           <div className="grid grid-cols-5 gap-2">
             {EXPRESSIONS.map((expression) => (
               <div key={expression} className="flex flex-col items-center gap-1.5 min-w-0">
@@ -144,7 +205,6 @@ export default function MyBestiePage(props: MyBestiePageProps) {
               </div>
             ))}
           </div>
-          )}
         </section>
       </div>
 

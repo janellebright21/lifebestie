@@ -11,7 +11,7 @@ export default function EmmaFullBodyAvatar({ expression = 'happy', modelSrc = EM
   const [failed, setFailed] = useState(false);
   const [wave, setWave] = useState(0);
   return <div className="emma-full-body">
-    {!ready && <EmmaFullBodyIllustration expression={expression} />}
+    {!ready && <EmmaFullBodyIllustration />}
     {modelSrc && !failed && <Suspense fallback={null}><ModelViewer modelSrc={modelSrc} waveRequest={wave} expression={expression} onReady={() => setReady(true)} onFailure={() => { setReady(false); setFailed(true); }} /></Suspense>}
     {ready && <button className="emma-full-body__interaction" type="button" aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={() => setWave(n => n + 1)} />}
   </div>;

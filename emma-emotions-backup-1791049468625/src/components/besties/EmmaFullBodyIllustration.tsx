@@ -1,18 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useId } from 'react';
-import type { AvatarExpression } from '../../lib/supabase';
 const SHEET='/assets/emma/design/emma-full-body-motion-v1.png';
-const EMOTIONS='/assets/emma/design/emma-emotions-v1.png';
-const EMOTION_POSES: Partial<Record<AvatarExpression, number>> = {
- calm:0, tired:0, thinking:1, focused:1, encouraging:2,
- proud:3, empathetic:4, listening:4, excited:5, playful:5,
-};
 const CENTERS=[293,245,197,293,245,197];
 function Frame({pose}:{pose:number}){const col=pose%3,row=Math.floor(pose/3);return <svg width="260" height="512" viewBox={`${col*512+CENTERS[pose]-130} ${row*512} 260 512`} overflow="hidden"><image href={SHEET} width="1536" height="1024"/></svg>;}
-function EmotionFrame({pose}:{pose:number}){const col=pose%3,row=Math.floor(pose/3);return <svg width="260" height="512" viewBox={`${col*512+CENTERS[pose]-130} ${row*512} 260 512`} overflow="hidden"><image href={EMOTIONS} width="1536" height="1024"/></svg>;}
-export default function EmmaFullBodyIllustration({expression='happy'}:{expression?:AvatarExpression}){
- const [emotionLoaded,setEmotionLoaded]=useState(false);
- const emotionPose=EMOTION_POSES[expression];
- useEffect(()=>{const image=new Image();image.onload=()=>setEmotionLoaded(true);image.src=EMOTIONS;return()=>{image.onload=null;};},[]);
+export default function EmmaFullBodyIllustration(){
  const [pose,setPose]=useState(0),[blink,setBlink]=useState(false),[loaded,setLoaded]=useState(false),[failed,setFailed]=useState(false),[paused,setPaused]=useState(document.hidden);
  const id=useId();const timers=useRef<ReturnType<typeof setTimeout>[]>([]);const active=useRef(false);
  const stop=useCallback(()=>{timers.current.forEach(clearTimeout);timers.current=[];active.current=false;setPose(0);setBlink(false);},[]);
@@ -32,12 +22,11 @@ export default function EmmaFullBodyIllustration({expression='happy'}:{expressio
   return()=>{clearInterval(interval);clearTimeout(greeting);timers.current.forEach(clearTimeout);timers.current=[];active.current=false;document.removeEventListener('visibilitychange',visibility);media.removeEventListener('change',visibility);};
  },[loaded,greet,stop]);
  if(failed)return <img className="emma-full-body__reference" src="/assets/emma/design/emma-full-body-approved.png" alt="Emma in her lavender sweatshirt, jeans and sneakers"/>;
- return <button type="button" className={`emma-full-body__sprite ${paused?'emma-full-body__sprite--paused':''} ${pose>1?'emma-full-body__sprite--greeting':''}`} aria-label="Say hi to Emma" title="Tap Emma for a greeting wave" onClick={greet} data-pose={pose} data-expression={expression} data-blink={blink?'closed':'open'}>
+ return <button type="button" className={`emma-full-body__sprite ${paused?'emma-full-body__sprite--paused':''} ${pose>1?'emma-full-body__sprite--greeting':''}`} aria-label="Say hi to Emma" title="Tap Emma for a greeting wave" onClick={greet} data-pose={pose} data-blink={blink?'closed':'open'}>
  <svg viewBox="0 0 260 512" role="img" aria-label="Emma in her lavender sweatshirt, jeans and sneakers" preserveAspectRatio="xMidYMax meet">
  <defs><clipPath id={`${id}-lower`}><rect x="0" y="242" width="260" height="270"/></clipPath><clipPath id={`${id}-upper`}><rect x="0" y="0" width="260" height="250"/></clipPath><clipPath id={`${id}-eyes`}><rect x="105" y="65" width="72" height="30" rx="9"/></clipPath></defs>
- <defs><radialGradient id={`${id}-face-fade`}><stop offset="76%" stopColor="white"/><stop offset="100%" stopColor="black"/></radialGradient><mask id={`${id}-face`} maskUnits="userSpaceOnUse" x="105" y="57" width="76" height="64"><ellipse cx="142" cy="89" rx="37" ry="30" fill={`url(#${id}-face-fade)`}/></mask></defs>
  <g clipPath={`url(#${id}-lower)`}><Frame pose={pose}/></g>
- <g clipPath={`url(#${id}-upper)`}><g className="emma-full-body__breathing"><Frame pose={pose}/>{emotionLoaded&&emotionPose!==undefined&&pose===0&&<g mask={`url(#${id}-face)`}><g transform="translate(142 80) scale(.9 1.1) translate(-142 -94)"><EmotionFrame pose={emotionPose}/></g></g>}{blink&&pose===0&&<g clipPath={`url(#${id}-eyes)`}><Frame pose={1}/></g>}</g></g>
+ <g clipPath={`url(#${id}-upper)`}><g className="emma-full-body__breathing"><Frame pose={pose}/>{blink&&pose===0&&<g clipPath={`url(#${id}-eyes)`}><Frame pose={1}/></g>}</g></g>
  </svg></button>;
 }
 
