@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentProps } from 'react';
 import BestieAvatar from '../components/besties/BestieAvatar';
 import EmmaArticulatedAvatar from '../components/besties/EmmaArticulatedAvatar';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import CoreHomePage from './HomePageCore';
 import FirstUseGuideCard from '../components/FirstUseGuideCard';
 import { CHARACTERS } from '../lib/supabase';
@@ -100,37 +100,24 @@ export default function HomePage(props: HomePageProps) {
   return (
     <div className="bestie-home-shell">
       <div className="px-4 sm:px-6 pt-6 pb-2 w-full max-w-2xl mx-auto">
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex flex-row-reverse items-center gap-3 sm:gap-5 rounded-3xl p-4 sm:p-5" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid var(--theme-primary-light)' }}>
           <div
             className="relative shrink-0"
             style={{
-              width: 'clamp(96px, 25vw, 160px)',
-              height: 'clamp(96px, 25vw, 160px)',
+              width: 'clamp(88px, 22vw, 140px)',
+              height: 'clamp(112px, 28vw, 172px)',
             }}
           >
             <div
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                inset: '-12%',
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, var(--theme-primary-mid) 0%, var(--theme-primary-light) 48%, transparent 72%)',
-                filter: 'blur(12px)',
-                opacity: 0.7,
+                inset: '0',
+                borderRadius: '24px',
+                background: 'linear-gradient(160deg, var(--theme-primary-light), rgba(255,255,255,0.5))',
+                border: '1px solid rgba(255,255,255,0.8)',
+                opacity: 1,
                 zIndex: 0,
-              }}
-            />
-            <Sparkles
-              size={13}
-              aria-hidden="true"
-              className="hidden sm:block"
-              style={{
-                position: 'absolute',
-                top: '2%',
-                right: '0%',
-                color: 'var(--theme-primary)',
-                opacity: 0.55,
-                zIndex: 2,
               }}
             />
             {characterId === 'emma' ? (
