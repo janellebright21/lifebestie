@@ -1,1 +1,0 @@
-Emma changes applied to /home/project. Original files backed up to /home/project/emma-backup-1791033281279. Run typecheck/build and deploy emma-chat separately.
