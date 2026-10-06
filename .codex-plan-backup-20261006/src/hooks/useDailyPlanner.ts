@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Goal, Task, Event, Routine, UserMemory, TaskCategory, TaskPriority } from '../lib/supabase';
 import { localDateStr } from '../lib/localDate';
-import { readSavedPlan } from '../lib/savedPlan';
 
 /** Shape of a single item in the Plan My Day sheet, persisted in daily_plans.plan_items. */
 export interface PlanItem {
@@ -514,7 +513,15 @@ export function useDailyPlanner() {
       .eq('plan_date', date)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return readSavedPlan(data);
+    // No row found for this date — return null so callers can distinguish
+    // "never saved" from "saved as empty plan".
+    if (data === null) return null;
+    const raw = data.plan_items;
+    // Row exists but plan_items is null — treat as empty plan.
+    if (raw === null) return [];
+    // Row exists but plan_items is malformed — reject, don't treat as missing.
+    if (!Array.isArray(raw)) throw new Error('Saved plan data is corrupted and could not be loaded.');
+    return raw as PlanItem[];
   }, []);
 
   // ── Save Plan My Day items for a given date (upsert) ─────────────────────
