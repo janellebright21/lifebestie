@@ -4,7 +4,7 @@ import {
   Timer, ChevronDown, ChevronUp, Sparkles, Calendar, MapPin,
   Flag, Zap, AlarmClock, X, Check,
   Lock, Unlock, ArrowUp, ArrowDown, RefreshCw, ListPlus, Palette,
-  UtensilsCrossed, ShoppingCart, MoreVertical, Copy, CalendarClock,
+  UtensilsCrossed, ShoppingCart, MoreVertical, Copy, CalendarClock, AlertCircle,
 } from 'lucide-react';
 import {
   Task, Event, Routine, Goal, Meal, MealType, MEAL_TYPES, MealIngredient,
@@ -45,7 +45,7 @@ interface PlannerPageProps {
   tomorrowRemindersError?: boolean;
   onDismissTomorrowReminder: (reminder: string) => void;
   onRefreshTomorrowReminders: () => void;
-  loadPlanItems: (date: string) => Promise<PlanItem[]>;
+  loadPlanItems: (date: string) => Promise<PlanItem[] | null>;
   savePlanItems: (date: string, items: PlanItem[]) => Promise<{ error: string | null }>;
   dailyPlan: DailyPlan | null;
 }
@@ -59,6 +59,11 @@ const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string; dot:
   medium: { label: 'Medium', color: 'text-amber-500',  dot: 'bg-amber-400',  bg: 'bg-amber-50'  },
   low:    { label: 'Low',    color: 'text-sky-400',    dot: 'bg-sky-300',    bg: 'bg-sky-50'    },
 };
+
+/** Safe priority lookup — falls back to medium for legacy/unknown values. */
+function getPriorityCfg(priority: TaskPriority | string | undefined) {
+  return PRIORITY_CONFIG[(priority as TaskPriority) ?? 'medium'] ?? PRIORITY_CONFIG['medium'];
+}
 
 // ─── Category color context ───────────────────────────────────────────────────
 // All sub-components read colors via getCatColor() without prop drilling.
@@ -1791,6 +1796,8 @@ function ConfirmRemoveSheet({
 
 // ─── Plan My Day Sheet ────────────────────────────────────────────────────────
 
+type LoadState = 'loading' | 'loaded' | 'error';
+
 function PlanMyDaySheet({
   tasks,
   events,
@@ -1812,7 +1819,7 @@ function PlanMyDaySheet({
   onDeleteTask: (id: string) => void;
   onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task>;
   onClose: () => void;
-  loadPlanItems: (date: string) => Promise<PlanItem[]>;
+  loadPlanItems: (date: string) => Promise<PlanItem[] | null>;
   savePlanItems: (date: string, items: PlanItem[]) => Promise<{ error: string | null }>;
   dailyPlan: DailyPlan | null;
 }) {
@@ -1825,8 +1832,27 @@ function PlanMyDaySheet({
   const [removingItem, setRemovingItem] = useState<PlanItem | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Reactive loading state — auto-save and unmount flush depend on this, not just a ref
+  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const [closing, setClosing] = useState(false);
   const getCatColor = useCatColor();
   const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // ── Refs that always hold the latest values for async callbacks ──────────
+  const itemsRef = useRef<PlanItem[]>(initial.items);
+  itemsRef.current = items;
+  const loadStateRef = useRef<LoadState>('loading');
+  loadStateRef.current = loadState;
+  const closingRef = useRef(false);
+  closingRef.current = closing;
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+
+  const loadPlanItemsRef = useRef(loadPlanItems);
+  loadPlanItemsRef.current = loadPlanItems;
+  const savePlanItemsRef = useRef(savePlanItems);
+  savePlanItemsRef.current = savePlanItems;
 
   // Keep the Planner and BottomNav inert while the plan or its editor is open.
   useEffect(() => {
@@ -1837,22 +1863,9 @@ function PlanMyDaySheet({
   }, []);
 
   const hasSecondarySheet = !!(editingItem || movingItem || removingItem || showAddSheet);
+  const editsDisabled = loadState !== 'loaded' || closing;
 
-  function dismissTopSheet() {
-    if (editingItem) setEditingItem(null);
-    else if (movingItem) setMovingItem(null);
-    else if (removingItem) setRemovingItem(null);
-    else if (showAddSheet) setShowAddSheet(false);
-    else onClose();
-  }
-
-  // ── Persistence: load saved plan items on open, debounce-save on change ──
-  const itemsRef = useRef<PlanItem[]>(initial.items);
-  itemsRef.current = items;
-  const loadedRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Seed from AI Morning Plan when plan_items is empty
+  // ── Seed from AI Morning Plan when no saved plan_items exist ──────────────
   function seedFromDailyPlan(plan: DailyPlan): PlanItem[] {
     const aiTasks = [...(plan.high_impact ?? []), ...(plan.small_wins ?? [])];
     return aiTasks.map((t) => ({
@@ -1868,69 +1881,152 @@ function PlanMyDaySheet({
     }));
   }
 
-  // Load saved items on mount
-  const loadPlanItemsRef = useRef(loadPlanItems);
-  loadPlanItemsRef.current = loadPlanItems;
-  const savePlanItemsRef = useRef(savePlanItems);
-  savePlanItemsRef.current = savePlanItems;
-
+  // ── Load saved items on mount / date change ─────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    setLoadState('loading');
+    setLoadError(null);
     (async () => {
       try {
         const saved = await loadPlanItemsRef.current(selectedDate);
         if (cancelled) return;
-        if (Array.isArray(saved) && saved.length > 0) {
+        if (saved === null) {
+          // No row for this date — seed from daily plan if available, else defaults
+          if (dailyPlan?.plan_date === selectedDate) {
+            const seeded = seedFromDailyPlan(dailyPlan);
+            if (seeded.length > 0) setItems(seeded);
+          }
+          // else: keep initial defaults from buildInitialPlan
+        } else {
+          // Row exists — use saved items, even if empty []
           setItems(saved);
-        } else if (dailyPlan?.plan_date === selectedDate) {
-          const seeded = seedFromDailyPlan(dailyPlan);
-          if (seeded.length > 0) setItems(seeded);
         }
-        loadedRef.current = true;
+        setLoadState('loaded');
       } catch (error) {
         if (cancelled) return;
-        setSaveError(error instanceof Error ? error.message : 'Could not load your saved plan.');
-        loadedRef.current = true;
+        setLoadError(error instanceof Error ? error.message : 'Could not load your saved plan.');
+        setLoadState('error');
       }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  // Debounce-save on items change (only after initial load)
+  // ── Serial save queue: ensures older writes cannot overwrite newer ones ────
+  const saveQueueRef = useRef<Promise<{ error: string | null }>>(Promise.resolve({ error: null }));
+
+  function enqueueSave(date: string, snapshot: PlanItem[]): Promise<{ error: string | null }> {
+    const run = saveQueueRef.current.then(() =>
+      savePlanItemsRef.current(date, snapshot),
+    );
+    // Chain so the next save waits for the previous to finish
+    saveQueueRef.current = run.catch(() => ({ error: 'save chain error' }));
+    return run;
+  }
+
+  // ── Debounce-save on items change (only after successful load, not closing) ─
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    if (!loadedRef.current) return;
+    if (loadState !== 'loaded') return;
+    if (closing) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      const result = await savePlanItemsRef.current(selectedDate, itemsRef.current);
+      const result = await enqueueSave(selectedDate, itemsRef.current);
       if (result.error) setSaveError(result.error);
       else setSaveError(null);
     }, 800);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [items, selectedDate]);
+  }, [items, selectedDate, loadState, closing]);
 
-  // Flush pending save on close/unmount
+  // ── Guard cleanup: never save before a successful load ──────────────────────
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        savePlanItemsRef.current(selectedDate, itemsRef.current);
-      }
+      // Clear any pending debounce timer
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      // Only flush if we successfully loaded — never on load error or during initial load
+      if (loadStateRef.current !== 'loaded') return;
+      // Fire-and-forget the final flush (component is unmounting)
+      enqueueSave(selectedDateRef.current, itemsRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Close handler: flush pending edits and wait for save before closing ────
+  async function performClose() {
+    if (closingRef.current) return; // prevent overlapping close attempts
+    // If loading or load error, close without writing defaults
+    if (loadStateRef.current !== 'loaded') {
+      onClose();
+      return;
+    }
+    setClosing(true);
+    setSaveError(null);
+    try {
+      // Clear pending debounce and save immediately
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      const result = await enqueueSave(selectedDateRef.current, itemsRef.current);
+      if (result.error) {
+        setSaveError(result.error);
+        setClosing(false); // keep sheet open with edits for retry
+        return;
+      }
+      onClose();
+    } catch {
+      setSaveError('Could not save your plan before closing. Please try again.');
+      setClosing(false);
+    }
+  }
+
+  function dismissTopSheet() {
+    if (editingItem) setEditingItem(null);
+    else if (movingItem) setMovingItem(null);
+    else if (removingItem) setRemovingItem(null);
+    else if (showAddSheet) setShowAddSheet(false);
+    else performClose();
+  }
+
+  function retryLoad() {
+    setLoadState('loading');
+    setLoadError(null);
+    loadPlanItemsRef.current(selectedDate)
+      .then((saved) => {
+        if (saved === null) {
+          if (dailyPlan?.plan_date === selectedDate) {
+            const seeded = seedFromDailyPlan(dailyPlan);
+            if (seeded.length > 0) setItems(seeded);
+          }
+        } else {
+          setItems(saved);
+        }
+        setLoadState('loaded');
+      })
+      .catch((error) => {
+        setLoadError(error instanceof Error ? error.message : 'Could not load your saved plan.');
+        setLoadState('error');
+      });
+  }
+
+  async function retrySave() {
+    setSaveError(null);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    const result = await enqueueSave(selectedDate, itemsRef.current);
+    if (result.error) setSaveError(result.error);
+  }
+
   const planTaskIds = useMemo(() => new Set(items.map((i) => i.taskId)), [items]);
 
   const updateItem = useCallback((taskId: string, patch: Partial<PlanItem>) => {
+    if (loadStateRef.current !== 'loaded' || closingRef.current) return;
     setItems((prev) => prev.map((i) => i.taskId === taskId ? { ...i, ...patch } : i));
   }, []);
 
   function moveUp(idx: number) {
-    if (idx === 0) return;
+    if (editsDisabled) return;
     setItems((prev) => {
+      if (idx === 0) return prev;
       const next = [...prev];
       [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
       return next;
@@ -1938,6 +2034,7 @@ function PlanMyDaySheet({
   }
 
   function moveDown(idx: number) {
+    if (editsDisabled) return;
     setItems((prev) => {
       if (idx >= prev.length - 1) return prev;
       const next = [...prev];
@@ -1947,7 +2044,7 @@ function PlanMyDaySheet({
   }
 
   function replan() {
-    // Keep locked + completed items; rebuild unlocked/incomplete picks from remaining tasks
+    if (editsDisabled) return;
     const lockedOrDone = items.filter((i) => i.locked || i.completed);
     const lockedIds = new Set(lockedOrDone.map((i) => i.taskId));
     const available = tasks.filter((t) => !t.completed && !lockedIds.has(t.id));
@@ -1973,6 +2070,7 @@ function PlanMyDaySheet({
   }
 
   function addFromTask(task: Task) {
+    if (editsDisabled) return;
     setItems((prev) => [...prev, {
       taskId: task.id, title: task.title, priority: task.priority ?? 'medium',
       category: (task.category as TaskCategory) ?? 'Other', duration: task.duration,
@@ -1981,6 +2079,7 @@ function PlanMyDaySheet({
   }
 
   async function addNewTask(title: string, category: TaskCategory, priority: TaskPriority) {
+    if (editsDisabled) return;
     const newTask = await onAddTask(title, selectedDate, undefined, undefined, category, priority);
     setItems((prev) => [...prev, {
       taskId: newTask.id, title: newTask.title, priority: newTask.priority ?? 'medium',
@@ -1990,6 +2089,92 @@ function PlanMyDaySheet({
   }
 
   const todayEvents = events.filter((e) => e.event_date === selectedDate).sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
+
+  // ── Loading state ───────────────────────────────────────────────────────────
+  if (loadState === 'loading') {
+    return (
+      <dialog
+        ref={dialogRef}
+        aria-label="Plan My Day"
+        className="fixed inset-0 m-0 h-[100dvh] w-screen max-h-none max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent"
+        onCancel={(e) => e.preventDefault()}
+      >
+        <div className="fixed inset-0 z-[55] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <div className="absolute inset-0" onClick={(e) => { e.stopPropagation(); performClose(); }} />
+          <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col">
+            <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-gray-200" /></div>
+            <div className="flex items-center justify-between px-5 py-3 shrink-0 border-b border-gray-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <Sparkles size={16} className="text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-800">
+                    {selectedDate === today ? 'Plan My Day' : `Plan · ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                  </h2>
+                  <p className="text-xs text-gray-400">Loading…</p>
+                </div>
+              </div>
+              <button onClick={performClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+                <X size={13} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="px-5 py-10 flex flex-col items-center gap-3">
+              <div className="w-6 h-6 border-2 border-gray-200 border-t-amber-400 rounded-full animate-spin" />
+              <p className="text-sm text-gray-400">Loading your saved plan…</p>
+            </div>
+          </div>
+        </div>
+      </dialog>
+    );
+  }
+
+  // ── Load error state ────────────────────────────────────────────────────────
+  if (loadState === 'error') {
+    return (
+      <dialog
+        ref={dialogRef}
+        aria-label="Plan My Day"
+        className="fixed inset-0 m-0 h-[100dvh] w-screen max-h-none max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent"
+        onCancel={(e) => e.preventDefault()}
+      >
+        <div className="fixed inset-0 z-[55] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <div className="absolute inset-0" onClick={(e) => { e.stopPropagation(); performClose(); }} />
+          <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col">
+            <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-gray-200" /></div>
+            <div className="flex items-center justify-between px-5 py-3 shrink-0 border-b border-gray-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <Sparkles size={16} className="text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-800">
+                    {selectedDate === today ? 'Plan My Day' : `Plan · ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                  </h2>
+                </div>
+              </div>
+              <button onClick={performClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+                <X size={13} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="px-5 py-8 flex flex-col items-center gap-4">
+              <div className="flex items-start gap-2.5 bg-rose-50 border border-rose-100 rounded-xl px-3.5 py-3 w-full">
+                <AlertCircle size={14} className="text-rose-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-rose-700">Could not load your plan</p>
+                  <p className="text-xs text-rose-500 mt-0.5 leading-relaxed">{loadError}</p>
+                </div>
+              </div>
+              <button onClick={retryLoad}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 text-white text-sm font-semibold active:scale-95 transition-all">
+                <RefreshCw size={14} /> Retry loading
+              </button>
+            </div>
+          </div>
+        </div>
+      </dialog>
+    );
+  }
 
   return (
     <dialog
@@ -2003,7 +2188,7 @@ function PlanMyDaySheet({
     >
       {/* Secondary sheets stay above the plan within the browser modal. */}
       <div className="fixed inset-0 z-[55] flex flex-col justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-        <div className="absolute inset-0" onClick={() => { if (!hasSecondarySheet) onClose(); }} />
+        <div className="absolute inset-0" onClick={() => { if (!hasSecondarySheet) performClose(); }} />
         <div className="relative bg-white rounded-t-3xl shadow-2xl max-h-[92dvh] flex flex-col">
           {/* Handle */}
           <div className="flex justify-center pt-3 pb-1 shrink-0"><div className="w-10 h-1 rounded-full bg-gray-200" /></div>
@@ -2022,12 +2207,15 @@ function PlanMyDaySheet({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={replan}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 hover:bg-sky-100 transition-colors">
-                <RefreshCw size={11} /> Replan
+              <button onClick={replan} disabled={editsDisabled}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 hover:bg-sky-100 transition-colors disabled:opacity-40">
+                <RefreshCw size={11} /> {closing ? 'Saving…' : 'Replan'}
               </button>
-              <button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
-                <X size={13} className="text-gray-500" />
+              <button onClick={performClose} disabled={closing}
+                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-40">
+                {closing
+                  ? <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  : <X size={13} className="text-gray-500" />}
               </button>
             </div>
           </div>
@@ -2035,10 +2223,13 @@ function PlanMyDaySheet({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="px-5 py-4 space-y-4">
               {saveError && (
-        <div className="mx-5 mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">
-          Could not save your plan: {saveError}
-        </div>
-      )}
+                <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-xs font-medium text-rose-600 flex items-center justify-between gap-2">
+                  <span>Could not save your plan: {saveError}</span>
+                  <button onClick={retrySave} className="shrink-0 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 font-semibold hover:bg-rose-200 transition-colors">
+                    Retry
+                  </button>
+                </div>
+              )}
 
               {/* LifeBestie message */}
               <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
@@ -2077,7 +2268,7 @@ function PlanMyDaySheet({
 
                 <div className="space-y-2">
                   {items.map((item, idx) => {
-                    const priorityCfg = PRIORITY_CONFIG[item.priority];
+                    const priorityCfg = getPriorityCfg(item.priority);
                     const catCfg = getCatColor(item.category);
                     return (
                       <div key={item.taskId}
@@ -2089,11 +2280,13 @@ function PlanMyDaySheet({
                           {/* Complete toggle */}
                           <button
                             onClick={() => {
+                              if (editsDisabled) return;
                               const newCompleted = !item.completed;
                               updateItem(item.taskId, { completed: newCompleted });
                               onToggleTask(item.taskId, newCompleted);
                             }}
-                            className="shrink-0 mt-0.5 transition-transform active:scale-90"
+                            disabled={editsDisabled}
+                            className="shrink-0 mt-0.5 transition-transform active:scale-90 disabled:opacity-40"
                           >
                             {item.completed
                               ? <CheckCircle2 size={20} className="text-sky-400" />
@@ -2135,11 +2328,11 @@ function PlanMyDaySheet({
 
                           {/* Reorder arrows */}
                           <div className="flex flex-col gap-0.5 shrink-0">
-                            <button onClick={() => moveUp(idx)} disabled={idx === 0}
+                            <button onClick={() => moveUp(idx)} disabled={idx === 0 || editsDisabled}
                               className="p-1 rounded-lg disabled:opacity-20 hover:bg-gray-100 transition-colors">
                               <ArrowUp size={12} className="text-gray-400" />
                             </button>
-                            <button onClick={() => moveDown(idx)} disabled={idx === items.length - 1}
+                            <button onClick={() => moveDown(idx)} disabled={idx === items.length - 1 || editsDisabled}
                               className="p-1 rounded-lg disabled:opacity-20 hover:bg-gray-100 transition-colors">
                               <ArrowDown size={12} className="text-gray-400" />
                             </button>
@@ -2149,23 +2342,23 @@ function PlanMyDaySheet({
                         {/* Action bar */}
                         {!item.completed && (
                           <div className="flex items-center border-t border-gray-50 divide-x divide-gray-50">
-                            <button onClick={() => setEditingItem(item)}
-                              className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-gray-400 hover:text-sky-500 hover:bg-sky-50/50 transition-colors rounded-bl-2xl">
+                            <button onClick={() => setEditingItem(item)} disabled={editsDisabled}
+                              className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-gray-400 hover:text-sky-500 hover:bg-sky-50/50 transition-colors rounded-bl-2xl disabled:opacity-40">
                               <Pencil size={11} />Edit
                             </button>
-                            <button onClick={() => setMovingItem(item)}
-                              className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-gray-400 hover:text-amber-500 hover:bg-amber-50/50 transition-colors">
+                            <button onClick={() => setMovingItem(item)} disabled={editsDisabled}
+                              className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-gray-400 hover:text-amber-500 hover:bg-amber-50/50 transition-colors disabled:opacity-40">
                               <Clock size={11} />Move
                             </button>
-                            <button onClick={() => updateItem(item.taskId, { locked: !item.locked })}
-                              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors ${
+                            <button onClick={() => updateItem(item.taskId, { locked: !item.locked })} disabled={editsDisabled}
+                              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors disabled:opacity-40 ${
                                 item.locked ? 'text-sky-500 hover:text-sky-600 hover:bg-sky-50/50' : 'text-gray-400 hover:text-sky-500 hover:bg-sky-50/50'
                               }`}>
                               {item.locked ? <Lock size={11} /> : <Unlock size={11} />}
                               {item.locked ? 'Locked' : 'Lock'}
                             </button>
-                            <button onClick={() => setRemovingItem(item)}
-                              className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-gray-400 hover:text-rose-400 hover:bg-rose-50/50 transition-colors rounded-br-2xl">
+                            <button onClick={() => setRemovingItem(item)} disabled={editsDisabled}
+                              className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium text-gray-400 hover:text-rose-400 hover:bg-rose-50/50 transition-colors rounded-br-2xl disabled:opacity-40">
                               <X size={11} />Remove
                             </button>
                           </div>
@@ -2176,8 +2369,8 @@ function PlanMyDaySheet({
                 </div>
 
                 {/* Add to plan button */}
-                <button onClick={() => setShowAddSheet(true)}
-                  className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-400 hover:border-sky-200 hover:text-sky-500 hover:bg-sky-50/30 transition-all">
+                <button onClick={() => setShowAddSheet(true)} disabled={editsDisabled}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-400 hover:border-sky-200 hover:text-sky-500 hover:bg-sky-50/30 transition-all disabled:opacity-40">
                   <ListPlus size={16} />
                   Add to today's plan
                 </button>
@@ -3206,6 +3399,7 @@ export default function PlannerPage({
       {/* Plan My Day sheet */}
       {showPlanMyDay && (
         <PlanMyDaySheet
+          key={selectedDate}
           tasks={tasks}
           events={events}
           today={today}

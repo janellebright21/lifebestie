@@ -503,7 +503,7 @@ export function useDailyPlanner() {
   }
 
   // ── Load Plan My Day items for a given date ──────────────────────────────
-  const loadPlanItems = useCallback(async (date: string): Promise<PlanItem[]> => {
+  const loadPlanItems = useCallback(async (date: string): Promise<PlanItem[] | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Please sign in to load your plan.');
     const { data, error } = await supabase
@@ -513,8 +513,14 @@ export function useDailyPlanner() {
       .eq('plan_date', date)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const raw = data?.plan_items;
-    if (!Array.isArray(raw)) return [];
+    // No row found for this date — return null so callers can distinguish
+    // "never saved" from "saved as empty plan".
+    if (data === null) return null;
+    const raw = data.plan_items;
+    // Row exists but plan_items is null — treat as empty plan.
+    if (raw === null) return [];
+    // Row exists but plan_items is malformed — reject, don't treat as missing.
+    if (!Array.isArray(raw)) throw new Error('Saved plan data is corrupted and could not be loaded.');
     return raw as PlanItem[];
   }, []);
 
