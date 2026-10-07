@@ -14,6 +14,7 @@ import type { BestieNotes } from '../hooks/useBestiePersonalization';
 import { useTomorrowPrepChecklist, DEFAULT_PREP_ITEMS } from '../hooks/useTomorrowPrepChecklist';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { generateEmmaGreeting, getEmmaAction, type EmmaActionType } from '../lib/emmaGreeting';
+import BrainDumpCard from '../components/BrainDumpCard';
 
 function emmaActionTab(type: EmmaActionType): TabName {
   switch (type) {
@@ -67,6 +68,7 @@ interface HomePageProps {
   memoriesCount?: number;
   relationshipScore?: number;
   groceryItems?: GroceryItem[];
+  onOpenBrainDump?: () => void;
 }
 
 // (greeting helpers moved to src/lib/emmaGreeting.ts)
@@ -553,6 +555,7 @@ export default function HomePage({
   memoriesCount = 0,
   relationshipScore = 0,
   groceryItems = [],
+  onOpenBrainDump,
 }: HomePageProps) {
   const [proudFlash, setProudFlash] = useState(false);
   const proudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -974,6 +977,11 @@ export default function HomePage({
           onToggleTask={onTogglePlanTask}
           onDismissAdaptation={onDismissPlanAdaptation}
         />
+      )}
+
+      {/* Brain Dump */}
+      {onOpenBrainDump && (
+        <BrainDumpCard onClick={onOpenBrainDump} />
       )}
 
       {/* Quick Actions */}

@@ -22,6 +22,7 @@ import type { BestieContext } from './lib/bestieExpression';
 import BottomNav, { TabName, NAV_HEIGHT } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import QuickAddSheet from './components/QuickAddSheet';
+import BrainDumpSheet from './components/BrainDumpSheet';
 import FloatingBestie from './components/FloatingBestie';
 import HomePage from './pages/HomePage';
 import PlannerPage from './pages/PlannerPage';
@@ -70,6 +71,7 @@ export default function App() {
   // background profile refresh from triggering the full-screen loading guard.
   const hasLoadedRef = useRef(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
   const [appProudFlash, setAppProudFlash] = useState(false);
   const appProudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
@@ -148,6 +150,7 @@ export default function App() {
         setTasksLoading(false);
         setTasksError(null);
         setIsPasswordRecovery(false);
+        setBrainDumpOpen(false);
         // Reset tab on real sign-out so next user starts at Home
         setActiveTabState('home');
         try { sessionStorage.removeItem(ACTIVE_TAB_KEY); } catch { /* ignore */ }
@@ -619,6 +622,7 @@ export default function App() {
           memoriesCount={lifeBestieMemory.memories.length}
           relationshipScore={bestieRelationship.score}
           groceryItems={groceryItems}
+          onOpenBrainDump={() => setBrainDumpOpen(true)}
         />
       )}
       {activeTab === 'planner' && (
@@ -808,6 +812,15 @@ export default function App() {
         }}
         onAddEvent={addEvent}
         onAddGrocery={addGrocery}
+      />
+
+      <BrainDumpSheet
+        open={brainDumpOpen}
+        onClose={() => setBrainDumpOpen(false)}
+        enabledModules={enabledModules}
+        onAddTask={addTask}
+        onAddGrocery={addGrocery}
+        onNavigate={(tab) => setActiveTab(tab)}
       />
 
       {userMemory.confirmingCandidate && (
