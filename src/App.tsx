@@ -60,6 +60,8 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   // True once the initial getSession() call resolves — prevents a flash of
   // the wrong screen while we confirm whether the user is signed in.
@@ -143,6 +145,8 @@ export default function App() {
         setTasks([]);
         setEvents([]);
         setGroceryItems([]);
+        setTasksLoading(false);
+        setTasksError(null);
         setIsPasswordRecovery(false);
         // Reset tab on real sign-out so next user starts at Home
         setActiveTabState('home');
@@ -160,9 +164,11 @@ export default function App() {
   const fetchAll = useCallback(async () => {
     if (!session) return;
     const uid = session.user.id;
+    setTasksLoading(true);
+    setTasksError(null);
 
     const [
-      { data: t },
+      taskRes,
       { data: e },
       { data: g }
     ] = await Promise.all([
@@ -186,9 +192,11 @@ export default function App() {
         .order('created_at', { ascending: true }),
     ]);
 
-    if (t) setTasks(t);
+    if (taskRes.error) setTasksError(taskRes.error.message);
+    if (taskRes.data) setTasks(taskRes.data);
     if (e) setEvents(e);
     if (g) setGroceryItems(g);
+    setTasksLoading(false);
   }, [session]);
 
   useEffect(() => {
@@ -556,6 +564,9 @@ export default function App() {
       {activeTab === 'home' && (
         <HomePage
           tasks={tasks}
+          tasksLoading={tasksLoading}
+          tasksError={tasksError}
+          onRefreshTasks={fetchAll}
           events={events}
           meals={mealPlanner.meals}
           memory={userMemory.memory}
