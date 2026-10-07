@@ -19,7 +19,7 @@ import { useBestiePersonalization } from './hooks/useBestiePersonalization';
 import { useBestieRelationship } from './hooks/useBestieRelationship';
 import { getBestieExpression } from './lib/bestieExpression';
 import type { BestieContext } from './lib/bestieExpression';
-import BottomNav, { TabName } from './components/BottomNav';
+import BottomNav, { TabName, NAV_HEIGHT } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import QuickAddSheet from './components/QuickAddSheet';
 import FloatingBestie from './components/FloatingBestie';
@@ -562,7 +562,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-[100dvh] theme-app-bg font-sans">
+    <div className="min-h-[100dvh] theme-app-bg font-sans" style={{ paddingBottom: `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 8px)` }}>
       {activeTab === 'home' && (
         <HomePage
           tasks={tasks}
@@ -798,6 +798,7 @@ export default function App() {
         characterId={selectedCharacter}
         expression={floatingExpression}
         activeTab={activeTab}
+        dialogOpen={quickAddOpen || !!userMemory.confirmingCandidate}
       />
 
       <QuickAddSheet
