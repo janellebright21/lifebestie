@@ -31,20 +31,42 @@ function loadVisible(): boolean {
 }
 
 /**
+ * Check whether a single element is actually rendered and visible.
+ * Uses getClientRects() (works for fixed-position elements where offsetParent is null)
+ * plus computed display/visibility checks. Respects hidden attribute, aria-hidden,
+ * and the 'hidden' Tailwind class.
+ */
+function isElementVisible(el: Element): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  // Fast exits for explicit hidden states
+  if (el.hasAttribute('hidden')) return false;
+  if (el.getAttribute('aria-hidden') === 'true') return false;
+  if (el.classList.contains('hidden')) return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  // getClientRects works for fixed elements (offsetParent is null for fixed)
+  const rects = el.getClientRects();
+  if (rects.length === 0) return false;
+  const r = rects[0]!;
+  // Must have nonzero area
+  if (r.width === 0 && r.height === 0) return false;
+  return true;
+}
+
+/**
  * Check whether any modal dialog or sheet is currently visible in the DOM.
- * Detects native <dialog> elements that are open, plus divs with role="dialog"
- * and aria-modal="true" that are actually visible (not display:none).
+ * Detects native <dialog> elements that are open, plus elements with
+ * role="dialog" or aria-modal="true" that are actually rendered.
  */
 function isAnyDialogOpen(): boolean {
-  // Native <dialog> elements — check open attribute or :modal pseudo
   const nativeDialogs = document.querySelectorAll('dialog');
   for (const d of nativeDialogs) {
     if (d.open) return true;
   }
-  // ARIA dialogs — must be actually rendered (offsetParent not null)
-  const ariaDialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+  // Broader selector: role=dialog OR aria-modal=true (not requiring both)
+  const ariaDialogs = document.querySelectorAll('[role="dialog"], [aria-modal="true"]');
   for (const d of ariaDialogs) {
-    if ((d as HTMLElement).offsetParent !== null) return true;
+    if (isElementVisible(d)) return true;
   }
   return false;
 }
@@ -111,28 +133,57 @@ export default function FloatingBestie({
   // ── Dialog/editable suppression ────────────────────────────────────────────
   // Recompute overlay state when:
   //  - activeTab changes (handled by re-render)
-  //  - focus changes (focusin/focusout)
-  //  - DOM mutations add/remove dialogs (MutationObserver, scoped to body subtree)
-  // No timer loops, no full-page mutations.
+  //  - focus changes (focusin immediate, focusout after microtask so focus settles)
+  //  - DOM mutations add/remove/toggle dialogs (MutationObserver, scoped to body)
+  //
+  // Observer callbacks are coalesced via a scheduled flag so burst mutations
+  // produce a single check. React state updates only when the boolean changes.
+  const overlayRef = useRef(false);
+  const scheduledRef = useRef(false);
+
   const recomputeOverlay = useCallback(() => {
-    setOverlayActive(isAnyDialogOpen() || isFocusInEditable());
+    const next = isAnyDialogOpen() || isFocusInEditable();
+    if (next !== overlayRef.current) {
+      overlayRef.current = next;
+      setOverlayActive(next);
+    }
   }, []);
 
+  const scheduleCheck = useCallback(() => {
+    if (scheduledRef.current) return;
+    scheduledRef.current = true;
+    queueMicrotask(() => {
+      scheduledRef.current = false;
+      recomputeOverlay();
+    });
+  }, [recomputeOverlay]);
+
   useEffect(() => {
-    recomputeOverlay();
+    // Initial computation
+    overlayRef.current = isAnyDialogOpen() || isFocusInEditable();
+    setOverlayActive(overlayRef.current);
 
-    document.addEventListener('focusin', recomputeOverlay);
-    document.addEventListener('focusout', recomputeOverlay);
+    function onFocusIn() { recomputeOverlay(); }
+    function onFocusOut() { scheduleCheck(); }
 
-    const observer = new MutationObserver(recomputeOverlay);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open', 'aria-modal', 'hidden', 'style'] });
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
+
+    const observer = new MutationObserver(scheduleCheck);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['open', 'aria-modal', 'aria-hidden', 'hidden', 'style', 'class'],
+    });
 
     return () => {
-      document.removeEventListener('focusin', recomputeOverlay);
-      document.removeEventListener('focusout', recomputeOverlay);
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
       observer.disconnect();
+      scheduledRef.current = false;
     };
-  }, [recomputeOverlay]);
+  }, [recomputeOverlay, scheduleCheck]);
 
   const handleMove = useCallback(() => {
     setSide((s) => (s === 'right' ? 'left' : 'right'));
