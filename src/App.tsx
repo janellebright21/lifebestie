@@ -314,23 +314,25 @@ export default function App() {
   }
 
   async function toggleTask(id: string, completed: boolean) {
-    const updatedTasks = tasks.map((t) => (t.id === id ? { ...t, completed } : t));
-    setTasks(updatedTasks);
-    await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', userId);
+    const priorTasks = tasks;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
+    const { error } = await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', userId);
+    if (error) {
+      setTasks(priorTasks);
+      throw new Error(error.message);
+    }
 
-    const task = tasks.find((t) => t.id === id);
+    const task = priorTasks.find((t) => t.id === id);
     if (task) {
       if (completed) {
         await userMemory.addHistoryAction(`Completed task: ${task.title}`);
-        // Award points once per task — DB unique constraint prevents duplicates
         await bestieRelationship.awardTaskCompletion(id);
-        // Signal the floating bestie to celebrate
         setAppProudFlash(true);
         if (appProudTimer.current) clearTimeout(appProudTimer.current);
         appProudTimer.current = setTimeout(() => setAppProudFlash(false), 2200);
       }
       if (task.linked_goal_id) {
-        await goalsHook.recalculateGoalProgress(task.linked_goal_id, updatedTasks);
+        await goalsHook.recalculateGoalProgress(task.linked_goal_id, tasks.map((t) => (t.id === id ? { ...t, completed } : t)));
       }
     }
   }

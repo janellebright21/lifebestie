@@ -30,7 +30,7 @@ interface PlannerPageProps {
   character?: CharacterId;
   onAddEvent: (title: string, date: string, time: string, category?: EventCategory, location?: string, notes?: string) => Promise<Event>;
   onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task>;
-  onToggleTask: (id: string, completed: boolean) => void;
+  onToggleTask: (id: string, completed: boolean) => void | Promise<void>;
   onUpdateTask: (id: string, patch: Partial<Pick<Task, 'title' | 'due_date' | 'duration' | 'linked_goal_id' | 'category' | 'priority'>>) => Promise<void>;
   onDeleteTask: (id: string) => void;
   onDeleteEvent: (id: string) => void;
@@ -1809,7 +1809,7 @@ function PlanMyDaySheet({
   events: Event[];
   today: string;
   selectedDate: string;
-  onToggleTask: (id: string, completed: boolean) => void;
+  onToggleTask: (id: string, completed: boolean) => void | Promise<void>;
   onDeleteTask: (id: string) => void;
   onAddTask: (title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task>;
   onClose: () => void;
@@ -2137,7 +2137,7 @@ function PlanMyDaySheet({
                             onClick={() => {
                               const newCompleted = !item.completed;
                               updateItem(item.taskId, { completed: newCompleted });
-                              onToggleTask(item.taskId, newCompleted);
+                              Promise.resolve(onToggleTask(item.taskId, newCompleted)).catch(() => {});
                             }}
                             className="shrink-0 mt-0.5 transition-transform active:scale-90"
                           >
@@ -2590,7 +2590,7 @@ function TodayView({
   meals: Meal[];
   selectedDate: string;
   today: string;
-  onToggleTask: (id: string, completed: boolean) => void;
+  onToggleTask: (id: string, completed: boolean) => void | Promise<void>;
   onDeleteTask: (id: string) => void;
   onDeleteEvent: (id: string) => void;
   onUpdateEvent: (
@@ -2808,7 +2808,7 @@ function TodayView({
                     task={task}
                     goal={task.linked_goal_id ? goalMap.get(task.linked_goal_id) : undefined}
                     goals={goals}
-                    onToggle={() => onToggleTask(task.id, !task.completed)}
+                    onToggle={() => { Promise.resolve(onToggleTask(task.id, !task.completed)).catch(() => {}); }}
                     onDelete={() => onDeleteTask(task.id)}
                     onUpdate={(patch) => onUpdateTask(task.id, patch)}
                     onMoveToToday={!task.completed && task.due_date && task.due_date < today
@@ -2838,7 +2838,7 @@ function AllTasksView({
   tasks: Task[];
   goals: Goal[];
   today: string;
-  onToggleTask: (id: string, completed: boolean) => void;
+  onToggleTask: (id: string, completed: boolean) => void | Promise<void>;
   onDeleteTask: (id: string) => void;
   onUpdateTask: PlannerPageProps['onUpdateTask'];
 }) {
@@ -2908,7 +2908,7 @@ function AllTasksView({
               task={task}
               goal={task.linked_goal_id ? goalMap.get(task.linked_goal_id) : undefined}
               goals={goals}
-              onToggle={() => onToggleTask(task.id, !task.completed)}
+              onToggle={() => { Promise.resolve(onToggleTask(task.id, !task.completed)).catch(() => {}); }}
               onDelete={() => onDeleteTask(task.id)}
               onUpdate={(patch) => onUpdateTask(task.id, patch)}
               onMoveToToday={!task.completed && task.due_date && task.due_date < today ? () => onUpdateTask(task.id, { due_date: today }) : undefined}

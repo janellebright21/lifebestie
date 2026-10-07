@@ -583,14 +583,16 @@ export default function HomePage({
   const hasOverdueTasks = pendingTasks.some((t) => t.due_date && t.due_date < today);
   const completedTaskCount = tasks.filter((t) => t.completed).length;
 
-  // Today's top 3 incomplete tasks: scheduled (by time) first, then by priority/order
+  // Today's top 3 incomplete tasks: today-due first (by priority), then overdue, then undated.
+  // Future-dated tasks are excluded from the Today list.
   const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
   const todayTopTasks = useMemo(() => {
     return [...pendingTasks]
+      .filter((t) => !t.due_date || t.due_date <= today)
       .sort((a, b) => {
-        const aTime = a.due_date === today ? 0 : 1;
-        const bTime = b.due_date === today ? 0 : 1;
-        if (aTime !== bTime) return aTime - bTime;
+        const aToday = a.due_date === today ? 0 : 1;
+        const bToday = b.due_date === today ? 0 : 1;
+        if (aToday !== bToday) return aToday - bToday;
         const pa = priorityRank[a.priority ?? 'medium'] ?? 1;
         const pb = priorityRank[b.priority ?? 'medium'] ?? 1;
         if (pa !== pb) return pa - pb;
