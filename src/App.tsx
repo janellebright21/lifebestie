@@ -798,7 +798,6 @@ export default function App() {
         characterId={selectedCharacter}
         expression={floatingExpression}
         activeTab={activeTab}
-        dialogOpen={quickAddOpen || !!userMemory.confirmingCandidate}
       />
 
       <QuickAddSheet

@@ -8,12 +8,8 @@ import { NAV_HEIGHT } from './BottomNav';
 const EDGE_SPACING = 12;
 const AVATAR_SIZE = 64;
 const BUBBLE_MS = 2000;
+const CONTROL_SIZE = 44;
 
-// Tabs where the floating Emma should NOT appear:
-// - home/bestie/settings: duplicates the main character on those pages
-// - chat: duplicates the chat character
-// - add: it's a sheet, not a page
-// - planner: user previously requested removal
 const HIDDEN_ON: Set<TabName> = new Set(['home', 'bestie', 'settings', 'chat', 'add', 'planner']);
 
 const SIDE_KEY = 'lifebestie_floating_side';
@@ -34,35 +30,62 @@ function loadVisible(): boolean {
   return true;
 }
 
+/**
+ * Check whether any modal dialog or sheet is currently visible in the DOM.
+ * Detects native <dialog> elements that are open, plus divs with role="dialog"
+ * and aria-modal="true" that are actually visible (not display:none).
+ */
+function isAnyDialogOpen(): boolean {
+  // Native <dialog> elements — check open attribute or :modal pseudo
+  const nativeDialogs = document.querySelectorAll('dialog');
+  for (const d of nativeDialogs) {
+    if (d.open) return true;
+  }
+  // ARIA dialogs — must be actually rendered (offsetParent not null)
+  const ariaDialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+  for (const d of ariaDialogs) {
+    if ((d as HTMLElement).offsetParent !== null) return true;
+  }
+  return false;
+}
+
+/**
+ * Check whether focus is currently inside an editable element.
+ */
+function isFocusInEditable(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+  if ((el as HTMLElement).isContentEditable) return true;
+  return false;
+}
+
 interface FloatingBestieProps {
   characterId: CharacterId;
   expression?: AvatarExpression;
   activeTab: TabName;
-  /** Hide when any dialog/sheet/quick-add is open */
-  dialogOpen?: boolean;
 }
 
 export default function FloatingBestie({
   characterId,
   expression = 'happy',
   activeTab,
-  dialogOpen = false,
 }: FloatingBestieProps) {
   const [side, setSide] = useState<'left' | 'right'>(loadSide);
   const [visible, setVisible] = useState<boolean>(loadVisible);
   const [bubble, setBubble] = useState(false);
   const [imgSrc, setImgSrc] = useState(() => resolveExpressionSrc(characterId, expression));
   const [imgError, setImgError] = useState(false);
+  const [overlayActive, setOverlayActive] = useState(false);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducedMotionRef = useRef(false);
 
-  // Sync expression image when expression/character changes
   useEffect(() => {
     setImgSrc(resolveExpressionSrc(characterId, expression));
     setImgError(false);
   }, [characterId, expression]);
 
-  // Detect reduced-motion preference
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     reducedMotionRef.current = mq.matches;
@@ -71,7 +94,6 @@ export default function FloatingBestie({
     return () => mq.removeEventListener('change', update);
   }, []);
 
-  // Persist side/visibility
   useEffect(() => {
     try { localStorage.setItem(SIDE_KEY, side); } catch { /* ignore */ }
   }, [side]);
@@ -80,25 +102,45 @@ export default function FloatingBestie({
     try { localStorage.setItem(VISIBLE_KEY, String(visible)); } catch { /* ignore */ }
   }, [visible]);
 
-  // Clear bubble on tab change
-  useEffect(() => {
-    setBubble(false);
-  }, [activeTab]);
+  useEffect(() => { setBubble(false); }, [activeTab]);
 
-  // Clear timers on unmount
   useEffect(() => () => {
     if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
   }, []);
 
+  // ── Dialog/editable suppression ────────────────────────────────────────────
+  // Recompute overlay state when:
+  //  - activeTab changes (handled by re-render)
+  //  - focus changes (focusin/focusout)
+  //  - DOM mutations add/remove dialogs (MutationObserver, scoped to body subtree)
+  // No timer loops, no full-page mutations.
+  const recomputeOverlay = useCallback(() => {
+    setOverlayActive(isAnyDialogOpen() || isFocusInEditable());
+  }, []);
+
+  useEffect(() => {
+    recomputeOverlay();
+
+    document.addEventListener('focusin', recomputeOverlay);
+    document.addEventListener('focusout', recomputeOverlay);
+
+    const observer = new MutationObserver(recomputeOverlay);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open', 'aria-modal', 'hidden', 'style'] });
+
+    return () => {
+      document.removeEventListener('focusin', recomputeOverlay);
+      document.removeEventListener('focusout', recomputeOverlay);
+      observer.disconnect();
+    };
+  }, [recomputeOverlay]);
+
   const handleMove = useCallback(() => {
-    if (reducedMotionRef.current) {
-      setSide((s) => (s === 'right' ? 'left' : 'right'));
-      return;
-    }
     setSide((s) => (s === 'right' ? 'left' : 'right'));
-    setBubble(true);
-    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = setTimeout(() => setBubble(false), BUBBLE_MS);
+    if (!reducedMotionRef.current) {
+      setBubble(true);
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      bubbleTimer.current = setTimeout(() => setBubble(false), BUBBLE_MS);
+    }
   }, []);
 
   const handleHide = useCallback(() => {
@@ -110,13 +152,11 @@ export default function FloatingBestie({
     setVisible(true);
   }, []);
 
-  // Hide on certain tabs, when a dialog is open, or when explicitly hidden
   const tabHidden = HIDDEN_ON.has(activeTab);
-  if (tabHidden || dialogOpen) return null;
+  if (tabHidden || overlayActive) return null;
 
   const isLeft = side === 'left';
 
-  // Show a compact "Show Emma" pill when hidden
   if (!visible) {
     return (
       <div
@@ -131,8 +171,8 @@ export default function FloatingBestie({
         <button
           onClick={handleShow}
           aria-label="Show Emma"
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white shadow-md border border-violet-100 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2"
-          style={{ minHeight: 40 }}
+          className="flex items-center gap-1.5 px-3 rounded-full bg-white shadow-md border border-violet-100 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2"
+          style={{ minHeight: CONTROL_SIZE, height: CONTROL_SIZE }}
         >
           <span
             className="w-6 h-6 rounded-full overflow-hidden shrink-0"
@@ -166,7 +206,6 @@ export default function FloatingBestie({
         pointerEvents: 'none',
       }}
     >
-      {/* Speech bubble (gentle, non-essential) */}
       {bubble && !reducedMotionRef.current && (
         <div
           style={{
@@ -188,16 +227,7 @@ export default function FloatingBestie({
         </div>
       )}
 
-      {/* Portrait frame + controls */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: isLeft ? 'flex-start' : 'flex-end',
-          gap: 4,
-          pointerEvents: 'none',
-        }}
-      >
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: isLeft ? 'flex-start' : 'flex-end', gap: 4, pointerEvents: 'none' }}>
         {/* Compact rounded portrait frame */}
         <div
           style={{
@@ -209,7 +239,6 @@ export default function FloatingBestie({
             boxShadow: '0 2px 12px rgba(139, 92, 246, 0.15), 0 0 0 1px rgba(255,255,255,0.6) inset',
             background: 'var(--theme-primary-light)',
             pointerEvents: 'none',
-            position: 'relative',
           }}
         >
           <img
@@ -229,7 +258,7 @@ export default function FloatingBestie({
           />
         </div>
 
-        {/* Controls row — pointer events only here */}
+        {/* Controls row — 44px hit targets, pointer events only here */}
         <div
           style={{
             display: 'flex',
@@ -243,17 +272,17 @@ export default function FloatingBestie({
             onClick={handleMove}
             aria-label={`Move Emma to the ${isLeft ? 'right' : 'left'} side`}
             className="flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 active:scale-90 transition-transform focus-visible:outline-none focus-visible:ring-2"
-            style={{ width: 32, height: 32, minHeight: 32 }}
+            style={{ width: CONTROL_SIZE, height: CONTROL_SIZE, minHeight: CONTROL_SIZE }}
           >
-            {isLeft ? <ChevronRight size={16} className="text-violet-400" /> : <ChevronLeft size={16} className="text-violet-400" />}
+            {isLeft ? <ChevronRight size={18} className="text-violet-400" /> : <ChevronLeft size={18} className="text-violet-400" />}
           </button>
           <button
             onClick={handleHide}
             aria-label="Hide Emma for now"
             className="flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 active:scale-90 transition-transform focus-visible:outline-none focus-visible:ring-2"
-            style={{ width: 32, height: 32, minHeight: 32 }}
+            style={{ width: CONTROL_SIZE, height: CONTROL_SIZE, minHeight: CONTROL_SIZE }}
           >
-            <X size={14} className="text-gray-400" />
+            <X size={16} className="text-gray-400" />
           </button>
         </div>
       </div>
