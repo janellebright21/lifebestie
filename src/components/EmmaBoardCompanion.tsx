@@ -38,7 +38,7 @@ export default function EmmaBoardCompanion({ typing, morning, noteCount }: { typ
     writing: '/characters/board/emma-water-writing.png',
     sipping: '/characters/board/emma-water-sip.png',
   };
-  return <div className="shrink-0 w-36 sm:w-48">
+  return <div className="emma-board-companion">
     <div className={`emma-board-stage ${paused || reduced ? '' : celebrate ? 'emma-board-celebrate' : `emma-board-${state}`}`} role="img" aria-label={`Emma sitting cross-legged, ${state === 'writing' ? 'writing in her notepad' : state === 'sipping' ? 'taking a water break' : morning ? 'with her morning coffee' : 'with her iced drink'}`}>
       {Object.entries(poses).map(([pose, src]) => <img key={pose} src={src} alt="" aria-hidden="true" draggable={false} className={`emma-board-pose ${pose === state ? 'emma-board-pose-active' : ''}`} />)}
     </div>
