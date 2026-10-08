@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import EmmaBoardCompanion from './EmmaBoardCompanion';
 
 const LANES = ['On my mind', 'Do next', 'Not today', 'Just feelings'] as const;
 const COLORS = { Lavender: '#ede9fe', Sage: '#dcfce7', Peach: '#ffedd5', Blue: '#dbeafe' };
@@ -12,6 +13,14 @@ function readNotes(key: string): Note[] {
 }
 
 export default function BrainDumpBoard({ userId, onOrganize }: { userId: string; onOrganize: (text: string) => void }) {
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<number>();
+  useEffect(() => () => window.clearTimeout(typingTimer.current), []);
+  const markTyping = () => {
+    setTyping(true);
+    window.clearTimeout(typingTimer.current);
+    typingTimer.current = window.setTimeout(() => setTyping(false), 1600);
+  };
   const [hour, setHour] = useState(() => new Date().getHours());
   useEffect(() => {
     const update = () => setHour(new Date().getHours());
@@ -39,9 +48,9 @@ export default function BrainDumpBoard({ userId, onOrganize }: { userId: string;
     setSelected(id);
     setMessage(lane === 'Not today' ? "Parked. You don't have to carry everything today." : lane === 'Just feelings' ? "This can just be a feeling. We don't have to turn it into a chore." : 'There we go. One thought in its own little spot.');
   };
-  return <div className="space-y-4">
+  return <div className="space-y-4" onChangeCapture={event => { if (event.target instanceof HTMLTextAreaElement) markTyping(); }}>
     <div className="flex items-end gap-3 rounded-2xl bg-violet-50 p-3">
-      <img src={`/characters/board/emma-seated-${morning ? 'morning' : 'afternoon'}.png`} alt={`Emma sitting cross-legged with a notepad, pencil, and ${morning ? 'coffee' : 'iced drink'}`} className="w-36 sm:w-48 shrink-0 h-auto object-contain" />
+      <EmmaBoardCompanion typing={typing} morning={morning} noteCount={notes.length} />
       <p className="text-sm text-gray-700" aria-live="polite">{message}</p>
     </div>
     <p className="text-xs text-gray-500">Your notes stay on this device for this account. Move them by dragging, or use each note's Move to menu.</p>
