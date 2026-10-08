@@ -1,5 +1,6 @@
-.emma-board-stage { position: relative; width: 100%; aspect-ratio: 2 / 3; transform-origin: 50% 90%; pointer-events: none; }
-.emma-board-pose { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 400ms ease; }
+.emma-board-companion { flex: 0 0 104px; width: 104px; }
+.emma-board-stage { position: relative; width: 104px; height: 156px; transform-origin: 50% 90%; pointer-events: none; }
+.emma-board-pose { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; max-width: none; max-height: none; opacity: 0; transition: opacity 400ms ease; }
 .emma-board-pose-active { opacity: 1; }
 .emma-board-idle { animation: emma-board-breathe 6s ease-in-out infinite; }
 .emma-board-writing { animation: emma-board-attentive 3s ease-in-out infinite; }
