@@ -2,10 +2,13 @@
 .emma-board-stage { position: relative; width: 104px; height: 156px; transform-origin: 50% 90%; pointer-events: none; }
 .emma-board-pose { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; max-width: none; max-height: none; opacity: 0; transition: opacity 400ms ease; }
 .emma-board-pose-active { opacity: 1; }
-.emma-board-idle { animation: emma-board-breathe 6s ease-in-out infinite; }
-.emma-board-writing { animation: emma-board-attentive 3s ease-in-out infinite; }
+.emma-board-pose > img, .emma-board-eyelids { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.emma-board-motion { animation: emma-board-breathe 5.5s ease-in-out infinite; }
+.emma-board-blink { opacity: 0; }
+.emma-board-motion .emma-board-blink { animation: emma-board-blink 7.3s linear infinite; }
 .emma-board-celebrate { animation: emma-board-nod 800ms ease-in-out; }
-@keyframes emma-board-breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.006); } }
-@keyframes emma-board-attentive { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-0.4deg); } }
+@keyframes emma-board-breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1px) scale(1.009, 1.016); } }
+/* Two quick blinks with unequal gaps; the lids stay open between them. */
+@keyframes emma-board-blink { 0%, 31%, 34%, 86%, 89%, 100% { opacity: 0; } 32%, 33%, 87%, 88% { opacity: 1; } }
 @keyframes emma-board-nod { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-3px); } }
-@media (prefers-reduced-motion: reduce) { .emma-board-stage { animation: none !important; } .emma-board-pose { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .emma-board-stage, .emma-board-blink { animation: none !important; } .emma-board-blink { opacity: 0; } .emma-board-pose { transition: none; } }
