@@ -4,7 +4,7 @@ import './EmmaStanding.css';
 
 const ARTWORK = '/assets/emma/design/emma-standing-board-style-v2.png';
 const WAVE = '/assets/emma/design/emma-standing-wave-v2.png';
-type IdleGesture = 'lean-left' | 'lean-right' | 'nod';
+type IdleGesture = 'weight-left' | 'weight-right';
 
 export default function EmmaFullBodyIllustration({ expression = 'happy', greetOnArrival = false }: { expression?: AvatarExpression; greetOnArrival?: boolean }) {
   const [paused, setPaused] = useState(false);
@@ -12,7 +12,7 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
   const [greeting, setGreeting] = useState(false);
   const [waveReady, setWaveReady] = useState(false);
   const [idleGesture, setIdleGesture] = useState<IdleGesture | null>(null);
-  const previousGesture = useRef<IdleGesture | 'wave' | null>(null);
+  const previousGesture = useRef<IdleGesture | null>(null);
   const hasIdled = useRef(false);
   const arrived = useRef(false);
   const id = useId();
@@ -61,20 +61,19 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
       next = window.setTimeout(() => {
         if (document.hidden) { schedule(); return; }
         hasIdled.current = true;
-        const gestures: (IdleGesture | 'wave')[] = ['lean-left', 'lean-right', 'nod', ...(waveReady ? ['wave' as const] : [])];
+        const gestures: IdleGesture[] = ['weight-left', 'weight-right'];
         const choices = gestures.filter(gesture => gesture !== previousGesture.current);
         const gesture = choices[Math.floor(Math.random() * choices.length)];
         previousGesture.current = gesture;
-        if (gesture === 'wave') { sayHi(); return; }
         setIdleGesture(gesture);
-        finish = window.setTimeout(() => { setIdleGesture(null); schedule(); }, gesture === 'nod' ? 2200 : 3400);
+        finish = window.setTimeout(() => { setIdleGesture(null); schedule(); }, 4300);
       }, hasIdled.current ? 12000 + Math.random() * 12000 : 5000 + Math.random() * 3000);
     };
     schedule();
     return () => { window.clearTimeout(next); window.clearTimeout(finish); setIdleGesture(null); };
-  }, [moving, greeting, waveReady, sayHi]);
+  }, [moving, greeting]);
   return <div className={`emma-standing ${moving ? 'emma-standing--moving' : ''}`} data-expression={expression}>
-    <button type="button" className="emma-standing__art" aria-label="Say hi to Emma" title="Tap Emma for a friendly wave" onClick={sayHi}>
+    <div className="emma-standing__art">
       <svg viewBox="0 0 1024 1536" preserveAspectRatio="xMidYMax meet" role="img" aria-label="Emma standing in her lavender sweatshirt, blue jeans and white tennis shoes">
         <defs>
           <clipPath id={`${id}-head`}><rect width="645" height="315" /></clipPath>
@@ -104,7 +103,7 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
           </g>
         </g>
       </svg>
-    </button>
+    </div>
     <button type="button" className="emma-standing__pause" aria-pressed={paused} onClick={() => { setPaused(value => !value); setGreeting(false); setIdleGesture(null); window.clearTimeout(greetingTimer.current); }}>
       {paused ? 'Resume motion' : 'Pause motion'}
     </button>
