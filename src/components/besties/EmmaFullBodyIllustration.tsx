@@ -13,6 +13,7 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
   const [waveReady, setWaveReady] = useState(false);
   const [idleGesture, setIdleGesture] = useState<IdleGesture | null>(null);
   const previousGesture = useRef<IdleGesture | 'wave' | null>(null);
+  const hasIdled = useRef(false);
   const arrived = useRef(false);
   const id = useId();
   const greetingTimer = useRef<number>();
@@ -59,6 +60,7 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
     const schedule = () => {
       next = window.setTimeout(() => {
         if (document.hidden) { schedule(); return; }
+        hasIdled.current = true;
         const gestures: (IdleGesture | 'wave')[] = ['lean-left', 'lean-right', 'nod', ...(waveReady ? ['wave' as const] : [])];
         const choices = gestures.filter(gesture => gesture !== previousGesture.current);
         const gesture = choices[Math.floor(Math.random() * choices.length)];
@@ -66,7 +68,7 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
         if (gesture === 'wave') { sayHi(); return; }
         setIdleGesture(gesture);
         finish = window.setTimeout(() => { setIdleGesture(null); schedule(); }, gesture === 'nod' ? 2200 : 3400);
-      }, 14000 + Math.random() * 14000);
+      }, hasIdled.current ? 12000 + Math.random() * 12000 : 5000 + Math.random() * 3000);
     };
     schedule();
     return () => { window.clearTimeout(next); window.clearTimeout(finish); setIdleGesture(null); };

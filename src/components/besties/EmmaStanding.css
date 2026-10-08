@@ -20,8 +20,8 @@
 @keyframes emma-standing-sway { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(.35deg); } 70% { transform: rotate(-.25deg); } }
 @keyframes emma-standing-blink { 0%, 31%, 34%, 86%, 89%, 100% { opacity: 0; } 32%, 33%, 87%, 88% { opacity: 1; } }
 @keyframes emma-standing-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
-@keyframes emma-standing-lean-left { 0%, 100% { transform: rotate(0); } 45%, 60% { transform: rotate(-.65deg); } }
-@keyframes emma-standing-lean-right { 0%, 100% { transform: rotate(0); } 45%, 60% { transform: rotate(.65deg); } }
-@keyframes emma-standing-nod { 0%, 100% { transform: rotate(0) translateY(0); } 35% { transform: rotate(1.3deg) translateY(3px); } 65% { transform: rotate(-.4deg) translateY(-1px); } }
+@keyframes emma-standing-lean-left { 0%, 100% { transform: rotate(0); } 45%, 60% { transform: rotate(-1.2deg); } }
+@keyframes emma-standing-lean-right { 0%, 100% { transform: rotate(0); } 45%, 60% { transform: rotate(1.2deg); } }
+@keyframes emma-standing-nod { 0%, 100% { transform: rotate(0) translateY(0); } 35% { transform: rotate(2deg) translateY(4px); } 65% { transform: rotate(-.6deg) translateY(-1px); } }
 @media (prefers-reduced-motion: reduce) { .emma-standing__breathing, .emma-standing__sway, .emma-standing__blink, .emma-standing__wave-hand, .emma-standing__lean-left, .emma-standing__lean-right, .emma-standing__head { animation: none !important; transform: none !important; } .emma-standing__blink { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .emma-standing__rest-pose, .emma-standing__wave-pose { transition: none; } }
