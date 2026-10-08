@@ -49,7 +49,7 @@ export default function BrainDumpBoard({ userId, onOrganize }: { userId: string;
     setMessage(lane === 'Not today' ? "Parked. You don't have to carry everything today." : lane === 'Just feelings' ? "This can just be a feeling. We don't have to turn it into a chore." : 'There we go. One thought in its own little spot.');
   };
   return <div className="space-y-4" onChangeCapture={event => { if (event.target instanceof HTMLTextAreaElement) markTyping(); }}>
-    <div className="flex items-end gap-3 rounded-2xl bg-violet-50 p-3">
+    <div className="flex items-center gap-3 rounded-2xl bg-violet-50 p-3">
       <EmmaBoardCompanion typing={typing} morning={morning} noteCount={notes.length} />
       <p className="text-sm text-gray-700" aria-live="polite">{message}</p>
     </div>
