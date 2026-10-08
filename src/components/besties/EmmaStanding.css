@@ -1,0 +1,16 @@
+.emma-standing { display: flex; flex-direction: column; width: 100%; height: 100%; }
+.emma-standing__art { flex: 1; min-height: 0; width: 100%; border: 0; padding: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+.emma-standing__art svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.emma-standing__pause { flex: 0 0 44px; min-height: 44px; width: 100%; background: transparent; border: 0; padding: 2px; font-size: 11px; color: var(--theme-primary, #7c3aed); cursor: pointer; }
+.emma-standing button:focus-visible { outline: 2px solid var(--theme-primary, #7c3aed); outline-offset: 2px; border-radius: 12px; }
+.emma-standing__sway, .emma-standing__breathing, .emma-standing__greeting { transform-origin: 512px 1490px; }
+.emma-standing__blink { opacity: 0; }
+.emma-standing--moving .emma-standing__breathing { animation: emma-standing-breathe 5.5s ease-in-out infinite; }
+.emma-standing--moving .emma-standing__sway { animation: emma-standing-sway 13.1s ease-in-out infinite; }
+.emma-standing--moving .emma-standing__blink { animation: emma-standing-blink 7.3s linear infinite; }
+.emma-standing__wave-hand { transform-origin: 715px 410px; animation: emma-standing-wave 600ms ease-in-out 4; }
+@keyframes emma-standing-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.004, 1.007); } }
+@keyframes emma-standing-sway { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(.35deg); } 70% { transform: rotate(-.25deg); } }
+@keyframes emma-standing-blink { 0%, 31%, 34%, 86%, 89%, 100% { opacity: 0; } 32%, 33%, 87%, 88% { opacity: 1; } }
+@keyframes emma-standing-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .emma-standing__breathing, .emma-standing__sway, .emma-standing__blink, .emma-standing__wave-hand { animation: none !important; transform: none !important; } .emma-standing__blink { opacity: 0; } }

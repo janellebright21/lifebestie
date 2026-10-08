@@ -1,43 +1,83 @@
-import { useCallback, useEffect, useRef, useState, useId } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { AvatarExpression } from '../../lib/supabase';
-const SHEET='/assets/emma/design/emma-full-body-motion-v1.png';
-const EMOTIONS='/assets/emma/design/emma-emotions-v1.png';
-const EMOTION_POSES: Partial<Record<AvatarExpression, number>> = {
- calm:0, tired:0, thinking:1, focused:1, encouraging:2,
- proud:3, empathetic:4, listening:4, excited:5, playful:5,
-};
-const CENTERS=[293,245,197,293,245,197];
-function Frame({pose}:{pose:number}){const col=pose%3,row=Math.floor(pose/3);return <svg width="260" height="512" viewBox={`${col*512+CENTERS[pose]-130} ${row*512} 260 512`} overflow="hidden"><image href={SHEET} width="1536" height="1024"/></svg>;}
-function EmotionFrame({pose}:{pose:number}){const col=pose%3,row=Math.floor(pose/3);return <svg width="260" height="512" viewBox={`${col*512+CENTERS[pose]-130} ${row*512} 260 512`} overflow="hidden"><image href={EMOTIONS} width="1536" height="1024"/></svg>;}
-export default function EmmaFullBodyIllustration({expression='happy'}:{expression?:AvatarExpression}){
- const [emotionLoaded,setEmotionLoaded]=useState(false);
- const emotionPose=EMOTION_POSES[expression];
- useEffect(()=>{const image=new Image();image.onload=()=>setEmotionLoaded(true);image.src=EMOTIONS;return()=>{image.onload=null;};},[]);
- const [pose,setPose]=useState(0),[blink,setBlink]=useState(false),[loaded,setLoaded]=useState(false),[failed,setFailed]=useState(false),[paused,setPaused]=useState(document.hidden);
- const id=useId();const timers=useRef<ReturnType<typeof setTimeout>[]>([]);const active=useRef(false);
- const stop=useCallback(()=>{timers.current.forEach(clearTimeout);timers.current=[];active.current=false;setPose(0);setBlink(false);},[]);
- const greet=useCallback(()=>{
-  if(!loaded||active.current||document.hidden||matchMedia('(prefers-reduced-motion:reduce)').matches)return;
-  active.current=true;setBlink(false);
-  const frames=[2,3,4,3,4,3,5,0],durations=[180,350,250,250,250,350,200];let time=0;
-  frames.forEach((frame,index)=>{timers.current.push(setTimeout(()=>{setPose(frame);if(index===frames.length-1){active.current=false;timers.current=[];}},time));time+=durations[index]??0;});
- },[loaded]);
- useEffect(()=>{const image=new Image();image.onload=()=>setLoaded(true);image.onerror=()=>setFailed(true);image.src=SHEET;return()=>{image.onload=null;image.onerror=null;};},[]);
- useEffect(()=>{
-  if(!loaded)return;const media=matchMedia('(prefers-reduced-motion:reduce)');let next=performance.now()+3000,closedUntil=0;
-  const tick=()=>{if(document.hidden||media.matches||active.current)return;const now=performance.now();if(closedUntil){if(now>=closedUntil){setBlink(false);closedUntil=0;next=now+2600+Math.random()*1600;}}else if(now>=next){setBlink(true);closedUntil=now+160;}};
-  const interval=setInterval(tick,40);const greeting=setTimeout(greet,300);
-  const visibility=()=>{stop();setPaused(document.hidden||media.matches);closedUntil=0;next=performance.now()+3000;};
-  document.addEventListener('visibilitychange',visibility);media.addEventListener('change',visibility);
-  return()=>{clearInterval(interval);clearTimeout(greeting);timers.current.forEach(clearTimeout);timers.current=[];active.current=false;document.removeEventListener('visibilitychange',visibility);media.removeEventListener('change',visibility);};
- },[loaded,greet,stop]);
- if(failed)return <img className="emma-full-body__reference" src="/assets/emma/design/emma-full-body-approved.png" alt="Emma in her lavender sweatshirt, jeans and sneakers"/>;
- return <button type="button" className={`emma-full-body__sprite ${paused?'emma-full-body__sprite--paused':''} ${pose>1?'emma-full-body__sprite--greeting':''}`} aria-label="Say hi to Emma" title="Tap Emma for a greeting wave" onClick={greet} data-pose={pose} data-expression={expression} data-blink={blink?'closed':'open'}>
- <svg viewBox="0 0 260 512" role="img" aria-label="Emma in her lavender sweatshirt, jeans and sneakers" preserveAspectRatio="xMidYMax meet">
- <defs><clipPath id={`${id}-lower`}><rect x="0" y="242" width="260" height="270"/></clipPath><clipPath id={`${id}-upper`}><rect x="0" y="0" width="260" height="250"/></clipPath><clipPath id={`${id}-eyes`}><rect x="105" y="65" width="72" height="30" rx="9"/></clipPath></defs>
- <defs><radialGradient id={`${id}-face-fade`}><stop offset="76%" stopColor="white"/><stop offset="100%" stopColor="black"/></radialGradient><mask id={`${id}-face`} maskUnits="userSpaceOnUse" x="105" y="57" width="76" height="64"><ellipse cx="142" cy="89" rx="37" ry="30" fill={`url(#${id}-face-fade)`}/></mask></defs>
- <g clipPath={`url(#${id}-lower)`}><Frame pose={pose}/></g>
- <g clipPath={`url(#${id}-upper)`}><g className="emma-full-body__breathing"><Frame pose={pose}/>{emotionLoaded&&emotionPose!==undefined&&pose===0&&<g mask={`url(#${id}-face)`}><g transform="translate(142 80) scale(.9 1.1) translate(-142 -94)"><EmotionFrame pose={emotionPose}/></g></g>}{blink&&pose===0&&<g clipPath={`url(#${id}-eyes)`}><Frame pose={1}/></g>}</g></g>
- </svg></button>;
-}
+import './EmmaStanding.css';
 
+const ARTWORK = '/assets/emma/design/emma-standing-board-style-v2.png';
+const WAVE = '/assets/emma/design/emma-standing-wave-v2.png';
+
+export default function EmmaFullBodyIllustration({ expression = 'happy', greetOnArrival = false }: { expression?: AvatarExpression; greetOnArrival?: boolean }) {
+  const [paused, setPaused] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+  const [greeting, setGreeting] = useState(false);
+  const [waveReady, setWaveReady] = useState(false);
+  const arrived = useRef(false);
+  const id = useId();
+  const greetingTimer = useRef<number>();
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => setWaveReady(true);
+    image.src = WAVE;
+    return () => { image.onload = null; };
+  }, []);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => {
+      setUnavailable(document.hidden || media.matches);
+      setGreeting(false);
+      window.clearTimeout(greetingTimer.current);
+    };
+    update();
+    document.addEventListener('visibilitychange', update);
+    media.addEventListener('change', update);
+    return () => {
+      document.removeEventListener('visibilitychange', update);
+      media.removeEventListener('change', update);
+      window.clearTimeout(greetingTimer.current);
+    };
+  }, []);
+  const moving = !paused && !unavailable;
+  const sayHi = useCallback(() => {
+    if (!moving || !waveReady) return;
+    window.clearTimeout(greetingTimer.current);
+    setGreeting(true);
+    greetingTimer.current = window.setTimeout(() => setGreeting(false), 2400);
+  }, [moving, waveReady]);
+  useEffect(() => {
+    if (!greetOnArrival || !waveReady || !moving || arrived.current) return;
+    const timer = window.setTimeout(() => { arrived.current = true; sayHi(); }, 300);
+    return () => window.clearTimeout(timer);
+  }, [greetOnArrival, waveReady, moving, sayHi]);
+  return <div className={`emma-standing ${moving ? 'emma-standing--moving' : ''}`} data-expression={expression}>
+    <button type="button" className="emma-standing__art" aria-label="Say hi to Emma" title="Tap Emma for a friendly wave" onClick={sayHi}>
+      <svg viewBox="0 0 1024 1536" preserveAspectRatio="xMidYMax meet" role="img" aria-label="Emma standing in her lavender sweatshirt, blue jeans and white tennis shoes">
+        <defs>
+          <clipPath id={`${id}-head`}><rect width="645" height="315" /></clipPath>
+          <clipPath id={`${id}-wave-body`}><path d="M0 315H645V0H1024V1536H0Z" /></clipPath>
+          <clipPath id={`${id}-hand`}><rect x="660" y="190" width="150" height="224" /></clipPath>
+          <mask id={`${id}-without-hand`} maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1536"><rect width="1024" height="1536" fill="white" /><rect x="660" y="190" width="150" height="216" fill="black" /></mask>
+        </defs>
+        <g className="emma-standing__sway">
+          <g className="emma-standing__breathing">
+            <g>
+              {greeting && moving ? <g data-wave="active">
+                <g clipPath={`url(#${id}-wave-body)`} mask={`url(#${id}-without-hand)`}><image href={WAVE} width="1024" height="1536" /></g>
+                <g className="emma-standing__wave-hand"><g clipPath={`url(#${id}-hand)`}><image href={WAVE} width="1024" height="1536" /></g></g>
+                <g clipPath={`url(#${id}-head)`}><image href={ARTWORK} width="1024" height="1536" /></g>
+              </g> : <image href={ARTWORK} width="1024" height="1536" />}
+              {/* Lids overlay the original eyes; the rest of the face never swaps. */}
+              <g className="emma-standing__blink">
+                <path d="M450 204 Q473 181 497 199 Q474 220 450 204Z" fill="#ffbb7b" />
+                <path d="M453 201 Q475 213 493 200" fill="none" stroke="#3d211b" strokeWidth="3" strokeLinecap="round" />
+                <path d="M519 191 Q530 164 563 175 Q550 199 519 191Z" fill="#ffbb7b" />
+                <path d="M523 187 Q544 196 559 177" fill="none" stroke="#3d211b" strokeWidth="3" strokeLinecap="round" />
+              </g>
+            </g>
+          </g>
+        </g>
+      </svg>
+    </button>
+    <button type="button" className="emma-standing__pause" aria-pressed={paused} onClick={() => { setPaused(value => !value); setGreeting(false); window.clearTimeout(greetingTimer.current); }}>
+      {paused ? 'Resume motion' : 'Pause motion'}
+    </button>
+  </div>;
+}

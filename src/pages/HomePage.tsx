@@ -121,7 +121,7 @@ export default function HomePage(props: HomePageProps) {
               }}
             />
             {characterId === 'emma' ? (
-              <EmmaFullBodyAvatar expression={homeExpression} />
+              <EmmaFullBodyAvatar expression={homeExpression} greetOnArrival />
             ) : (
             <BestieAvatar
               characterId={characterId}
