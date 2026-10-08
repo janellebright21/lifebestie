@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import BestieAvatar from './besties/BestieAvatar';
+import { useState, useEffect } from 'react';
 
 const LANES = ['On my mind', 'Do next', 'Not today', 'Just feelings'] as const;
 const COLORS = { Lavender: '#ede9fe', Sage: '#dcfce7', Peach: '#ffedd5', Blue: '#dbeafe' };
@@ -13,6 +12,14 @@ function readNotes(key: string): Note[] {
 }
 
 export default function BrainDumpBoard({ userId, onOrganize }: { userId: string; onOrganize: (text: string) => void }) {
+  const [hour, setHour] = useState(() => new Date().getHours());
+  useEffect(() => {
+    const update = () => setHour(new Date().getHours());
+    const timer = window.setInterval(update, 60000);
+    document.addEventListener('visibilitychange', update);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', update); };
+  }, []);
+  const morning = hour < 12;
   const storageKey = `lifebestie_brain_board_v1:${userId}`;
   const [notes, setNotes] = useState<Note[]>(() => readNotes(storageKey));
   const [selected, setSelected] = useState<string | null>(null);
@@ -33,8 +40,8 @@ export default function BrainDumpBoard({ userId, onOrganize }: { userId: string;
     setMessage(lane === 'Not today' ? "Parked. You don't have to carry everything today." : lane === 'Just feelings' ? "This can just be a feeling. We don't have to turn it into a chore." : 'There we go. One thought in its own little spot.');
   };
   return <div className="space-y-4">
-    <div className="flex items-center gap-3 rounded-2xl bg-violet-50 p-3">
-      <BestieAvatar characterId="emma" expression={active?.lane === 'Just feelings' ? 'calm' : selected ? 'encouraging' : 'happy'} size="md" enable3D={false} />
+    <div className="flex items-end gap-3 rounded-2xl bg-violet-50 p-3">
+      <img src={`/characters/board/emma-seated-${morning ? 'morning' : 'afternoon'}.png`} alt={`Emma sitting cross-legged with a notepad, pencil, and ${morning ? 'coffee' : 'iced drink'}`} className="w-36 sm:w-48 shrink-0 h-auto object-contain" />
       <p className="text-sm text-gray-700" aria-live="polite">{message}</p>
     </div>
     <p className="text-xs text-gray-500">Your notes stay on this device for this account. Move them by dragging, or use each note's Move to menu.</p>
