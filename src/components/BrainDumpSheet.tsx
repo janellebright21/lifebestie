@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import BrainDumpBoard from './BrainDumpBoard';
 import { supabase } from '../lib/supabase';
 import {
   type BrainDumpSuggestion, type BrainDumpResult,
@@ -19,6 +20,7 @@ const GUIDE_PROMPTS = [
 
 interface BrainDumpSheetProps {
   open: boolean;
+  userId: string;
   onClose: () => void;
   enabledModules: Set<ModuleId>;
   onAddTask: (title: string, dueDate?: string, _linkedGoalId?: string, _duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task>;
@@ -29,8 +31,9 @@ interface BrainDumpSheetProps {
 type Phase = 'input' | 'loading' | 'review' | 'error';
 
 export default function BrainDumpSheet({
-  open, onClose, enabledModules, onAddTask, onAddGrocery, onNavigate,
+  open, userId, onClose, enabledModules, onAddTask, onAddGrocery, onNavigate,
 }: BrainDumpSheetProps) {
+  const [boardMode, setBoardMode] = useState(true);
   const [phase, setPhase] = useState<Phase>('input');
   const [text, setText] = useState('');
   const [guided, setGuided] = useState(false);
@@ -305,7 +308,12 @@ export default function BrainDumpSheet({
 
         {/* Body */}
         <div className="overflow-y-auto px-5 py-4 flex-1">
-          {phase === 'input' && (
+          {phase === 'input' && <div className="flex gap-2 mb-4">
+            <button aria-pressed={boardMode} className="rounded-xl border px-4 py-3 text-sm" onClick={() => setBoardMode(true)}>Sticky-note board</button>
+            <button aria-pressed={!boardMode} className="rounded-xl border px-4 py-3 text-sm" onClick={() => setBoardMode(false)}>Write with Emma</button>
+          </div>}
+          {phase === 'input' && boardMode && <BrainDumpBoard key={userId} userId={userId} onOrganize={(noteText) => { setText(noteText); setGuideAnswer(''); setGuided(false); setBoardMode(false); }} />}
+          {phase === 'input' && !boardMode && (
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600 leading-relaxed">
