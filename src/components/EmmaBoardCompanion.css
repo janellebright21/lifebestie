@@ -1,0 +1,10 @@
+.emma-board-stage { position: relative; width: 100%; aspect-ratio: 2 / 3; transform-origin: 50% 90%; pointer-events: none; }
+.emma-board-pose { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 400ms ease; }
+.emma-board-pose-active { opacity: 1; }
+.emma-board-idle { animation: emma-board-breathe 6s ease-in-out infinite; }
+.emma-board-writing { animation: emma-board-attentive 3s ease-in-out infinite; }
+.emma-board-celebrate { animation: emma-board-nod 800ms ease-in-out; }
+@keyframes emma-board-breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.006); } }
+@keyframes emma-board-attentive { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-0.4deg); } }
+@keyframes emma-board-nod { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .emma-board-stage { animation: none !important; } .emma-board-pose { transition: none; } }

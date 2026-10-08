@@ -815,6 +815,8 @@ export default function App() {
       />
 
       <BrainDumpSheet
+        key={userId}
+        userId={userId}
         open={brainDumpOpen}
         onClose={() => setBrainDumpOpen(false)}
         enabledModules={enabledModules}

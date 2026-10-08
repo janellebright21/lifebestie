@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import BrainDumpBoard from './BrainDumpBoard';
 import { supabase } from '../lib/supabase';
 import {
   type BrainDumpSuggestion, type BrainDumpResult,
@@ -9,9 +10,17 @@ import type { ModuleId, TaskCategory, TaskPriority, Task } from '../lib/supabase
 import { CheckCircle2, Circle, X, Plus, Loader2, AlertCircle, ShoppingCart, Calendar, StickyNote, RotateCcw, Sparkles } from 'lucide-react';
 
 const MAX_CHARS = 4000;
+const GUIDE_PROMPTS = [
+  "Okay, let's empty a few mental tabs. What's taking up the most space in your head right now?",
+  "What needs doing at home, at work, or for the kids? Messy lists are welcome here.",
+  "Anything you need to buy, pick up, or remember? The milk counts. So does that appointment.",
+  "And what do you need for yourself? Something can be a feeling without becoming another chore.",
+  "Anything else hanging around? We can stop here, too. You don't have to solve your whole life today.",
+];
 
 interface BrainDumpSheetProps {
   open: boolean;
+  userId: string;
   onClose: () => void;
   enabledModules: Set<ModuleId>;
   onAddTask: (title: string, dueDate?: string, _linkedGoalId?: string, _duration?: number, category?: TaskCategory, priority?: TaskPriority) => Promise<Task>;
@@ -22,10 +31,15 @@ interface BrainDumpSheetProps {
 type Phase = 'input' | 'loading' | 'review' | 'error';
 
 export default function BrainDumpSheet({
-  open, onClose, enabledModules, onAddTask, onAddGrocery, onNavigate,
+  open, userId, onClose, enabledModules, onAddTask, onAddGrocery, onNavigate,
 }: BrainDumpSheetProps) {
+  const [boardMode, setBoardMode] = useState(true);
   const [phase, setPhase] = useState<Phase>('input');
   const [text, setText] = useState('');
+  const [guided, setGuided] = useState(false);
+  const [guideStep, setGuideStep] = useState(0);
+  const [guideAnswer, setGuideAnswer] = useState('');
+  const [guideHistory, setGuideHistory] = useState<Array<{ prompt: string; answer: string }>>([]);
   const [emmaReply, setEmmaReply] = useState('');
   const [suggestions, setSuggestions] = useState<BrainDumpSuggestion[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
@@ -59,9 +73,22 @@ export default function BrainDumpSheet({
     setErrorMsg('');
   }, []);
 
+  const finishGuideAnswer = () => {
+    const answer = guideAnswer.trim();
+    if (answer) {
+      setText((previous) => [previous.trim(), answer].filter(Boolean).join('\n\n'));
+      setGuideHistory((previous) => [...previous, { prompt: GUIDE_PROMPTS[guideStep]!, answer }]);
+    }
+    setGuideAnswer('');
+  };
+
   const handleOrganize = useCallback(async () => {
-    const trimmed = text.trim();
+    const trimmed = [text.trim(), guided ? guideAnswer.trim() : ''].filter(Boolean).join('\n\n');
     if (!trimmed) return;
+    if (trimmed.length > MAX_CHARS) return;
+    setText(trimmed);
+    setGuideAnswer('');
+    setGuided(false);
     setPhase('loading');
     setErrorMsg('');
 
@@ -101,7 +128,7 @@ export default function BrainDumpSheet({
       setPhase('error');
       setErrorMsg('Something went wrong. Please try again.');
     }
-  }, [text, enabledModules]);
+  }, [text, guideAnswer, guided, enabledModules]);
 
   const toggleSuggestion = useCallback((id: string) => {
     setSuggestions((prev) => prev.map((s) =>
@@ -281,32 +308,58 @@ export default function BrainDumpSheet({
 
         {/* Body */}
         <div className="overflow-y-auto px-5 py-4 flex-1">
-          {phase === 'input' && (
+          {phase === 'input' && <div className="flex gap-2 mb-4">
+            <button aria-pressed={boardMode} className="rounded-xl border px-4 py-3 text-sm" onClick={() => setBoardMode(true)}>Sticky-note board</button>
+            <button aria-pressed={!boardMode} className="rounded-xl border px-4 py-3 text-sm" onClick={() => setBoardMode(false)}>Write with Emma</button>
+          </div>}
+          {phase === 'input' && boardMode && <BrainDumpBoard key={userId} userId={userId} onOrganize={(noteText) => { setText(noteText); setGuideAnswer(''); setGuided(false); setBoardMode(false); }} />}
+          {phase === 'input' && !boardMode && (
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600 leading-relaxed">
                   Dump everything that's on your mind. Emma will organize it into tasks, groceries, and notes for you to review — nothing saves until you say so.
                 </p>
               </div>
+              <div className="flex gap-2" aria-label="Brain dump writing mode">
+                <button type="button" aria-pressed={!guided} onClick={() => { finishGuideAnswer(); setGuided(false); }} className="rounded-xl border px-4 py-3 text-sm">Write freely</button>
+                <button type="button" aria-pressed={guided} onClick={() => setGuided(true)} className="rounded-xl border px-4 py-3 text-sm">Walk me through it</button>
+              </div>
+              {guided && (
+                <div className="space-y-3">
+                  {guideHistory.map((entry, index) => (
+                    <div key={index} className="rounded-xl bg-gray-50 p-3 text-sm">
+                      <p className="text-gray-500">Emma: {entry.prompt}</p>
+                      <p className="mt-2 whitespace-pre-wrap text-gray-700">{entry.answer}</p>
+                    </div>
+                  ))}
+                  <div className="rounded-2xl bg-violet-50 p-4" aria-live="polite">
+                    <p className="text-xs font-semibold text-violet-500">Emma · {guideStep + 1} of {GUIDE_PROMPTS.length}</p>
+                    <p className="mt-2 text-sm text-gray-700">{GUIDE_PROMPTS[guideStep]}</p>
+                  </div>
+                </div>
+              )}
               <div>
                 <label htmlFor="brain-dump-input" className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                  What's on your mind?
+                  {guided ? 'Your reply to Emma' : "What's on your mind?"}
                 </label>
                 <textarea
                   ref={textareaRef}
                   id="brain-dump-input"
-                  value={text}
-                  onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS))}
-                  placeholder="e.g., I need to buy milk, call the dentist tomorrow, I'm feeling overwhelmed about the week, pick up dry cleaning..."
-                  maxLength={MAX_CHARS}
-                  rows={6}
+                  value={guided ? guideAnswer : text}
+                  onChange={(e) => guided ? setGuideAnswer(e.target.value.slice(0, Math.max(0, MAX_CHARS - text.length - (text ? 2 : 0)))) : setText(e.target.value.slice(0, MAX_CHARS))}
+                  placeholder={guided ? 'A sentence, a list, or just a few words…' : 'e.g., buy milk, call the dentist tomorrow, feeling overwhelmed about the week…'}
+                  maxLength={guided ? Math.max(0, MAX_CHARS - text.length - (text ? 2 : 0)) : MAX_CHARS}
+                  rows={guided ? 3 : 6}
                   className="w-full text-sm text-gray-700 bg-gray-50 rounded-2xl border border-gray-200 focus:border-violet-300 focus:ring-2 focus:ring-violet-100 outline-none p-3.5 resize-none transition-all"
                   style={{ minHeight: 120 }}
                 />
-                <div className="flex justify-end mt-1">
-                  <span className="text-[10px] text-gray-400">{text.length}/{MAX_CHARS}</span>
-                </div>
+                <p className="text-right text-xs text-gray-400">{text.length + (guided && guideAnswer ? guideAnswer.length + (text ? 2 : 0) : 0)}/{MAX_CHARS}</p>
               </div>
+              {guided && guideStep < GUIDE_PROMPTS.length - 1 && (
+                <button type="button" onClick={() => { finishGuideAnswer(); setGuideStep((step) => step + 1); textareaRef.current?.focus(); }} className="w-full rounded-xl border py-3 text-sm font-semibold">
+                  {guideAnswer.trim() ? 'Next question' : 'Skip this question'}
+                </button>
+              )}
               <div className="rounded-xl bg-violet-50 border border-violet-100 px-3.5 py-3">
                 <p className="text-xs text-violet-500 leading-relaxed">
                   When you tap "Organize with Emma," your text goes to Emma's AI to sort into suggestions. You'll review everything before anything is saved.
@@ -314,7 +367,7 @@ export default function BrainDumpSheet({
               </div>
               <button
                 onClick={handleOrganize}
-                disabled={!text.trim()}
+                disabled={!text.trim() && !(guided && guideAnswer.trim())}
                 className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white rounded-2xl py-3.5 active:scale-95 transition-all disabled:opacity-40 disabled:active:scale-100"
                 style={{ backgroundColor: 'var(--theme-primary)', minHeight: 48 }}
               >
