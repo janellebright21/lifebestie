@@ -8,26 +8,20 @@
 .emma-standing--moving .emma-standing__breathing { animation: emma-standing-breathe 5.5s ease-in-out infinite; }
 .emma-standing--moving .emma-standing__sway { animation: emma-standing-sway 13.1s ease-in-out infinite; }
 .emma-standing--moving .emma-standing__blink { animation: emma-standing-blink 7.3s linear infinite; }
-.emma-standing__rest-arm { opacity: 1; }
-.emma-standing__wave-pose { opacity: 0; }
-.emma-standing__wave-arm { transform-origin: 645px 355px; }
-/* One timeline includes preparation, greeting and settling; removing the
-   active class after completion cannot cut off a moving hand. */
-.emma-standing__greeting-active .emma-standing__rest-arm { animation: emma-standing-rest-arm 3.8s linear both; }
-.emma-standing__greeting-active .emma-standing__wave-pose { animation: emma-standing-wave-pose 3.8s linear both; }
-.emma-standing__greeting-active .emma-standing__wave-arm { animation: emma-standing-wave 3.8s ease-in-out both; }
+.emma-standing__rest-pose, .emma-standing__wave-pose { opacity: 0; transition: opacity 220ms ease-in-out; }
+.emma-standing__pose-visible { opacity: 1; }
+.emma-standing__wave-hand { transform-origin: 715px 410px; }
+.emma-standing__wave-hand-active { animation: emma-standing-wave 600ms ease-in-out 4; }
 .emma-standing__weight-left { animation: emma-standing-weight-left 4.2s ease-in-out both; }
 .emma-standing__weight-right { animation: emma-standing-weight-right 4.2s ease-in-out both; }
 .emma-standing__head { transform-origin: 520px 315px; }
 @keyframes emma-standing-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.004, 1.007); } }
 @keyframes emma-standing-sway { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(.35deg); } 70% { transform: rotate(-.25deg); } }
 @keyframes emma-standing-blink { 0%, 31%, 34%, 86%, 89%, 100% { opacity: 0; } 32%, 33%, 87%, 88% { opacity: 1; } }
-@keyframes emma-standing-rest-arm { 0%, 100% { opacity: 1; } 20%, 78% { opacity: 0; } }
-@keyframes emma-standing-wave-pose { 0%, 100% { opacity: 0; } 20%, 78% { opacity: 1; } }
-@keyframes emma-standing-wave { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(0); } 32% { transform: rotate(-2.5deg); } 44% { transform: rotate(2.5deg); } 56% { transform: rotate(-2.5deg); } 68% { transform: rotate(2deg); } 78% { transform: rotate(0); } }
+@keyframes emma-standing-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
 /* Shear from the shoe baseline: the torso shifts gently while her soles
    remain nearly stationary, rather than rotating her entire body. */
 @keyframes emma-standing-weight-left { 0%, 100% { transform: skewX(0); } 40%, 65% { transform: skewX(.8deg); } }
 @keyframes emma-standing-weight-right { 0%, 100% { transform: skewX(0); } 40%, 65% { transform: skewX(-.8deg); } }
-@media (prefers-reduced-motion: reduce) { .emma-standing__breathing, .emma-standing__sway, .emma-standing__blink, .emma-standing__wave-arm, .emma-standing__rest-arm, .emma-standing__wave-pose, .emma-standing__weight-left, .emma-standing__weight-right, .emma-standing__head { animation: none !important; transform: none !important; } .emma-standing__blink { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .emma-standing__rest-arm { opacity: 1 !important; } .emma-standing__wave-pose { opacity: 0 !important; } }
+@media (prefers-reduced-motion: reduce) { .emma-standing__breathing, .emma-standing__sway, .emma-standing__blink, .emma-standing__wave-hand, .emma-standing__weight-left, .emma-standing__weight-right, .emma-standing__head { animation: none !important; transform: none !important; } .emma-standing__blink { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .emma-standing__rest-pose, .emma-standing__wave-pose { transition: none; } }
