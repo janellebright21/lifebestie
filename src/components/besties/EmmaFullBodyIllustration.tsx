@@ -46,7 +46,7 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
     window.clearTimeout(greetingTimer.current);
     setIdleGesture(null);
     setGreeting(true);
-    greetingTimer.current = window.setTimeout(() => setGreeting(false), 2400);
+    greetingTimer.current = window.setTimeout(() => setGreeting(false), 3900);
   }, [moving, waveReady]);
   useEffect(() => {
     if (!greetOnArrival || !waveReady || !moving || arrived.current) return;
@@ -78,17 +78,20 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
         <defs>
           <clipPath id={`${id}-head`}><rect width="645" height="315" /></clipPath>
           <clipPath id={`${id}-wave-body`}><path d="M0 315H645V0H1024V1536H0Z" /></clipPath>
-          <clipPath id={`${id}-hand`}><rect x="660" y="190" width="150" height="224" /></clipPath>
-          <mask id={`${id}-without-hand`} maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1536"><rect width="1024" height="1536" fill="white" /><rect x="660" y="190" width="150" height="216" fill="black" /></mask>
+          {/* Only the greeting arm changes pose. Keep the torso, shoes and face fixed. */}
+          <clipPath id={`${id}-arm`}><path d="M620 315Q646 350 640 425Q624 485 633 530L650 570L648 620L670 680L673 900H850V180H645V315Z" /></clipPath>
+          <mask id={`${id}-without-arm`} maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1536"><rect width="1024" height="1536" fill="white" /><path d="M620 315Q646 350 640 425Q624 485 633 530L650 570L648 620L670 680L673 900H850V180H645V315Z" fill="black" /></mask>
         </defs>
         <g className="emma-standing__sway">
           <g className="emma-standing__breathing">
             <g className={idleGesture && moving ? `emma-standing__${idleGesture}` : undefined} data-idle-gesture={idleGesture ?? 'rest'}>
-              <g className={`emma-standing__rest-pose ${greeting && moving ? '' : 'emma-standing__pose-visible'}`} clipPath={`url(#${id}-wave-body)`}><image href={ARTWORK} width="1024" height="1536" /></g>
-              {waveReady && <g className={`emma-standing__wave-pose ${greeting && moving ? 'emma-standing__pose-visible' : ''}`} data-wave={greeting && moving ? 'active' : 'rest'}>
-                <g clipPath={`url(#${id}-wave-body)`} mask={`url(#${id}-without-hand)`}><image href={WAVE} width="1024" height="1536" /></g>
-                <g className={`emma-standing__wave-hand ${greeting && moving ? 'emma-standing__wave-hand-active' : ''}`}><g clipPath={`url(#${id}-hand)`}><image href={WAVE} width="1024" height="1536" /></g></g>
-              </g>}
+              <g clipPath={`url(#${id}-wave-body)`} mask={`url(#${id}-without-arm)`}><image href={ARTWORK} width="1024" height="1536" /></g>
+              <g className={`emma-standing__greeting ${greeting && moving ? 'emma-standing__greeting-active' : ''}`}>
+                <g className="emma-standing__rest-arm" clipPath={`url(#${id}-arm)`}><image href={ARTWORK} width="1024" height="1536" /></g>
+                {waveReady && <g className="emma-standing__wave-pose" data-wave={greeting && moving ? 'active' : 'rest'}>
+                  <g className="emma-standing__wave-arm"><g clipPath={`url(#${id}-arm)`}><image href={WAVE} width="1024" height="1536" /></g></g>
+                </g>}
+              </g>
               <g className="emma-standing__head">
                 <g clipPath={`url(#${id}-head)`}><image href={ARTWORK} width="1024" height="1536" /></g>
               {/* Lids overlay the original eyes; the rest of the face never swaps. */}
