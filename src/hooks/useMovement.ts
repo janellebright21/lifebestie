@@ -140,6 +140,42 @@ function computeStreak(events: Event[]): number {
   return streak;
 }
 
+export interface WeeklyMovementInfo {
+  count: number;
+  next: { title: string; date: string; time: string | null } | null;
+}
+
+export function getWeeklyMovements(events: Event[], today: string): WeeklyMovementInfo {
+  const now = new Date(today + 'T00:00:00');
+  const dayOfWeek = now.getDay();
+  const start = new Date(now);
+  start.setDate(now.getDate() - dayOfWeek);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const startDate = start.toISOString().split('T')[0];
+  const endDate = end.toISOString().split('T')[0];
+
+  const weekMovements = events.filter(
+    (e) => e.category === 'Movement' && e.event_date >= startDate && e.event_date <= endDate
+  );
+
+  const upcoming = weekMovements
+    .filter((e) => e.event_date >= today)
+    .sort((a, b) => {
+      const dateCmp = a.event_date.localeCompare(b.event_date);
+      if (dateCmp !== 0) return dateCmp;
+      return (a.event_time ?? '').localeCompare(b.event_time ?? '');
+    });
+
+  const next = upcoming[0] ?? null;
+
+  return {
+    count: weekMovements.length,
+    next: next ? { title: next.title, date: next.event_date, time: next.event_time ?? null } : null,
+  };
+}
+
 export function useMovement(events: Event[]) {
   const today = new Date().toISOString().split('T')[0];
 

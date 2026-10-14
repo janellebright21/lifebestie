@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy } from 'lucide-react';
+import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy, Calendar } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
 import {
   EnergyLevel,
@@ -7,6 +7,7 @@ import {
   MOVEMENT_OPTIONS,
   TodayMovement,
   encodeMovementNotes,
+  getWeeklyMovements,
   useMovement,
 } from '../hooks/useMovement';
 
@@ -210,6 +211,81 @@ function TodaySummary({ todayMovements }: { todayMovements: TodayMovement[] }) {
   );
 }
 
+// ─── This week overview ───────────────────────────────────────────────────────
+
+function formatDayLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function WeeklyOverview({
+  events,
+  today,
+  onAddFirst,
+}: {
+  events: Event[];
+  today: string;
+  onAddFirst: () => void;
+}) {
+  const { count, next } = getWeeklyMovements(events, today);
+
+  if (count === 0) {
+    return (
+      <div
+        className="rounded-2xl border px-4 py-4 text-center"
+        style={{ borderColor: 'var(--theme-primary-mid)', background: 'var(--theme-primary-light)' }}
+      >
+        <p className="text-sm font-semibold text-gray-700">No movement planned this week</p>
+        <p className="text-xs text-gray-500 mt-1 mb-3">
+          Even a short walk counts. Pick one to get started.
+        </p>
+        <button
+          onClick={onAddFirst}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full text-white active:scale-95 transition-all"
+          style={{ backgroundColor: 'var(--theme-primary)', minHeight: 36 }}
+        >
+          <Plus size={13} />
+          Add a workout
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3.5 space-y-2.5">
+      <div className="flex items-center gap-2">
+        <Calendar size={14} style={{ color: 'var(--theme-primary)' }} />
+        <p className="text-xs font-bold text-gray-600">This week</p>
+        <span
+          className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style={{ background: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}
+        >
+          {count} {count === 1 ? 'session' : 'sessions'}
+        </span>
+      </div>
+      {next ? (
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: 'var(--theme-primary-light)' }}
+          >
+            <Clock size={14} style={{ color: 'var(--theme-primary)' }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-700 truncate">{next.title}</p>
+            <p className="text-xs text-gray-400">
+              {formatDayLabel(next.date)}
+              {next.time ? ` · ${next.time}` : ''}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400">All sessions this week are past — nice work!</p>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MovementPage({ events, onAddEvent, onUpdateEvent }: MovementPageProps) {
@@ -266,6 +342,16 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         {/* Today summary */}
         <TodaySummary todayMovements={todayMovements} />
+
+        {/* This week overview */}
+        <WeeklyOverview
+          events={events}
+          today={getToday()}
+          onAddFirst={() => {
+            const firstActivity = MOVEMENT_OPTIONS.low.activities[0];
+            if (firstActivity) handleAdd(firstActivity);
+          }}
+        />
 
         {/* Energy level sections */}
         {levels.map((level) => (
