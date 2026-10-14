@@ -140,6 +140,30 @@ function computeStreak(events: Event[]): number {
   return streak;
 }
 
+export type TimeRange = 'short' | 'medium' | 'long';
+
+export const TIME_RANGES: { id: TimeRange; label: string; min: number; max: number }[] = [
+  { id: 'short',  label: '5–10 min',  min: 5,  max: 10 },
+  { id: 'medium', label: '15–20 min', min: 15, max: 20 },
+  { id: 'long',   label: '30+ min',   min: 30, max: Infinity },
+];
+
+export function parseDurationMinutes(duration: string): number {
+  const m = duration.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+export function activitiesForTimeRange(range: TimeRange): MovementActivity[] {
+  const r = TIME_RANGES.find((t) => t.id === range);
+  if (!r) return [];
+  return (Object.values(MOVEMENT_OPTIONS) as typeof MOVEMENT_OPTIONS[EnergyLevel][])
+    .flatMap((opts) => opts.activities)
+    .filter((a) => {
+      const mins = parseDurationMinutes(a.duration);
+      return mins >= r.min && mins <= r.max;
+    });
+}
+
 export interface WeeklyMovementInfo {
   count: number;
   next: { title: string; date: string; time: string | null } | null;

@@ -6,6 +6,9 @@ import {
   MovementActivity,
   MOVEMENT_OPTIONS,
   TodayMovement,
+  TIME_RANGES,
+  TimeRange,
+  activitiesForTimeRange,
   encodeMovementNotes,
   getWeeklyMovements,
   useMovement,
@@ -286,11 +289,100 @@ function WeeklyOverview({
   );
 }
 
+// ─── Guided start ─────────────────────────────────────────────────────────────
+
+function GuidedStart({
+  selectedRange,
+  onSelectRange,
+  onAdd,
+}: {
+  selectedRange: TimeRange | null;
+  onSelectRange: (range: TimeRange | null) => void;
+  onAdd: (activity: MovementActivity) => void;
+}) {
+  const activities = selectedRange ? activitiesForTimeRange(selectedRange) : [];
+
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3.5 space-y-3">
+      <div className="flex items-center gap-2">
+        <Clock size={14} style={{ color: 'var(--theme-primary)' }} />
+        <p className="text-xs font-bold text-gray-600">How much time do you have?</p>
+        {selectedRange && (
+          <button
+            onClick={() => onSelectRange(null)}
+            className="ml-auto text-[10px] font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+            style={{ minHeight: 28, minWidth: 44 }}
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* Time-range chips */}
+      <div className="flex gap-2">
+        {TIME_RANGES.map((r) => (
+          <button
+            key={r.id}
+            onClick={() => onSelectRange(r.id)}
+            className={`flex-1 text-xs font-semibold px-3 py-2 rounded-xl border transition-all active:scale-95 ${
+              selectedRange === r.id
+                ? 'text-white'
+                : 'bg-gray-50 border-gray-100 text-gray-500 hover:opacity-80'
+            }`}
+            style={
+              selectedRange === r.id
+                ? { backgroundColor: 'var(--theme-primary)', borderColor: 'var(--theme-primary)', minHeight: 36 }
+                : { minHeight: 36 }
+            }
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filtered activities */}
+      {selectedRange && (
+        <div className="space-y-2 pt-1">
+          {activities.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-2">No activities in this range.</p>
+          ) : (
+            activities.map((activity) => {
+              const color = MOVEMENT_OPTIONS[activity.energyLevel].color;
+              return (
+                <div
+                  key={activity.id}
+                  className={`flex items-center gap-3 px-3 py-3 rounded-xl border ${color.bg} ${color.border}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold ${color.text}`}>{activity.label}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Clock size={10} className="text-gray-400" />
+                      <span className="text-xs text-gray-400">{activity.duration}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onAdd(activity)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all active:scale-95 ${color.bg} ${color.text} ${color.border} hover:opacity-80`}
+                  >
+                    <Plus size={13} />
+                    Add
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MovementPage({ events, onAddEvent, onUpdateEvent }: MovementPageProps) {
   const { todayMovements, streakResult } = useMovement(events);
   const [adding, setAdding] = useState<string | null>(null);
+  const [guidedRange, setGuidedRange] = useState<TimeRange | null>(null);
   const activitiesRef = useRef<HTMLDivElement>(null);
 
   async function handleAdd(activity: MovementActivity) {
@@ -351,6 +443,13 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
           onAddFirst={() => {
             activitiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
+        />
+
+        {/* Guided start */}
+        <GuidedStart
+          selectedRange={guidedRange}
+          onSelectRange={setGuidedRange}
+          onAdd={handleAdd}
         />
 
         {/* Energy level sections */}
