@@ -31,6 +31,46 @@ interface MovementPageProps {
   ) => Promise<void>;
 }
 
+// ─── Workout pose thumbnail ──────────────────────────────────────────────────
+
+const WORKOUT_DEMO_SHEET = '/assets/exec/exec-3ad98760-df7f-4d2d-aba6-3fcf43915e1d.png';
+const SHEET_COLS = 3;
+const SHEET_ROWS = 3;
+
+const POSE_TILES: Record<string, { row: number; col: number; alt: string }> = {
+  'low-walk':      { row: 0, col: 0, alt: 'Emma demonstrating a walk around the block' },
+  'low-stretch':   { row: 0, col: 1, alt: 'Emma demonstrating a stretching routine' },
+  'low-mobility':  { row: 0, col: 2, alt: 'Emma demonstrating a mobility routine' },
+  'mod-bodyweight':{ row: 1, col: 0, alt: 'Emma demonstrating a bodyweight workout' },
+  'mod-bands':     { row: 1, col: 1, alt: 'Emma demonstrating resistance band exercises' },
+  'mod-fastwalk':  { row: 1, col: 2, alt: 'Emma demonstrating a fast walk' },
+  'high-strength': { row: 2, col: 0, alt: 'Emma demonstrating a strength workout' },
+  'high-cardio':   { row: 2, col: 1, alt: 'Emma demonstrating a cardio workout' },
+  'high-full':     { row: 2, col: 2, alt: 'Emma demonstrating a full workout session' },
+};
+
+function WorkoutPoseThumb({ activityId, size = 40 }: { activityId: string; size?: number }) {
+  const tile = POSE_TILES[activityId];
+  if (!tile) return null;
+  const bgX = (tile.col / (SHEET_COLS - 1)) * 100;
+  const bgY = (tile.row / (SHEET_ROWS - 1)) * 100;
+  return (
+    <div
+      role="img"
+      aria-label={tile.alt}
+      className="rounded-lg overflow-hidden shrink-0 border border-white/60"
+      style={{
+        width: size,
+        height: size,
+        backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
+        backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
+        backgroundPosition: `${bgX}% ${bgY}%`,
+        backgroundRepeat: 'no-repeat',
+      }}
+    />
+  );
+}
+
 const LEVEL_ICONS: Record<EnergyLevel, React.ReactNode> = {
   low:      <Wind size={16} />,
   moderate: <Zap size={16} />,
@@ -67,6 +107,7 @@ function ActivityCard({
 
   return (
     <div className={`flex items-center gap-3 px-3 py-3 rounded-xl border ${color.bg} ${color.border}`}>
+      <WorkoutPoseThumb activityId={activity.id} />
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-semibold ${color.text}`}>{activity.label}</p>
         <div className="flex items-center gap-1 mt-0.5">
@@ -353,6 +394,7 @@ function GuidedStart({
                   key={activity.id}
                   className={`flex items-center gap-3 px-3 py-3 rounded-xl border ${color.bg} ${color.border}`}
                 >
+                  <WorkoutPoseThumb activityId={activity.id} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-semibold ${color.text}`}>{activity.label}</p>
                     <div className="flex items-center gap-1 mt-0.5">
