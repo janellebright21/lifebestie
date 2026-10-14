@@ -1077,23 +1077,34 @@ export default function HomePage({
             {toggleError && (
               <p role="alert" className="text-xs text-rose-500 px-1">{toggleError}</p>
             )}
-            {todayTopTasks.map((task) => {
+            {todayTopTasks[0] && !todayTopTasks[0].completed && (
+              <p className="text-xs italic px-1" style={{ color: 'var(--theme-primary)' }}>
+                Let's start here — one small step.
+              </p>
+            )}
+            {todayTopTasks.map((task, idx) => {
               const isToggling = togglingTaskId === task.id;
+              const isNextUp = idx === 0 && !task.completed;
               return (
                 <button
                   key={task.id}
                   onClick={() => handleToggleTask(task.id, !task.completed)}
                   disabled={isToggling}
                   aria-label={`Mark "${task.title}" as ${task.completed ? 'incomplete' : 'complete'}`}
-                  className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-50 active:scale-[0.99] transition-transform text-left disabled:opacity-60"
-                  style={{ minHeight: 44 }}
+                  className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 shadow-sm border active:scale-[0.99] transition-transform text-left disabled:opacity-60"
+                  style={{
+                    minHeight: 44,
+                    borderColor: isNextUp ? 'var(--theme-primary)' : 'rgb(249 250 251)',
+                    borderWidth: isNextUp ? '1.5px' : '1px',
+                    backgroundColor: isNextUp ? 'var(--theme-primary-light)' : 'white',
+                  }}
                 >
                   {isToggling ? (
                     <div className="w-5 h-5 rounded-full border-2 border-gray-200 border-t-rose-400 animate-spin shrink-0" aria-hidden="true" />
                   ) : task.completed ? (
                     <CheckCircle2 size={20} style={{ color: 'var(--theme-primary)' }} className="shrink-0" />
                   ) : (
-                    <Circle size={20} className="text-gray-300 shrink-0" />
+                    <Circle size={20} className="shrink-0" style={isNextUp ? { color: 'var(--theme-primary)' } : { color: 'rgb(209 213 219)' }} />
                   )}
                   <span
                     className={`text-sm font-medium flex-1 min-w-0 ${
@@ -1102,17 +1113,22 @@ export default function HomePage({
                   >
                     {task.title}
                   </span>
-                  {task.due_date === today && (
+                  {isNextUp ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 text-white" style={{ background: 'var(--theme-primary)' }}>
+                      Start here
+                    </span>
+                  ) : task.due_date === today ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}>
                       Today
                     </span>
-                  )}
+                  ) : null}
                 </button>
               );
             })}
             <button
               onClick={() => onTabChange('planner')}
-              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 py-2 active:scale-95 transition-transform"
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-xl border border-gray-100 bg-gray-50/60 active:scale-95 transition-transform"
+              style={{ color: 'var(--theme-primary)' }}
             >
               <ListChecks size={13} />
               Plan my day
