@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy, Calendar } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy, Calendar, X } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
 import {
   EnergyLevel,
@@ -31,43 +31,143 @@ interface MovementPageProps {
   ) => Promise<void>;
 }
 
-// ─── Workout pose thumbnail ──────────────────────────────────────────────────
+// ─── Workout pose thumbnail + preview dialog ──────────────────────────────────
 
 const WORKOUT_DEMO_SHEET = '/assets/exec/exec-3ad98760-df7f-4d2d-aba6-3fcf43915e1d.png';
 const SHEET_COLS = 3;
 const SHEET_ROWS = 3;
 
-const POSE_TILES: Record<string, { row: number; col: number; alt: string }> = {
-  'low-walk':      { row: 0, col: 0, alt: 'Emma demonstrating a walk around the block' },
-  'low-stretch':   { row: 0, col: 1, alt: 'Emma demonstrating a stretching routine' },
-  'low-mobility':  { row: 0, col: 2, alt: 'Emma demonstrating a mobility routine' },
-  'mod-bodyweight':{ row: 1, col: 0, alt: 'Emma demonstrating a bodyweight workout' },
-  'mod-bands':     { row: 1, col: 1, alt: 'Emma demonstrating resistance band exercises' },
-  'mod-fastwalk':  { row: 1, col: 2, alt: 'Emma demonstrating a fast walk' },
-  'high-strength': { row: 2, col: 0, alt: 'Emma demonstrating a strength workout' },
-  'high-cardio':   { row: 2, col: 1, alt: 'Emma demonstrating a cardio workout' },
-  'high-full':     { row: 2, col: 2, alt: 'Emma demonstrating a full workout session' },
+const POSE_TILES: Record<string, { row: number; col: number; alt: string; anim: string; cue: string }> = {
+  'low-walk':      { row: 0, col: 0, alt: 'Emma demonstrating a walk around the block',   anim: 'wpm-anim-sway',    cue: 'Steady steps — breathe in, step forward, swing your arms gently.' },
+  'low-stretch':   { row: 0, col: 1, alt: 'Emma demonstrating a stretching routine',       anim: 'wpm-anim-sway',    cue: 'Slow reach — extend up and outward, hold, then release.' },
+  'low-mobility':  { row: 0, col: 2, alt: 'Emma demonstrating a mobility routine',         anim: 'wpm-anim-swing',   cue: 'Gentle circles — roll your shoulders and hips through their range.' },
+  'mod-bodyweight':{ row: 1, col: 0, alt: 'Emma demonstrating a bodyweight workout',       anim: 'wpm-anim-bob',     cue: 'Down and up — lower with control, drive through your legs.' },
+  'mod-bands':     { row: 1, col: 1, alt: 'Emma demonstrating resistance band exercises',  anim: 'wpm-anim-pulse',   cue: 'Pull and resist — steady tension out, slow return back.' },
+  'mod-fastwalk':  { row: 1, col: 2, alt: 'Emma demonstrating a fast walk',                anim: 'wpm-anim-shuttle', cue: 'Quick pace — short strides, pump your arms, keep momentum.' },
+  'high-strength': { row: 2, col: 0, alt: 'Emma demonstrating a strength workout',         anim: 'wpm-anim-lunge',   cue: 'Controlled power — brace your core, move with intent.' },
+  'high-cardio':   { row: 2, col: 1, alt: 'Emma demonstrating a cardio workout',           anim: 'wpm-anim-jump',    cue: 'Keep moving — light on your feet, steady rhythm, breathe.' },
+  'high-full':     { row: 2, col: 2, alt: 'Emma demonstrating a full workout session',     anim: 'wpm-anim-bounce',  cue: 'Full effort — combine your moves with energy and good form.' },
 };
 
-function WorkoutPoseThumb({ activityId, size = 40 }: { activityId: string; size?: number }) {
+function tileBgPosition(activityId: string): { bgX: number; bgY: number } | null {
   const tile = POSE_TILES[activityId];
   if (!tile) return null;
-  const bgX = (tile.col / (SHEET_COLS - 1)) * 100;
-  const bgY = (tile.row / (SHEET_ROWS - 1)) * 100;
+  return {
+    bgX: (tile.col / (SHEET_COLS - 1)) * 100,
+    bgY: (tile.row / (SHEET_ROWS - 1)) * 100,
+  };
+}
+
+function WorkoutPoseThumb({
+  activityId,
+  size = 40,
+  onOpen,
+}: {
+  activityId: string;
+  size?: number;
+  onOpen: () => void;
+}) {
+  const tile = POSE_TILES[activityId];
+  const pos = tileBgPosition(activityId);
+  if (!tile || !pos) return null;
   return (
-    <div
-      role="img"
-      aria-label={tile.alt}
-      className="rounded-lg overflow-hidden shrink-0 border border-white/60"
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Preview demo: ${tile.alt}`}
+      className="rounded-lg overflow-hidden shrink-0 border border-white/60 cursor-pointer hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-400"
       style={{
         width: size,
         height: size,
         backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
         backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
-        backgroundPosition: `${bgX}% ${bgY}%`,
+        backgroundPosition: `${pos.bgX}% ${pos.bgY}%`,
         backgroundRepeat: 'no-repeat',
       }}
     />
+  );
+}
+
+function WorkoutPoseDialog({
+  activity,
+  onClose,
+  restoreFocusRef,
+}: {
+  activity: MovementActivity;
+  onClose: () => void;
+  restoreFocusRef: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const tile = POSE_TILES[activity.id];
+  const pos = tileBgPosition(activity.id);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeBtnRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose();
+    }
+  }, [onClose]);
+
+  const handleClose = useCallback(() => {
+    onClose();
+    restoreFocusRef.current?.focus();
+  }, [onClose, restoreFocusRef]);
+
+  if (!tile || !pos) return null;
+
+  const largeSize = 200;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      onClick={handleClose}
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Demo preview: ${activity.label}`}
+        className="bg-white rounded-2xl shadow-xl max-w-xs w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <p className="text-sm font-bold text-gray-700">{activity.label}</p>
+          <button
+            ref={closeBtnRef}
+            type="button"
+            onClick={handleClose}
+            aria-label="Close demo preview"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+            style={{ minHeight: 32, minWidth: 32 }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="flex flex-col items-center px-4 py-5">
+          <div
+            role="img"
+            aria-label={tile.alt}
+            className={`rounded-xl overflow-hidden border border-gray-100 ${tile.anim}`}
+            style={{
+              width: largeSize,
+              height: largeSize,
+              backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
+              backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
+              backgroundPosition: `${pos.bgX}% ${pos.bgY}%`,
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
+          <p className="text-xs text-gray-500 text-center mt-3 leading-relaxed">
+            {tile.cue}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -95,6 +195,7 @@ function ActivityCard({
   isCompleted,
   onAdd,
   onComplete,
+  onPreview,
 }: {
   activity: MovementActivity;
   level: EnergyLevel;
@@ -102,12 +203,13 @@ function ActivityCard({
   isCompleted: boolean;
   onAdd: () => void;
   onComplete: () => void;
+  onPreview: (activity: MovementActivity) => void;
 }) {
   const { color } = MOVEMENT_OPTIONS[level];
 
   return (
     <div className={`flex items-center gap-3 px-3 py-3 rounded-xl border ${color.bg} ${color.border}`}>
-      <WorkoutPoseThumb activityId={activity.id} />
+      <WorkoutPoseThumb activityId={activity.id} onOpen={() => onPreview(activity)} />
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-semibold ${color.text}`}>{activity.label}</p>
         <div className="flex items-center gap-1 mt-0.5">
@@ -150,11 +252,13 @@ function EnergySection({
   todayMovements,
   onAdd,
   onComplete,
+  onPreview,
 }: {
   level: EnergyLevel;
   todayMovements: TodayMovement[];
   onAdd: (activity: MovementActivity) => void;
   onComplete: (movement: TodayMovement) => void;
+  onPreview: (activity: MovementActivity) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const opts = MOVEMENT_OPTIONS[level];
@@ -204,6 +308,7 @@ function EnergySection({
                 isCompleted={addedMovement?.done ?? false}
                 onAdd={() => onAdd(activity)}
                 onComplete={() => addedMovement && onComplete(addedMovement)}
+                onPreview={onPreview}
               />
             );
           })}
@@ -336,10 +441,12 @@ function GuidedStart({
   selectedRange,
   onSelectRange,
   onAdd,
+  onPreview,
 }: {
   selectedRange: TimeRange | null;
   onSelectRange: (range: TimeRange | null) => void;
   onAdd: (activity: MovementActivity) => void;
+  onPreview: (activity: MovementActivity) => void;
 }) {
   const activities = selectedRange ? activitiesForTimeRange(selectedRange) : [];
 
@@ -394,7 +501,7 @@ function GuidedStart({
                   key={activity.id}
                   className={`flex items-center gap-3 px-3 py-3 rounded-xl border ${color.bg} ${color.border}`}
                 >
-                  <WorkoutPoseThumb activityId={activity.id} />
+                  <WorkoutPoseThumb activityId={activity.id} onOpen={() => onPreview(activity)} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-semibold ${color.text}`}>{activity.label}</p>
                     <div className="flex items-center gap-1 mt-0.5">
@@ -425,7 +532,21 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
   const { todayMovements, streakResult } = useMovement(events);
   const [adding, setAdding] = useState<string | null>(null);
   const [guidedRange, setGuidedRange] = useState<TimeRange | null>(null);
+  const [previewActivity, setPreviewActivity] = useState<MovementActivity | null>(null);
+  const lastFocusedThumbRef = useRef<HTMLButtonElement | null>(null);
   const activitiesRef = useRef<HTMLDivElement>(null);
+
+  const openPreview = useCallback((activity: MovementActivity) => {
+    const active = document.activeElement as HTMLButtonElement | null;
+    if (active?.tagName === 'BUTTON') {
+      lastFocusedThumbRef.current = active;
+    }
+    setPreviewActivity(activity);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setPreviewActivity(null);
+  }, []);
 
   async function handleAdd(activity: MovementActivity) {
     if (adding === activity.id) return;
@@ -492,6 +613,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
           selectedRange={guidedRange}
           onSelectRange={setGuidedRange}
           onAdd={handleAdd}
+          onPreview={openPreview}
         />
 
         {/* Energy level sections */}
@@ -503,6 +625,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
             todayMovements={todayMovements}
             onAdd={handleAdd}
             onComplete={handleComplete}
+            onPreview={openPreview}
           />
         ))}
         </div>
@@ -515,6 +638,15 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
           </p>
         </div>
       </div>
+
+      {/* Pose demo dialog */}
+      {previewActivity && (
+        <WorkoutPoseDialog
+          activity={previewActivity}
+          onClose={closePreview}
+          restoreFocusRef={lastFocusedThumbRef}
+        />
+      )}
     </div>
   );
 }
