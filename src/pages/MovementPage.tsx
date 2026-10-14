@@ -37,20 +37,640 @@ const WORKOUT_DEMO_SHEET = '/assets/exec/exec-3ad98760-df7f-4d2d-aba6-3fcf43915e
 const SHEET_COLS = 3;
 const SHEET_ROWS = 3;
 
-const POSE_TILES: Record<string, { row: number; col: number; alt: string; anim: string; cue: string }> = {
-  'low-walk':      { row: 0, col: 0, alt: 'Emma demonstrating a walk around the block',   anim: 'wpm-anim-sway',    cue: 'Steady steps — breathe in, step forward, swing your arms gently.' },
-  'low-stretch':   { row: 0, col: 1, alt: 'Emma demonstrating a stretching routine',       anim: 'wpm-anim-sway',    cue: 'Slow reach — extend up and outward, hold, then release.' },
-  'low-mobility':  { row: 0, col: 2, alt: 'Emma demonstrating a mobility routine',         anim: 'wpm-anim-swing',   cue: 'Gentle circles — roll your shoulders and hips through their range.' },
-  'mod-bodyweight':{ row: 1, col: 0, alt: 'Emma demonstrating a bodyweight workout',       anim: 'wpm-anim-bob',     cue: 'Down and up — lower with control, drive through your legs.' },
-  'mod-bands':     { row: 1, col: 1, alt: 'Emma demonstrating resistance band exercises',  anim: 'wpm-anim-pulse',   cue: 'Pull and resist — steady tension out, slow return back.' },
-  'mod-fastwalk':  { row: 1, col: 2, alt: 'Emma demonstrating a fast walk',                anim: 'wpm-anim-shuttle', cue: 'Quick pace — short strides, pump your arms, keep momentum.' },
-  'high-strength': { row: 2, col: 0, alt: 'Emma demonstrating a strength workout',         anim: 'wpm-anim-lunge',   cue: 'Controlled power — brace your core, move with intent.' },
-  'high-cardio':   { row: 2, col: 1, alt: 'Emma demonstrating a cardio workout',           anim: 'wpm-anim-jump',    cue: 'Keep moving — light on your feet, steady rhythm, breathe.' },
-  'high-full':     { row: 2, col: 2, alt: 'Emma demonstrating a full workout session',     anim: 'wpm-anim-bounce',  cue: 'Full effort — combine your moves with energy and good form.' },
+const THUMB_TILES: Record<string, { row: number; col: number; alt: string }> = {
+  'low-walk':      { row: 0, col: 0, alt: 'Emma demonstrating a walk around the block' },
+  'low-stretch':   { row: 0, col: 1, alt: 'Emma demonstrating a stretching routine' },
+  'low-mobility':  { row: 0, col: 2, alt: 'Emma demonstrating a mobility routine' },
+  'mod-bodyweight':{ row: 1, col: 0, alt: 'Emma demonstrating a bodyweight workout' },
+  'mod-bands':     { row: 1, col: 1, alt: 'Emma demonstrating resistance band exercises' },
+  'mod-fastwalk':  { row: 1, col: 2, alt: 'Emma demonstrating a fast walk' },
+  'high-strength': { row: 2, col: 0, alt: 'Emma demonstrating a strength workout' },
+  'high-cardio':   { row: 2, col: 1, alt: 'Emma demonstrating a cardio workout' },
+  'high-full':     { row: 2, col: 2, alt: 'Emma demonstrating a full workout session' },
 };
 
+// ── SVG stick-figure helpers ──────────────────────────────────────────────────
+
+const FIG_STROKE = '#6366f1';
+const FIG_STROKE_WIDTH = 2.5;
+const ARROW_COLOR = '#ec4899';
+const GROUND_COLOR = '#cbd5e1';
+
+function GroundLine({ y }: { y: number }) {
+  return <line x1="10" y1={y} x2="90" y2={y} stroke={GROUND_COLOR} strokeWidth="1.5" strokeDasharray="3 3" />;
+}
+
+function ArrowUp({ x, y }: { x: number; y: number }) {
+  return (
+    <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+      <line x1={x} y1={y} x2={x} y2={y - 14} />
+      <polyline points={`${x - 4},${y - 10} ${x},${y - 15} ${x + 4},${y - 10}`} />
+    </g>
+  );
+}
+
+function ArrowRight({ x, y }: { x: number; y: number }) {
+  return (
+    <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+      <line x1={x} y1={y} x2={x + 14} y2={y} />
+      <polyline points={`${x + 10},${y - 4} ${x + 15},${y} ${x + 10},${y + 4}`} />
+    </g>
+  );
+}
+
+function ArrowCurved({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  return (
+    <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+      <path d={`M ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy}`} />
+      <polyline points={`${cx - r - 4},${cy - 3} ${cx - r},${cy} ${cx - r - 3},${cy + 4}`} />
+    </g>
+  );
+}
+
+// Standard standing stick figure at center-x, feet at groundY
+function StickStanding({ cx, groundY, label, titleId, descId, desc }: {
+  cx: number; groundY: number; label: string; titleId: string; descId: string; desc: string;
+}) {
+  const headR = 6;
+  const headCy = groundY - 44;
+  const neckY = groundY - 38;
+  const hipY = groundY - 20;
+  return (
+    <g role="img" aria-labelledby={`${titleId} ${descId}`}>
+      <title id={titleId}>{label}</title>
+      <desc id={descId}>{desc}</desc>
+      <circle cx={cx} cy={headCy} r={headR} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" />
+      <line x1={cx} y1={neckY} x2={cx} y2={hipY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+      <line x1={cx - 10} y1={groundY - 30} x2={cx + 10} y2={groundY - 30} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+      <line x1={cx} y1={hipY} x2={cx - 8} y2={groundY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+      <line x1={cx} y1={hipY} x2={cx + 8} y2={groundY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+    </g>
+  );
+}
+
+// ── Per-activity SVG stage diagrams ────────────────────────────────────────────
+
+interface StageDiagram {
+  label: string;
+  alt: string;
+  desc: string;
+  svg: React.ReactNode;
+}
+
+interface WorkoutDemo {
+  thumbAlt: string;
+  stages: StageDiagram[];
+  cues: string[];
+  isSequence?: boolean;
+}
+
+const SAFETY_REMINDER = 'Use a comfortable range and stop if it hurts.';
+
+function buildDemos(): Record<string, WorkoutDemo> {
+  return {
+
+    'low-walk': {
+      thumbAlt: 'Emma demonstrating a walk around the block',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Standing tall, feet hip-width apart, ready to walk',
+          desc: 'Stand tall with feet hip-width apart, arms relaxed at your sides.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall with feet hip-width apart">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Setup" titleId="lw-s-t" descId="lw-s-d" desc="Standing tall, feet hip-width apart, arms at sides" />
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Stepping forward with heel landing first, opposite arm swinging',
+          desc: 'Step forward landing on your heel, roll through the foot, swing the opposite arm forward.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: stepping forward heel-first with arm swing">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={34} r={6} />
+                <line x1={50} y1={40} x2={50} y2={58} />
+                <line x1={50} y1={44} x2={62} y2={38} />
+                <line x1={50} y1={44} x2={38} y2={52} />
+                <line x1={50} y1={58} x2={60} y2={78} />
+                <line x1={50} y1={58} x2={38} y2={72} />
+              </g>
+              <ArrowRight x={64} y={38} />
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Bringing feet together, returning to standing posture',
+          desc: 'Bring the back foot forward to meet the lead foot, return to tall standing.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: feet coming together back to standing">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Return" titleId="lw-r-t" descId="lw-r-d" desc="Feet together, back to tall standing posture" />
+              <ArrowRight x={70} y={60} />
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Land heel-first, roll through to toe', 'Swing opposite arm to each step', 'Keep your gaze forward, chin level'],
+    },
+
+    'low-stretch': {
+      thumbAlt: 'Emma demonstrating a stretching routine',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Standing tall with feet shoulder-width apart, arms at sides',
+          desc: 'Stand with feet shoulder-width apart, arms hanging naturally at your sides.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing with feet shoulder-width apart">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Setup" titleId="ls-s-t" descId="ls-s-d" desc="Standing tall, feet shoulder-width, arms at sides" />
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Reaching one arm overhead and leaning to the opposite side',
+          desc: 'Raise one arm overhead and lean gently to the opposite side, feeling a stretch along your torso.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: one arm overhead, leaning to the side">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={52} cy={30} r={6} />
+                <line x1={52} y1={36} x2={50} y2={58} />
+                <line x1={50} y1={42} x2={38} y2={48} />
+                <line x1={50} y1={42} x2={58} y2={20} />
+                <line x1={50} y1={58} x2={42} y2={78} />
+                <line x1={50} y1={58} x2={56} y2={78} />
+              </g>
+              <ArrowUp x={58} y={18} />
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Lowering the arm back to standing position',
+          desc: 'Slowly straighten up and lower your arm back to the starting position.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: lowering arm back to standing">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Return" titleId="ls-r-t" descId="ls-r-d" desc="Back to standing tall, arm lowered" />
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={42} y1={50} x2={42} y2={62} />
+                <polyline points={`${38},${58} ${42},${63} ${46},${58}`} />
+              </g>
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Reach up and over, not back or forward', 'Keep both feet flat on the floor', 'Hold the stretch for 15-30 seconds'],
+    },
+
+    'low-mobility': {
+      thumbAlt: 'Emma demonstrating a mobility routine',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Standing relaxed with arms at sides, shoulders loose',
+          desc: 'Stand relaxed with arms at your sides, shoulders loose and breathing easily.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing relaxed, arms at sides">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Setup" titleId="lm-s-t" descId="lm-s-d" desc="Standing relaxed, arms at sides, shoulders loose" />
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Shoulders rolling backward in a circular motion',
+          desc: 'Roll both shoulders slowly backward in a circular motion, keeping arms relaxed.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: shoulders rolling backward in circles">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={34} r={6} />
+                <line x1={50} y1={40} x2={50} y2={58} />
+                <line x1={50} y1={44} x2={40} y2={50} />
+                <line x1={50} y1={44} x2={60} y2={50} />
+                <line x1={50} y1={58} x2={42} y2={78} />
+                <line x1={50} y1={58} x2={58} y2={78} />
+              </g>
+              <ArrowCurved cx={40} cy={46} r={6} />
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Shoulders settling back to neutral position',
+          desc: 'Let your shoulders settle back to neutral, take a breath, and repeat in the other direction.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: shoulders back to neutral">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Return" titleId="lm-r-t" descId="lm-r-d" desc="Shoulders settled, back to neutral standing" />
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Roll slowly — 5-10 repetitions each direction', 'Keep your arms loose, not tense', 'Move only within a pain-free range'],
+    },
+
+    'mod-bodyweight': {
+      thumbAlt: 'Emma demonstrating a bodyweight workout',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Sitting upright on a chair with feet flat on the floor',
+          desc: 'Sit upright on a sturdy chair with feet flat on the floor, hip-width apart.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: sitting upright on a chair">
+              <GroundLine y={80} />
+              <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={36} r={6} />
+                <line x1={50} y1={42} x2={50} y2={58} />
+                <line x1={50} y1={46} x2={40} y2={52} />
+                <line x1={50} y1={46} x2={60} y2={52} />
+                <line x1={50} y1={58} x2={40} y2={80} />
+                <line x1={50} y1={58} x2={60} y2={80} />
+              </g>
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Rising from the chair to standing, leaning slightly forward',
+          desc: 'Lean slightly forward, press through your heels, and stand up fully.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: rising from chair to standing">
+              <GroundLine y={80} />
+              <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={48} cy={28} r={6} />
+                <line x1={49} y1={34} x2={52} y2={58} />
+                <line x1={52} y1={42} x2={42} y2={36} />
+                <line x1={52} y1={42} x2={62} y2={36} />
+                <line x1={52} y1={58} x2={44} y2={80} />
+                <line x1={52} y1={58} x2={60} y2={80} />
+              </g>
+              <ArrowUp x={48} y={22} />
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Lowering back down to the chair with control',
+          desc: 'Lower yourself back down to the chair slowly and with control.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: lowering back to chair with control">
+              <GroundLine y={80} />
+              <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={32} r={6} />
+                <line x1={50} y1={38} x2={51} y2={58} />
+                <line x1={51} y1={44} x2={41} y2={48} />
+                <line x1={51} y1={44} x2={61} y2={48} />
+                <line x1={51} y1={58} x2={42} y2={80} />
+                <line x1={51} y1={58} x2={60} y2={80} />
+              </g>
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={50} y1={24} x2={50} y2={36} />
+                <polyline points={`${46},${32} ${50},${38} ${54},${32}`} />
+              </g>
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Press through heels, not toes', 'Keep your chest up and back straight', 'Aim for 8-12 slow repetitions'],
+    },
+
+    'mod-bands': {
+      thumbAlt: 'Emma demonstrating resistance band exercises',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Holding a resistance band in both hands at chest height, arms extended forward',
+          desc: 'Hold a resistance band with both hands at chest height, arms extended forward.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: holding band with both hands, arms forward">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={32} r={6} />
+                <line x1={50} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={44} x2={32} y2={44} />
+                <line x1={50} y1={44} x2={68} y2={44} />
+                <line x1={50} y1={58} x2={42} y2={78} />
+                <line x1={50} y1={58} x2={58} y2={78} />
+              </g>
+              <line x1={32} y1={44} x2={68} y2={44} stroke="#f59e0b" strokeWidth="2" strokeDasharray="2 2" />
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Pulling hands apart, stretching the band outward',
+          desc: 'Squeeze your shoulder blades and pull your hands apart, stretching the band outward.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: pulling hands apart, stretching band">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={32} r={6} />
+                <line x1={50} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={44} x2={24} y2={40} />
+                <line x1={50} y1={44} x2={76} y2={40} />
+                <line x1={50} y1={58} x2={42} y2={78} />
+                <line x1={50} y1={58} x2={58} y2={78} />
+              </g>
+              <line x1={24} y1={40} x2={76} y2={40} stroke="#f59e0b" strokeWidth="2.5" />
+              <ArrowRight x={18} y={40} />
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Bringing hands back together to starting position',
+          desc: 'Slowly return your hands to the starting position, maintaining tension on the band.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: hands coming back to center">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={32} r={6} />
+                <line x1={50} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={44} x2={36} y2={44} />
+                <line x1={50} y1={44} x2={64} y2={44} />
+                <line x1={50} y1={58} x2={42} y2={78} />
+                <line x1={50} y1={58} x2={58} y2={78} />
+              </g>
+              <line x1={36} y1={44} x2={64} y2={44} stroke="#f59e0b" strokeWidth="2" strokeDasharray="2 2" />
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={28} y1={44} x2={34} y2={44} />
+                <polyline points={`${30},${41} ${35},${44} ${30},${47}`} />
+              </g>
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Lead with your elbows, not your hands', 'Squeeze shoulder blades together at the end', 'Keep wrists straight and tall posture'],
+    },
+
+    'mod-fastwalk': {
+      thumbAlt: 'Emma demonstrating a fast walk',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Standing tall with a slight forward lean, ready to walk briskly',
+          desc: 'Stand tall with a slight forward lean from the ankles, ready to walk briskly.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall with slight forward lean">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={51} cy={32} r={6} />
+                <line x1={51} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={44} x2={42} y2={48} />
+                <line x1={50} y1={44} x2={58} y2={48} />
+                <line x1={50} y1={58} x2={44} y2={78} />
+                <line x1={50} y1={58} x2={56} y2={78} />
+              </g>
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Walking briskly with bent elbows and active arm swing',
+          desc: 'Walk with quick short steps, bend your elbows to 90 degrees, and pump your arms actively.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: brisk walking with bent elbows and arm swing">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={32} r={6} />
+                <line x1={50} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={42} x2={60} y2={38} />
+                <line x1={60} y1={38} x2={64} y2={46} />
+                <line x1={50} y1={42} x2={40} y2={48} />
+                <line x1={40} y1={48} x2={36} y2={40} />
+                <line x1={50} y1={58} x2={58} y2={78} />
+                <line x1={50} y1={58} x2={40} y2={72} />
+              </g>
+              <ArrowRight x={64} y={42} />
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Slowing down to a normal walking pace',
+          desc: 'Gradually slow your pace back to a comfortable walk, then stop and breathe.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: slowing to normal walking pace">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Return" titleId="fw-r-t" descId="fw-r-d" desc="Slowing down to normal walking pace" />
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={62} y1={60} x2={54} y2={60} />
+                <polyline points={`${56},${57} ${52},${60} ${56},${63}`} />
+              </g>
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Bend elbows to roughly 90 degrees', 'Take short quick steps, not long strides', 'Land mid-foot and push off the toes'],
+    },
+
+    'high-strength': {
+      thumbAlt: 'Emma demonstrating a strength workout',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Standing tall with feet hip-width, hands behind head, ready to hinge',
+          desc: 'Stand tall with feet hip-width apart, hands lightly behind your head, core braced.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall, hands behind head, ready to hinge">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={32} r={6} />
+                <line x1={50} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={40} x2={44} y2={34} />
+                <line x1={50} y1={40} x2={56} y2={34} />
+                <line x1={50} y1={58} x2={44} y2={78} />
+                <line x1={50} y1={58} x2={56} y2={78} />
+              </g>
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Hinging forward at the hips with a flat back, upper body leaning forward',
+          desc: 'Push your hips back and hinge forward at the waist with a flat back until your torso is nearly parallel to the floor.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: hinging forward at hips with flat back">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={28} cy={44} r={6} />
+                <line x1={34} y1={44} x2={58} y2={58} />
+                <line x1={40} y1={46} x2={34} y2={40} />
+                <line x1={40} y1={46} x2={34} y2={52} />
+                <line x1={58} y1={58} x2={50} y2={78} />
+                <line x1={58} y1={58} x2={66} y2={78} />
+              </g>
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={28} y1={36} x2={28} y2={24} />
+                <polyline points={`${24},${28} ${28},${22} ${32},${28}`} />
+              </g>
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Standing back up by driving hips forward to upright position',
+          desc: 'Drive your hips forward and stand back up to the starting position, squeezing your glutes at the top.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: standing back up to upright">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={51} cy={32} r={6} />
+                <line x1={51} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={40} x2={44} y2={34} />
+                <line x1={50} y1={40} x2={56} y2={34} />
+                <line x1={50} y1={58} x2={44} y2={78} />
+                <line x1={50} y1={58} x2={56} y2={78} />
+              </g>
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={62} y1={58} x2={54} y2={50} />
+                <polyline points={`${54},${53} ${52},${48} ${57},${49}`} />
+              </g>
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Hinge from the hips, do not round your back', 'Keep a slight bend in your knees throughout', 'Brace your core before each repetition'],
+    },
+
+    'high-cardio': {
+      thumbAlt: 'Emma demonstrating a cardio workout',
+      stages: [
+        {
+          label: 'Setup',
+          alt: 'Standing tall with feet together, arms at sides, ready to move',
+          desc: 'Stand tall with feet together, arms at your sides, ready to move.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall, feet together, ready to move">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Setup" titleId="hc-s-t" descId="hc-s-d" desc="Standing tall, feet together, arms at sides" />
+            </svg>
+          ),
+        },
+        {
+          label: 'Move',
+          alt: 'Stepping one foot out to the side while raising both arms overhead',
+          desc: 'Step one foot out to the side while raising both arms overhead — a low-impact version of a jumping jack.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: stepping one foot sideways, arms rising overhead">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={30} r={6} />
+                <line x1={50} y1={36} x2={50} y2={58} />
+                <line x1={50} y1={40} x2={38} y2={28} />
+                <line x1={50} y1={40} x2={62} y2={28} />
+                <line x1={50} y1={58} x2={36} y2={78} />
+                <line x1={50} y1={58} x2={64} y2={78} />
+              </g>
+              <ArrowUp x={38} y={24} />
+              <ArrowUp x={62} y={24} />
+            </svg>
+          ),
+        },
+        {
+          label: 'Return',
+          alt: 'Stepping foot back in and lowering arms to starting position',
+          desc: 'Step the foot back in and lower your arms, then alternate sides with a steady rhythm.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: stepping back in, lowering arms">
+              <GroundLine y={78} />
+              <StickStanding cx={50} groundY={78} label="Return" titleId="hc-r-t" descId="hc-r-d" desc="Feet back together, arms lowered" />
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={40} y1={50} x2={46} y2={50} />
+                <polyline points={`${42},${47} ${48},${50} ${42},${53}`} />
+              </g>
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Keep it low-impact — step, do not jump', 'Raise arms fully overhead each time', 'Maintain a steady, rhythmic pace'],
+    },
+
+    'high-full': {
+      thumbAlt: 'Emma demonstrating a full workout session',
+      isSequence: true,
+      stages: [
+        {
+          label: '1. March',
+          alt: 'Marching in place, lifting one knee to hip height',
+          desc: 'March in place: lift one knee to hip height, lower it, then alternate legs.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="March: lifting one knee to hip height in place">
+              <GroundLine y={78} />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={50} cy={32} r={6} />
+                <line x1={50} y1={38} x2={50} y2={58} />
+                <line x1={50} y1={44} x2={42} y2={50} />
+                <line x1={50} y1={44} x2={58} y2={50} />
+                <line x1={50} y1={58} x2={42} y2={78} />
+                <line x1={50} y1={58} x2={58} y2={58} />
+              </g>
+              <ArrowUp x={58} y={54} />
+            </svg>
+          ),
+        },
+        {
+          label: '2. Chair Squat',
+          alt: 'Standing up from a chair, pressing through heels',
+          desc: 'Sit-to-stand from a chair: press through your heels and stand up fully, then lower with control.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Chair squat: rising from a chair to standing">
+              <GroundLine y={80} />
+              <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={48} cy={28} r={6} />
+                <line x1={49} y1={34} x2={52} y2={58} />
+                <line x1={52} y1={42} x2={42} y2={36} />
+                <line x1={52} y1={42} x2={62} y2={36} />
+                <line x1={52} y1={58} x2={44} y2={80} />
+                <line x1={52} y1={58} x2={60} y2={80} />
+              </g>
+              <ArrowUp x={48} y={22} />
+            </svg>
+          ),
+        },
+        {
+          label: '3. Wall Push-up',
+          alt: 'Pushing against a wall with arms extended, body at a slight angle',
+          desc: 'Wall push-up: place hands on a wall, lean in, then push back out keeping your body straight.',
+          svg: (
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Wall push-up: pushing against a wall with arms">
+              <line x1="20" y1="10" x2="20" y2="80" stroke={GROUND_COLOR} strokeWidth="3" />
+              <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
+                <circle cx={48} cy={30} r={6} />
+                <line x1={48} y1={36} x2={52} y2={64} />
+                <line x1={50} y1={42} x2={22} y2={50} />
+                <line x1={50} y1={42} x2={22} y2={40} />
+                <line x1={52} y1={64} x2={64} y2={78} />
+                <line x1={52} y1={64} x2={44} y2={78} />
+              </g>
+              <ArrowRight x={56} y={42} />
+            </svg>
+          ),
+        },
+      ],
+      cues: ['Do 30 seconds of each move, then rest', 'Keep good form over speed', 'Repeat the 3-move sequence 2-3 times'],
+    },
+  };
+}
+
+const WORKOUT_DEMOS = buildDemos();
+
 function tileBgPosition(activityId: string): { bgX: number; bgY: number } | null {
-  const tile = POSE_TILES[activityId];
+  const tile = THUMB_TILES[activityId];
   if (!tile) return null;
   return {
     bgX: (tile.col / (SHEET_COLS - 1)) * 100,
@@ -67,7 +687,7 @@ function WorkoutPoseThumb({
   size?: number;
   onOpen: () => void;
 }) {
-  const tile = POSE_TILES[activityId];
+  const tile = THUMB_TILES[activityId];
   const pos = tileBgPosition(activityId);
   if (!tile || !pos) return null;
   return (
@@ -88,6 +708,21 @@ function WorkoutPoseThumb({
   );
 }
 
+function StageCard({ index, stage }: { index: number; stage: StageDiagram }) {
+  return (
+    <div className="wpm-stage-card flex-1">
+      <div className="flex items-center gap-2">
+        <span className="wpm-stage-num">{index + 1}</span>
+        <span className="wpm-stage-label">{stage.label}</span>
+      </div>
+      <div className="w-16 h-14">
+        {stage.svg}
+      </div>
+      <p className="text-[10px] text-gray-500 text-center leading-snug px-1">{stage.desc}</p>
+    </div>
+  );
+}
+
 function WorkoutPoseDialog({
   activity,
   onClose,
@@ -97,8 +732,7 @@ function WorkoutPoseDialog({
   onClose: () => void;
   restoreFocusRef: React.RefObject<HTMLButtonElement | null>;
 }) {
-  const tile = POSE_TILES[activity.id];
-  const pos = tileBgPosition(activity.id);
+  const demo = WORKOUT_DEMOS[activity.id];
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -117,9 +751,7 @@ function WorkoutPoseDialog({
     restoreFocusRef.current?.focus();
   }, [onClose, restoreFocusRef]);
 
-  if (!tile || !pos) return null;
-
-  const largeSize = 200;
+  if (!demo) return null;
 
   return (
     <div
@@ -131,11 +763,11 @@ function WorkoutPoseDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Demo preview: ${activity.label}`}
-        className="bg-white rounded-2xl shadow-xl max-w-xs w-full overflow-hidden"
+        aria-label={`How-to preview: ${activity.label}`}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
           <p className="text-sm font-bold text-gray-700">{activity.label}</p>
           <button
             ref={closeBtnRef}
@@ -148,22 +780,51 @@ function WorkoutPoseDialog({
             <X size={18} />
           </button>
         </div>
-        <div className="flex flex-col items-center px-4 py-5">
-          <div
-            role="img"
-            aria-label={tile.alt}
-            className={`rounded-xl overflow-hidden border border-gray-100 ${tile.anim}`}
-            style={{
-              width: largeSize,
-              height: largeSize,
-              backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
-              backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
-              backgroundPosition: `${pos.bgX}% ${pos.bgY}%`,
-              backgroundRepeat: 'no-repeat',
-            }}
-          />
-          <p className="text-xs text-gray-500 text-center mt-3 leading-relaxed">
-            {tile.cue}
+
+        <div className="px-4 py-4 space-y-3">
+          {/* Static reference thumbnail */}
+          <div className="flex items-center justify-center gap-3 pb-2 border-b border-gray-50">
+            <div
+              role="img"
+              aria-label={demo.thumbAlt}
+              className="rounded-lg overflow-hidden border border-gray-100 shrink-0"
+              style={{
+                width: 36,
+                height: 36,
+                backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
+                backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
+                backgroundPosition: tileBgPosition(activity.id)
+                  ? `${tileBgPosition(activity.id)!.bgX}% ${tileBgPosition(activity.id)!.bgY}%`
+                  : '0% 0%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            />
+            <p className="text-[11px] text-gray-400">
+              {demo.isSequence ? '3-move sequence' : 'Beginner how-to'}
+            </p>
+          </div>
+
+          {/* Stage cards */}
+          <div className="flex gap-2">
+            {demo.stages.map((stage, i) => (
+              <StageCard key={i} index={i} stage={stage} />
+            ))}
+          </div>
+
+          {/* Form cues */}
+          <div className="space-y-1.5 pt-1">
+            <p className="text-[11px] font-semibold text-gray-600">Form cues</p>
+            {demo.cues.map((cue, i) => (
+              <div key={i} className="wpm-cue-item">
+                <span className="wpm-cue-bullet" />
+                <span>{cue}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Safety reminder */}
+          <p className="text-[10px] text-gray-400 italic text-center pt-1">
+            {SAFETY_REMINDER}
           </p>
         </div>
       </div>
