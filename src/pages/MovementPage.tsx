@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy, Calendar } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
 import {
@@ -291,6 +291,7 @@ function WeeklyOverview({
 export default function MovementPage({ events, onAddEvent, onUpdateEvent }: MovementPageProps) {
   const { todayMovements, streakResult } = useMovement(events);
   const [adding, setAdding] = useState<string | null>(null);
+  const activitiesRef = useRef<HTMLDivElement>(null);
 
   async function handleAdd(activity: MovementActivity) {
     if (adding === activity.id) return;
@@ -348,12 +349,12 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
           events={events}
           today={getToday()}
           onAddFirst={() => {
-            const firstActivity = MOVEMENT_OPTIONS.low.activities[0];
-            if (firstActivity) handleAdd(firstActivity);
+            activitiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
         />
 
         {/* Energy level sections */}
+        <div ref={activitiesRef} className="space-y-4">
         {levels.map((level) => (
           <EnergySection
             key={level}
@@ -363,6 +364,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
             onComplete={handleComplete}
           />
         ))}
+        </div>
 
         {/* Tip */}
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
