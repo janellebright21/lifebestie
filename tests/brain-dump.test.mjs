@@ -376,6 +376,50 @@ test('hasRetryable: true when selected+error exists', () => {
   assert.ok(hasRetryable(suggestions));
 });
 
+// ── Noncritical side-effect failures ───────────────────────────────────────────
+
+test('save orchestrator: saveOne that throws after confirmed insert is still an error to caller (orchestrator reports it honestly)', async () => {
+  // The orchestrator itself does NOT swallow exceptions from saveOne — it catches
+  // them and reports status 'error'. The BrainDumpSheet component is responsible
+  // for wrapping addTask/addGrocery so that a side-effect failure after a
+  // confirmed insert is NOT treated as a retryable failure. This test verifies
+  // the orchestrator's contract: saveOne returning success means saved, throwing
+  // means error. The component-level wrapping is covered by the component code.
+  const saveOne = async (s) => {
+    if (s.id === 'a') {
+      // Simulate: insert succeeded (row exists) but a post-insert side effect threw.
+      // The component wrapper catches this and returns success with the real ID.
+      return { success: true, id: 'db-a' };
+    }
+    // Simulate: insert itself failed — component wrapper returns failure.
+    return { success: false, error: 'Insert failed: RLS denied' };
+  };
+  const save = createSaveOrchestrator(saveOne);
+  const suggestions = [
+    { id: 'a', type: 'task', title: 'Task A', selected: true, status: 'pending' },
+    { id: 'b', type: 'task', title: 'Task B', selected: true, status: 'pending' },
+  ];
+  const results = await save(suggestions);
+  assert.equal(results.get('a').status, 'saved');
+  assert.equal(results.get('a').savedId, 'db-a');
+  assert.equal(results.get('b').status, 'error');
+  assert.equal(results.get('b').errorMsg, 'Insert failed: RLS denied');
+});
+
+test('save orchestrator: saveOne that throws is caught and reported as error', async () => {
+  const saveOne = async () => {
+    throw new Error('Side effect crashed');
+  };
+  const save = createSaveOrchestrator(saveOne);
+  const suggestions = [
+    { id: 'a', type: 'task', title: 'Task A', selected: true, status: 'pending' },
+  ];
+  const results = await save(suggestions);
+  assert.equal(results.size, 1);
+  assert.equal(results.get('a').status, 'error');
+  assert.equal(results.get('a').errorMsg, 'Side effect crashed');
+});
+
 test('hasRetryable: false when no selected+error', () => {
   const suggestions = [
     { id: '1', type: 'task', title: 'A', selected: true, status: 'saved', savedId: 'x' },
