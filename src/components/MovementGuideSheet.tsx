@@ -95,6 +95,114 @@ const guides: Record<string, ActivityGuide> = {
 
 const phaseLabels = ['Set up', 'Move', 'Finish'] as const;
 
+function poseKind(name: string) {
+  const label = name.toLowerCase();
+  if (label.includes('squat')) return 'squat';
+  if (label.includes('push-up')) return 'pushup';
+  if (label.includes('bridge')) return 'bridge';
+  if (label.includes('row') || label.includes('press') || label.includes('boxing')) return 'upper';
+  if (label.includes('walk') || label.includes('march') || label.includes('step jack') || label.includes('side steps')) return 'walk';
+  if (label.includes('stretch') || label.includes('opener')) return 'stretch';
+  if (label.includes('hinge') || label.includes('ankle')) return 'hinge';
+  return 'mobility';
+}
+
+function PoseFigure({ kind, phase }: { kind: string; phase: number }) {
+  const stroke = '#475569';
+  const lineProps = { fill: 'none', stroke, strokeWidth: 4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+
+  return (
+    <svg viewBox="0 0 100 68" role="img" aria-label={`${phaseLabels[phase]} position illustration`} className="h-14 w-full">
+      <path d="M6 61H94" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
+      {kind === 'squat' && (
+        <g {...lineProps}>
+          <circle cx={phase === 1 ? 48 : 45} cy={phase === 1 ? 18 : 11} r="5" fill="#fff" />
+          <path d={phase === 1 ? 'M48 24L52 37L65 42' : 'M45 17L47 36L49 45'} />
+          <path d={phase === 1 ? 'M49 27L38 36L32 38M50 28L62 34L70 34' : 'M46 23L38 34L35 40M47 23L58 33L62 39'} />
+          <path d={phase === 1 ? 'M65 42L56 52L52 60M65 42L72 51L77 60' : 'M49 45L41 53L40 60M49 45L57 53L58 60'} />
+          {phase === 1 && <path d="M86 38V60" stroke="#fda4af" strokeWidth="3" />}
+        </g>
+      )}
+      {kind === 'pushup' && (
+        <g {...lineProps}>
+          <circle cx="18" cy={phase === 1 ? 31 : 21} r="5" fill="#fff" />
+          <path d={phase === 1 ? 'M24 34L43 39L63 43L80 44' : 'M24 24L43 31L63 38L80 42'} />
+          <path d={phase === 1 ? 'M38 38L34 49L47 52L52 42M37 49L30 53' : 'M38 30L31 43L44 46L49 36M31 43L25 50'} />
+          <path d="M63 43L70 52L81 54M80 44L87 54L94 55" />
+          <path d="M95 48V61" stroke="#fda4af" strokeWidth="3" />
+        </g>
+      )}
+      {kind === 'bridge' && (
+        <g {...lineProps}>
+          <circle cx="14" cy="49" r="5" fill="#fff" />
+          <path d={phase === 1 ? 'M20 49L31 45L49 35L64 34' : 'M20 49L31 48L49 47L64 40'} />
+          <path d="M64 40L72 33L80 34L88 49M80 34L89 35L94 49" />
+          <path d="M30 50L27 59M42 50L40 59" />
+          {phase === 1 && <path d="M49 44V34" stroke="#fda4af" strokeWidth="3" />}
+        </g>
+      )}
+      {kind === 'upper' && (
+        <g {...lineProps}>
+          <circle cx="47" cy="11" r="5" fill="#fff" />
+          <path d="M47 17V39" />
+          <path d={phase === 1 ? 'M47 23L34 29L32 38M47 23L60 28L66 35' : 'M47 23L36 31L35 40M47 23L57 31L58 40'} />
+          <path d="M47 39L38 49L36 60M47 39L56 49L58 60" />
+          <path d="M14 28H31M69 28H86" stroke="#fda4af" strokeWidth="2" strokeDasharray="3 3" />
+        </g>
+      )}
+      {(kind === 'walk' || kind === 'hinge' || kind === 'stretch' || kind === 'mobility') && (
+        <g {...lineProps}>
+          <circle cx={phase === 1 && kind === 'hinge' ? 46 : 49} cy={phase === 1 && kind === 'hinge' ? 16 : 11} r="5" fill="#fff" />
+          {kind === 'hinge' ? (
+            <>
+              <path d={phase === 1 ? 'M45 22L58 35L69 39' : 'M49 17L50 37L51 45'} />
+              <path d="M52 25L40 37L34 42M53 25L65 36L73 39" />
+              <path d="M51 45L43 52L42 60M51 45L59 52L60 60" />
+            </>
+          ) : kind === 'stretch' ? (
+            <>
+              <path d="M49 17L48 38L49 47M48 24L38 32L30 31M48 24L59 31L66 31" />
+              <path d={phase === 1 ? 'M49 47L37 53L28 55M49 47L62 50L70 56' : 'M49 47L40 52L36 60M49 47L58 52L62 60'} />
+              <path d="M20 61H78" stroke="#fda4af" strokeWidth="2" />
+            </>
+          ) : kind === 'mobility' ? (
+            <>
+              <path d={phase === 1 ? 'M49 20L49 35L49 43' : 'M49 17L49 36L49 44'} />
+              <path d="M49 27L37 33L31 41M49 27L61 33L67 41" />
+              <path d="M49 43L42 51L39 60M49 43L56 51L59 60" />
+              {phase === 1 && <path d="M35 30Q49 19 63 30" stroke="#fda4af" strokeWidth="3" />}
+            </>
+          ) : (
+            <>
+              <path d="M49 17L49 38L49 45" />
+              <path d={phase === 1 ? 'M49 23L38 29L35 38M49 23L60 29L63 38' : 'M49 23L39 32L34 40M49 23L60 31L66 36'} />
+              <path d={phase === 1 ? 'M49 45L40 53L37 60M49 45L58 50L62 60' : 'M49 45L40 52L42 60M49 45L60 52L57 60'} />
+              {kind === 'walk' && <path d="M42 29L56 29" stroke="#fda4af" strokeWidth="2" strokeDasharray="3 3" />}
+            </>
+          )}
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function FormSequence({ move, activePhase }: { move: GuideMove; activePhase: number }) {
+  const kind = poseKind(move.name);
+  return (
+    <div className="mt-4" aria-label="Three-position movement illustration">
+      <div className="grid grid-cols-3 gap-2">
+        {phaseLabels.map((label, index) => (
+          <div key={label} className={`rounded-xl border px-2 pt-1.5 pb-2 transition-colors ${activePhase === index ? 'border-rose-200 bg-white shadow-sm' : 'border-slate-100 bg-white/60'}`}>
+            <PoseFigure kind={kind} phase={index} />
+            <p className={`mt-1 text-center text-[10px] font-bold ${activePhase === index ? 'text-rose-600' : 'text-slate-400'}`}>{label}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-1.5 text-center text-[10px] text-slate-400">Simple form sketch · follow the written cues below</p>
+    </div>
+  );
+}
+
 export default function MovementGuideSheet({
   activity,
   onClose,
@@ -191,6 +299,8 @@ export default function MovementGuideSheet({
               </div>
               <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500">Step {phaseIndex + 1} of 3</span>
             </div>
+
+            <FormSequence move={move} activePhase={phaseIndex} />
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               {phaseLabels.map((label, index) => (
