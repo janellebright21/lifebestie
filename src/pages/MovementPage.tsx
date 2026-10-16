@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy } from 'lucide-react';
+import { Activity, CheckCircle2, Circle, HelpCircle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
+import MovementGuideSheet from '../components/MovementGuideSheet';
 import {
   EnergyLevel,
   MovementActivity,
@@ -49,6 +50,7 @@ function ActivityCard({
   level,
   isAdded,
   isCompleted,
+  onGuide,
   onAdd,
   onComplete,
 }: {
@@ -56,13 +58,14 @@ function ActivityCard({
   level: EnergyLevel;
   isAdded: boolean;
   isCompleted: boolean;
+  onGuide: () => void;
   onAdd: () => void;
   onComplete: () => void;
 }) {
   const { color } = MOVEMENT_OPTIONS[level];
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-3 rounded-xl border ${color.bg} ${color.border}`}>
+    <div className={`flex flex-wrap items-center gap-2.5 px-3 py-3 rounded-xl border ${color.bg} ${color.border}`}>
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-semibold ${color.text}`}>{activity.label}</p>
         <div className="flex items-center gap-1 mt-0.5">
@@ -71,29 +74,38 @@ function ActivityCard({
         </div>
       </div>
 
-      {isAdded ? (
+      <div className="flex w-full items-center gap-2 sm:w-auto">
         <button
-          onClick={onComplete}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
-            isCompleted
-              ? 'bg-emerald-100 text-emerald-600 border border-emerald-200'
-              : `${color.bg} ${color.text} border ${color.border} hover:opacity-80`
-          }`}
+          onClick={onGuide}
+          aria-label={`How to do ${activity.label}`}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/80 bg-white/75 px-2.5 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-white sm:flex-none"
         >
-          {isCompleted
-            ? <><CheckCircle2 size={13} /> Done</>
-            : <><Circle size={13} /> Mark done</>
-          }
+          <HelpCircle size={13} /> How to
         </button>
-      ) : (
-        <button
-          onClick={onAdd}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all active:scale-95 ${color.bg} ${color.text} ${color.border} hover:opacity-80`}
-        >
-          <Plus size={13} />
-          Add
-        </button>
-      )}
+        {isAdded ? (
+          <button
+            onClick={onComplete}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all active:scale-95 sm:flex-none ${
+              isCompleted
+                ? 'bg-emerald-100 text-emerald-600 border-emerald-200'
+                : `${color.bg} ${color.text} ${color.border} hover:opacity-80`
+            }`}
+          >
+            {isCompleted
+              ? <><CheckCircle2 size={13} /> Done</>
+              : <><Circle size={13} /> Mark done</>
+            }
+          </button>
+        ) : (
+          <button
+            onClick={onAdd}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all active:scale-95 sm:flex-none ${color.bg} ${color.text} ${color.border} hover:opacity-80`}
+          >
+            <Plus size={13} />
+            Add
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -103,11 +115,13 @@ function ActivityCard({
 function EnergySection({
   level,
   todayMovements,
+  onGuide,
   onAdd,
   onComplete,
 }: {
   level: EnergyLevel;
   todayMovements: TodayMovement[];
+  onGuide: (activity: MovementActivity) => void;
   onAdd: (activity: MovementActivity) => void;
   onComplete: (movement: TodayMovement) => void;
 }) {
@@ -157,6 +171,7 @@ function EnergySection({
                 level={level}
                 isAdded={!!addedMovement}
                 isCompleted={addedMovement?.done ?? false}
+                onGuide={() => onGuide(activity)}
                 onAdd={() => onAdd(activity)}
                 onComplete={() => addedMovement && onComplete(addedMovement)}
               />
@@ -215,6 +230,7 @@ function TodaySummary({ todayMovements }: { todayMovements: TodayMovement[] }) {
 export default function MovementPage({ events, onAddEvent, onUpdateEvent }: MovementPageProps) {
   const { todayMovements, streakResult } = useMovement(events);
   const [adding, setAdding] = useState<string | null>(null);
+  const [guidedActivity, setGuidedActivity] = useState<MovementActivity | null>(null);
 
   async function handleAdd(activity: MovementActivity) {
     if (adding === activity.id) return;
@@ -273,6 +289,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
             key={level}
             level={level}
             todayMovements={todayMovements}
+            onGuide={setGuidedActivity}
             onAdd={handleAdd}
             onComplete={handleComplete}
           />
@@ -286,6 +303,9 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
           </p>
         </div>
       </div>
+      {guidedActivity && (
+        <MovementGuideSheet activity={guidedActivity} onClose={() => setGuidedActivity(null)} />
+      )}
     </div>
   );
 }
