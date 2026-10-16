@@ -93,7 +93,28 @@ const guides: Record<string, ActivityGuide> = {
   },
 };
 
-const phaseLabels = ['Set up', 'Move', 'Finish'] as const;
+function phaseLabelsFor(moveName: string): [string, string, string] {
+  const name = moveName.toLowerCase();
+  if (name.includes('split squat')) return ['Split stance', 'Bend knees gently', 'Press back up'];
+  if (name.includes('squat')) return ['Feet set', 'Sit back', 'Stand tall'];
+  if (name.includes('incline push-up')) return ['Incline stance', 'Bend elbows', 'Press back'];
+  if (name.includes('push-up')) return ['Wall stance', 'Bend elbows', 'Press back'];
+  if (name.includes('bridge')) return ['Feet set', 'Lift hips', 'Lower slowly'];
+  if (name.includes('row')) return ['Arms long', 'Pull elbows back', 'Reach forward'];
+  if (name.includes('side steps')) return ['Soft knees', 'Step sideways', 'Bring feet in'];
+  if (name.includes('press')) return ['Hands at chest', 'Press forward', 'Return slowly'];
+  if (name.includes('march')) return ['Stand tall', 'Lift one knee', 'Switch sides'];
+  if (name.includes('step jack')) return ['Feet together', 'Step out', 'Return and switch'];
+  if (name.includes('boxing')) return ['Guard stance', 'Reach gently', 'Bring hand back'];
+  if (name.includes('walk')) return ['Tall posture', 'Easy steps', 'Slow down'];
+  if (name.includes('hamstring')) return ['Leg extended', 'Hinge forward', 'Sit tall'];
+  if (name.includes('chest opener')) return ['Shoulders relaxed', 'Draw shoulder blades', 'Release gently'];
+  if (name.includes('hinge')) return ['Feet hip-width', 'Send hips back', 'Stand tall'];
+  if (name.includes('ankle')) return ['Foot forward', 'Knee glides', 'Return and switch'];
+  if (name.includes('shoulder circles')) return ['Arms relaxed', 'Roll shoulders back', 'Reverse direction'];
+  if (name.includes('stretch')) return ['Get comfortable', 'Ease into stretch', 'Release gently'];
+  return ['Get ready', 'Move with control', 'Return steadily'];
+}
 
 function poseKind(name: string) {
   const label = name.toLowerCase();
@@ -107,12 +128,12 @@ function poseKind(name: string) {
   return 'mobility';
 }
 
-function PoseFigure({ kind, phase }: { kind: string; phase: number }) {
+function PoseFigure({ kind, phase, label }: { kind: string; phase: number; label: string }) {
   const stroke = '#475569';
   const lineProps = { fill: 'none', stroke, strokeWidth: 4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 
   return (
-    <svg viewBox="0 0 100 68" role="img" aria-label={`${phaseLabels[phase]} position illustration`} className="h-14 w-full">
+    <svg viewBox="0 0 100 68" role="img" aria-label={`${label} position illustration`} className="h-14 w-full">
       <path d="M6 61H94" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
       {kind === 'squat' && (
         <g {...lineProps}>
@@ -188,12 +209,13 @@ function PoseFigure({ kind, phase }: { kind: string; phase: number }) {
 
 function FormSequence({ move, activePhase }: { move: GuideMove; activePhase: number }) {
   const kind = poseKind(move.name);
+  const phaseLabels = phaseLabelsFor(move.name);
   return (
     <div className="mt-4" aria-label="Three-position movement illustration">
       <div className="grid grid-cols-3 gap-2">
         {phaseLabels.map((label, index) => (
           <div key={label} className={`rounded-xl border px-2 pt-1.5 pb-2 transition-colors ${activePhase === index ? 'border-rose-200 bg-white shadow-sm' : 'border-slate-100 bg-white/60'}`}>
-            <PoseFigure kind={kind} phase={index} />
+            <PoseFigure kind={kind} phase={index} label={phaseLabels[index]} />
             <p className={`mt-1 text-center text-[10px] font-bold ${activePhase === index ? 'text-rose-600' : 'text-slate-400'}`}>{label}</p>
           </div>
         ))}
@@ -248,6 +270,7 @@ export default function MovementGuideSheet({
   }
 
   const isLast = moveIndex === guide.moves.length - 1 && phaseIndex === 2;
+  const phaseLabels = phaseLabelsFor(move.name);
 
   return (
     <div
@@ -297,7 +320,7 @@ export default function MovementGuideSheet({
                 <h3 className="mt-1 text-base font-bold text-slate-800">{move.name}</h3>
                 <p className="mt-1 text-xs font-semibold text-rose-600">{move.dose}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500">Step {phaseIndex + 1} of 3</span>
+              <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500">{phaseLabels[phaseIndex]}</span>
             </div>
 
             <FormSequence move={move} activePhase={phaseIndex} />
