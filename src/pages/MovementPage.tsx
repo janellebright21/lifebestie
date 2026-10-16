@@ -133,22 +133,22 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating a walk around the block',
       stages: [
         {
-          label: 'Setup',
+          label: 'Stand tall',
           alt: 'Standing tall, feet hip-width apart, ready to walk',
           desc: 'Stand tall with feet hip-width apart, arms relaxed at your sides.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall with feet hip-width apart">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand tall: feet hip-width apart, ready to walk">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Setup" titleId="lw-s-t" descId="lw-s-d" desc="Standing tall, feet hip-width apart, arms at sides" />
+              <StickStanding cx={50} groundY={78} label="Stand tall" titleId="lw-s-t" descId="lw-s-d" desc="Standing tall, feet hip-width apart, arms at sides" />
             </svg>
           ),
         },
         {
-          label: 'Move',
+          label: 'Step heel-first',
           alt: 'Stepping forward with heel landing first, opposite arm swinging',
           desc: 'Step forward landing on your heel, roll through the foot, swing the opposite arm forward.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: stepping forward heel-first with arm swing">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Step heel-first with opposite arm swing">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={34} r={6} />
@@ -163,13 +163,13 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Step through',
           alt: 'Bringing feet together, returning to standing posture',
           desc: 'Bring the back foot forward to meet the lead foot, return to tall standing.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: feet coming together back to standing">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Step through and return to tall standing">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Return" titleId="lw-r-t" descId="lw-r-d" desc="Feet together, back to tall standing posture" />
+              <StickStanding cx={50} groundY={78} label="Step through" titleId="lw-r-t" descId="lw-r-d" desc="Feet together, back to tall standing posture" />
               <ArrowRight x={70} y={60} />
             </svg>
           ),
@@ -182,22 +182,22 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating a stretching routine',
       stages: [
         {
-          label: 'Setup',
+          label: 'Stand tall',
           alt: 'Standing tall with feet shoulder-width apart, arms at sides',
           desc: 'Stand with feet shoulder-width apart, arms hanging naturally at your sides.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing with feet shoulder-width apart">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand tall with feet shoulder-width apart">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Setup" titleId="ls-s-t" descId="ls-s-d" desc="Standing tall, feet shoulder-width, arms at sides" />
+              <StickStanding cx={50} groundY={78} label="Stand tall" titleId="ls-s-t" descId="ls-s-d" desc="Standing tall, feet shoulder-width, arms at sides" />
             </svg>
           ),
         },
         {
-          label: 'Move',
+          label: 'Reach overhead',
           alt: 'Reaching one arm overhead and leaning to the opposite side',
           desc: 'Raise one arm overhead and lean gently to the opposite side, feeling a stretch along your torso.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: one arm overhead, leaning to the side">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Reach overhead and lean gently to the side">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={52} cy={30} r={6} />
@@ -212,13 +212,13 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Return upright',
           alt: 'Lowering the arm back to standing position',
           desc: 'Slowly straighten up and lower your arm back to the starting position.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: lowering arm back to standing">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return upright and lower your arm">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Return" titleId="ls-r-t" descId="ls-r-d" desc="Back to standing tall, arm lowered" />
+              <StickStanding cx={50} groundY={78} label="Return upright" titleId="ls-r-t" descId="ls-r-d" desc="Back to standing tall, arm lowered" />
               <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
                 <line x1={42} y1={50} x2={42} y2={62} />
                 <polyline points={`${38},${58} ${42},${63} ${46},${58}`} />
@@ -234,22 +234,22 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating a mobility routine',
       stages: [
         {
-          label: 'Setup',
+          label: 'Relax shoulders',
           alt: 'Standing relaxed with arms at sides, shoulders loose',
           desc: 'Stand relaxed with arms at your sides, shoulders loose and breathing easily.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing relaxed, arms at sides">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Relax shoulders while standing with arms at sides">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Setup" titleId="lm-s-t" descId="lm-s-d" desc="Standing relaxed, arms at sides, shoulders loose" />
+              <StickStanding cx={50} groundY={78} label="Relax shoulders" titleId="lm-s-t" descId="lm-s-d" desc="Standing relaxed, arms at sides, shoulders loose" />
             </svg>
           ),
         },
         {
-          label: 'Move',
+          label: 'Roll backward',
           alt: 'Shoulders rolling backward in a circular motion',
           desc: 'Roll both shoulders slowly backward in a circular motion, keeping arms relaxed.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: shoulders rolling backward in circles">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Roll both shoulders backward in circles">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={34} r={6} />
@@ -264,13 +264,13 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Settle and reverse',
           alt: 'Shoulders settling back to neutral position',
           desc: 'Let your shoulders settle back to neutral, take a breath, and repeat in the other direction.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: shoulders back to neutral">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Settle shoulders to neutral, then reverse direction">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Return" titleId="lm-r-t" descId="lm-r-d" desc="Shoulders settled, back to neutral standing" />
+              <StickStanding cx={50} groundY={78} label="Settle and reverse" titleId="lm-r-t" descId="lm-r-d" desc="Shoulders settled, back to neutral standing" />
             </svg>
           ),
         },
@@ -282,11 +282,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating a bodyweight workout',
       stages: [
         {
-          label: 'Setup',
+          label: 'Sit on chair',
           alt: 'Sitting upright on a chair with feet flat on the floor',
           desc: 'Sit upright on a sturdy chair with feet flat on the floor, hip-width apart.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: sitting upright on a chair">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Sit upright on a chair, feet flat on the floor">
               <GroundLine y={80} />
               <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
@@ -301,11 +301,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Move',
+          label: 'Stand using heels',
           alt: 'Rising from the chair to standing, leaning slightly forward',
           desc: 'Lean slightly forward, press through your heels, and stand up fully.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: rising from chair to standing">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Rise from the chair by pressing through your heels">
               <GroundLine y={80} />
               <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
@@ -321,11 +321,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Sit with control',
           alt: 'Lowering back down to the chair with control',
           desc: 'Lower yourself back down to the chair slowly and with control.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: lowering back to chair with control">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Lower back to the chair with control">
               <GroundLine y={80} />
               <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
@@ -351,11 +351,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating resistance band exercises',
       stages: [
         {
-          label: 'Setup',
+          label: 'Arms forward',
           alt: 'Holding a resistance band in both hands at chest height, arms extended forward',
           desc: 'Hold a resistance band with both hands at chest height, arms extended forward.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: holding band with both hands, arms forward">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Hold the band with arms extended forward">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={32} r={6} />
@@ -370,11 +370,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Move',
+          label: 'Pull band apart',
           alt: 'Pulling hands apart, stretching the band outward',
           desc: 'Squeeze your shoulder blades and pull your hands apart, stretching the band outward.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: pulling hands apart, stretching band">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Pull hands apart to stretch the band">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={32} r={6} />
@@ -390,11 +390,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Return with control',
           alt: 'Bringing hands back together to starting position',
           desc: 'Slowly return your hands to the starting position, maintaining tension on the band.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: hands coming back to center">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Bring hands back to center with control">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={32} r={6} />
@@ -420,11 +420,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating a fast walk',
       stages: [
         {
-          label: 'Setup',
+          label: 'Ready posture',
           alt: 'Standing tall with a slight forward lean, ready to walk briskly',
           desc: 'Stand tall with a slight forward lean from the ankles, ready to walk briskly.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall with slight forward lean">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand tall with a slight forward lean, ready to walk briskly">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={51} cy={32} r={6} />
@@ -438,11 +438,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Move',
+          label: 'Brisk steps',
           alt: 'Walking briskly with bent elbows and active arm swing',
           desc: 'Walk with quick short steps, bend your elbows to 90 degrees, and pump your arms actively.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: brisk walking with bent elbows and arm swing">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Walk briskly with bent elbows and active arm swing">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={32} r={6} />
@@ -459,13 +459,13 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Easy pace',
           alt: 'Slowing down to a normal walking pace',
           desc: 'Gradually slow your pace back to a comfortable walk, then stop and breathe.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: slowing to normal walking pace">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Slow down to a comfortable walking pace">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Return" titleId="fw-r-t" descId="fw-r-d" desc="Slowing down to normal walking pace" />
+              <StickStanding cx={50} groundY={78} label="Easy pace" titleId="fw-r-t" descId="fw-r-d" desc="Slowing down to normal walking pace" />
               <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
                 <line x1={62} y1={60} x2={54} y2={60} />
                 <polyline points={`${56},${57} ${52},${60} ${56},${63}`} />
@@ -481,11 +481,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating a strength workout',
       stages: [
         {
-          label: 'Setup',
+          label: 'Feet hip-width',
           alt: 'Standing tall with feet hip-width, hands behind head, ready to hinge',
           desc: 'Stand tall with feet hip-width apart, hands lightly behind your head, core braced.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall, hands behind head, ready to hinge">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand hip-width apart, core braced, ready to hinge">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={32} r={6} />
@@ -499,11 +499,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Move',
+          label: 'Hinge at hips',
           alt: 'Hinging forward at the hips with a flat back, upper body leaning forward',
           desc: 'Push your hips back and hinge forward at the waist with a flat back until your torso is nearly parallel to the floor.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: hinging forward at hips with flat back">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Hinge forward at the hips with a flat back">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={28} cy={44} r={6} />
@@ -521,11 +521,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Stand and squeeze',
           alt: 'Standing back up by driving hips forward to upright position',
           desc: 'Drive your hips forward and stand back up to the starting position, squeezing your glutes at the top.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: standing back up to upright">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand upright and squeeze your glutes">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={51} cy={32} r={6} />
@@ -550,22 +550,22 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating a cardio workout',
       stages: [
         {
-          label: 'Setup',
+          label: 'Feet together',
           alt: 'Standing tall with feet together, arms at sides, ready to move',
           desc: 'Stand tall with feet together, arms at your sides, ready to move.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Setup: standing tall, feet together, ready to move">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand with feet together, ready for step jacks">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Setup" titleId="hc-s-t" descId="hc-s-d" desc="Standing tall, feet together, arms at sides" />
+              <StickStanding cx={50} groundY={78} label="Feet together" titleId="hc-s-t" descId="hc-s-d" desc="Standing tall, feet together, arms at sides" />
             </svg>
           ),
         },
         {
-          label: 'Move',
+          label: 'Step out, arms rise',
           alt: 'Stepping one foot out to the side while raising both arms overhead',
           desc: 'Step one foot out to the side while raising both arms overhead — a low-impact version of a jumping jack.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Move: stepping one foot sideways, arms rising overhead">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Step out to the side while raising both arms overhead">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={30} r={6} />
@@ -581,13 +581,13 @@ function buildDemos(): Record<string, WorkoutDemo> {
           ),
         },
         {
-          label: 'Return',
+          label: 'Step in, arms lower',
           alt: 'Stepping foot back in and lowering arms to starting position',
           desc: 'Step the foot back in and lower your arms, then alternate sides with a steady rhythm.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Return: stepping back in, lowering arms">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Step back in and lower both arms">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Return" titleId="hc-r-t" descId="hc-r-d" desc="Feet back together, arms lowered" />
+              <StickStanding cx={50} groundY={78} label="Step in, arms lower" titleId="hc-r-t" descId="hc-r-d" desc="Feet back together, arms lowered" />
               <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
                 <line x1={40} y1={50} x2={46} y2={50} />
                 <polyline points={`${42},${47} ${48},${50} ${42},${53}`} />
