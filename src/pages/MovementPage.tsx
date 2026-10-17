@@ -288,14 +288,17 @@ function buildDemos(): Record<string, WorkoutDemo> {
           svg: (
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Sit upright on a chair, feet flat on the floor">
               <GroundLine y={80} />
-              <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
+              <rect x="30" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
+              <line x1="30" y1="64" x2="30" y2="80" stroke={GROUND_COLOR} strokeWidth="2" />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={36} r={6} />
                 <line x1={50} y1={42} x2={50} y2={58} />
                 <line x1={50} y1={46} x2={40} y2={52} />
                 <line x1={50} y1={46} x2={60} y2={52} />
-                <line x1={50} y1={58} x2={40} y2={80} />
-                <line x1={50} y1={58} x2={60} y2={80} />
+                <line x1={50} y1={58} x2={36} y2={60} />
+                <line x1={36} y1={60} x2={36} y2={80} />
+                <line x1={50} y1={58} x2={62} y2={60} />
+                <line x1={62} y1={60} x2={62} y2={80} />
               </g>
             </svg>
           ),
@@ -613,12 +616,13 @@ function buildDemos(): Record<string, WorkoutDemo> {
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={32} r={6} />
                 <line x1={50} y1={38} x2={50} y2={58} />
-                <line x1={50} y1={44} x2={42} y2={50} />
-                <line x1={50} y1={44} x2={58} y2={50} />
-                <line x1={50} y1={58} x2={42} y2={78} />
-                <line x1={50} y1={58} x2={58} y2={58} />
+                <line x1={50} y1={44} x2={40} y2={52} />
+                <line x1={50} y1={44} x2={60} y2={50} />
+                <line x1={50} y1={58} x2={44} y2={78} />
+                <line x1={50} y1={58} x2={60} y2={50} />
+                <line x1={60} y1={50} x2={58} y2={64} />
               </g>
-              <ArrowUp x={58} y={54} />
+              <ArrowUp x={62} y={62} />
             </svg>
           ),
         },
@@ -708,21 +712,6 @@ function WorkoutPoseThumb({
   );
 }
 
-function StageCard({ index, stage }: { index: number; stage: StageDiagram }) {
-  return (
-    <div className="wpm-stage-card flex-1">
-      <div className="flex items-center gap-2">
-        <span className="wpm-stage-num">{index + 1}</span>
-        <span className="wpm-stage-label">{stage.label}</span>
-      </div>
-      <div className="w-16 h-14">
-        {stage.svg}
-      </div>
-      <p className="text-[10px] text-gray-500 text-center leading-snug px-1">{stage.desc}</p>
-    </div>
-  );
-}
-
 function WorkoutPoseDialog({
   activity,
   onClose,
@@ -734,6 +723,7 @@ function WorkoutPoseDialog({
 }) {
   const demo = WORKOUT_DEMOS[activity.id];
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const [stageIndex, setStageIndex] = useState(0);
 
   useEffect(() => {
     closeBtnRef.current?.focus();
@@ -743,8 +733,14 @@ function WorkoutPoseDialog({
     if (e.key === 'Escape') {
       e.stopPropagation();
       onClose();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setStageIndex(i => Math.max(0, i - 1));
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setStageIndex(i => Math.min((demo?.stages.length ?? 1) - 1, i + 1));
     }
-  }, [onClose]);
+  }, [onClose, demo]);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -752,6 +748,8 @@ function WorkoutPoseDialog({
   }, [onClose, restoreFocusRef]);
 
   if (!demo) return null;
+
+  const stage = demo.stages[Math.min(stageIndex, demo.stages.length - 1)];
 
   return (
     <div
@@ -782,32 +780,70 @@ function WorkoutPoseDialog({
         </div>
 
         <div className="px-4 py-4 space-y-3">
-          {/* Static reference thumbnail */}
-          <div className="flex items-center justify-center gap-3 pb-2 border-b border-gray-50">
-            <div
-              role="img"
-              aria-label={demo.thumbAlt}
-              className="rounded-lg overflow-hidden border border-gray-100 shrink-0"
-              style={{
-                width: 36,
-                height: 36,
-                backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
-                backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
-                backgroundPosition: tileBgPosition(activity.id)
-                  ? `${tileBgPosition(activity.id)!.bgX}% ${tileBgPosition(activity.id)!.bgY}%`
-                  : '0% 0%',
-                backgroundRepeat: 'no-repeat',
-              }}
-            />
-            <p className="text-[11px] text-gray-400">
-              {demo.isSequence ? '3-move sequence' : 'Beginner how-to'}
-            </p>
+          {/* Large current-stage diagram with step controls */}
+          <div
+            className="rounded-xl border border-gray-100 bg-slate-50/60 px-2 pt-3 pb-2"
+            aria-live="polite"
+          >
+            <div className="flex items-center justify-between gap-2 px-1">
+              <span className="wpm-stage-num">{stageIndex + 1} / {demo.stages.length}</span>
+              <span className="wpm-stage-label text-right">{stage.label}</span>
+            </div>
+            <div className="w-full aspect-[10/9] max-h-64 flex items-center justify-center">
+              {stage.svg}
+            </div>
+            <p className="text-xs text-gray-600 text-center leading-snug px-2">{stage.desc}</p>
           </div>
 
-          {/* Stage cards */}
-          <div className="flex gap-2">
-            {demo.stages.map((stage, i) => (
-              <StageCard key={i} index={i} stage={stage} />
+          {/* Step controls */}
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStageIndex(i => Math.max(0, i - 1))}
+              disabled={stageIndex === 0}
+              aria-label={`Previous step${demo.stages[stageIndex - 1] ? `: ${demo.stages[stageIndex - 1].label}` : ''}`}
+              className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-600 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+              style={{ minHeight: 40, minWidth: 88 }}
+            >
+              ← Prev
+            </button>
+            <div className="flex gap-1.5" role="tablist" aria-label="Demo steps">
+              {demo.stages.map((s, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === stageIndex}
+                  aria-label={`Step ${i + 1}: ${s.label}`}
+                  onClick={() => setStageIndex(i)}
+                  className={`w-2.5 h-2.5 rounded-full transition-colors ${i === stageIndex ? 'bg-indigo-500' : 'bg-gray-300 hover:bg-gray-400'}`}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setStageIndex(i => Math.min(demo.stages.length - 1, i + 1))}
+              disabled={stageIndex === demo.stages.length - 1}
+              aria-label={`Next step${demo.stages[stageIndex + 1] ? `: ${demo.stages[stageIndex + 1].label}` : ''}`}
+              className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-600 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+              style={{ minHeight: 40, minWidth: 88 }}
+            >
+              Next →
+            </button>
+          </div>
+
+          {/* All steps listed for quick reference */}
+          <div className="space-y-1 pt-1 border-t border-gray-50">
+            {demo.stages.map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setStageIndex(i)}
+                className={`w-full text-left flex items-baseline gap-2 rounded-lg px-2 py-1.5 transition-colors ${i === stageIndex ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
+              >
+                <span className="wpm-stage-num">{i + 1}</span>
+                <span className="text-[11px] text-gray-500 leading-snug">{s.desc}</span>
+              </button>
             ))}
           </div>
 
