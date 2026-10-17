@@ -11,9 +11,11 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
   const [ready, setReady] = useState(false);
   const [greeting, setGreeting] = useState(false);
   const [idleGesture, setIdleGesture] = useState<IdleGesture | null>(null);
+  const [idleTick, setIdleTick] = useState(0);
   const previousGesture = useRef<IdleGesture | null>(null);
   const hasIdled = useRef(false);
   const arrived = useRef(false);
+  const idleCount = useRef(0);
   const onReady = useCallback(() => setReady(true), []);
   const finishWave = useCallback(() => setGreeting(false), []);
   const finishIdle = useCallback(() => setIdleGesture(null), []);
@@ -48,16 +50,29 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
   }, [greetOnArrival, ready, moving]);
   useEffect(() => {
     if (!ready || !moving || greeting || idleGesture) return;
+    // After the first gesture, occasionally skip a cycle — Emma pauses and
+    // simply breathes, which feels more natural than an endless gesture loop.
+    const skipChance = idleCount.current > 0 && idleCount.current % 3 === 0 ? 0.35 : 0.12;
+    const willSkip = Math.random() < skipChance;
     const timer = window.setTimeout(() => {
       hasIdled.current = true;
+      idleCount.current += 1;
+      if (willSkip) {
+        // Bump the tick to retrigger this effect for the next interval,
+        // without committing a gesture this cycle.
+        setIdleTick(t => t + 1);
+        return;
+      }
       const gesture = previousGesture.current === 'weight-left' ? 'weight-right'
         : previousGesture.current === 'weight-right' ? 'weight-left'
         : Math.random() < .5 ? 'weight-left' : 'weight-right';
       previousGesture.current = gesture;
       setIdleGesture(gesture);
-    }, hasIdled.current ? 12000 + Math.random() * 12000 : 5000 + Math.random() * 3000);
+    }, hasIdled.current
+      ? 10000 + Math.random() * 16000  // 10-26s: wider, less predictable range
+      : 5000 + Math.random() * 3000);  // first gesture comes a bit sooner
     return () => window.clearTimeout(timer);
-  }, [ready, moving, greeting, idleGesture]);
+  }, [ready, moving, greeting, idleGesture, idleTick]);
   return <div className="emma-standing" data-expression={expression}>
     <div className="emma-standing__art">
       <EmmaRigCanvas moving={moving} reduced={reduced} greeting={greeting} gesture={idleGesture}

@@ -5,6 +5,12 @@ export const ease = (value: number) => {
   const x = Math.max(0, Math.min(1, value));
   return x * x * (3 - 2 * x);
 };
+// Second easing curve — slower ease-in, gentler ease-out — for organic motion
+// where the body should hesitate before committing and settle more softly.
+export const easeSoft = (value: number) => {
+  const x = Math.max(0, Math.min(1, value));
+  return x * x * x * (x * (x * 6 - 15) + 10);
+};
 // Preserve pose across pauses; never catch up time spent in a hidden tab.
 export class EmmaMotionClock {
   elapsed = 0;
@@ -25,6 +31,11 @@ export class EmmaMotionClock {
   private blinkOpen = 115;
   private doubleBlink = false;
   private shiftStrength = 1;
+  // Low-frequency aperiodic phases — each instance drifts at its own speed
+  // so the head and torso feel like they belong to a person, not a metronome.
+  headPhase: number;
+  headFreq: number;
+  torsoPhase: number;
   breath = 0;
   blink = 0;
 
@@ -32,6 +43,11 @@ export class EmmaMotionClock {
     this.breathDuration = 5000 + random() * 1800;
     this.breathStrength = .8 + random() * .2;
     this.blinkStart = 2200 + random() * 1800;
+    // Low-frequency aperiodic phases — each instance drifts at its own speed
+    // so the head and torso feel like they belong to a person, not a metronome.
+    this.headPhase = random() * Math.PI * 2;
+    this.headFreq = 0.00022 + random() * 0.00014; // ~1 cycle / 50-80s
+    this.torsoPhase = this.headPhase + Math.PI * (0.3 + random() * 0.4);
   }
 
   private sampleIdle() {
@@ -84,13 +100,27 @@ export class EmmaMotionClock {
 }
 export function pose(clock: EmmaMotionClock, greeting: boolean, gesture: IdleGesture | null, reduced: boolean) {
   if (reduced) return { frame: 0, scaleX: 1, scaleY: 1, skew: 0, tilt: 0, blink: 0 };
-  const shift = gesture ? ease(clock.idleElapsed / 1680) * ease((IDLE_MS - clock.idleElapsed) / 1470) : 0;
-  const greet = greeting ? ease(clock.waveElapsed / 1550) * ease((WAVE_MS - clock.waveElapsed) / 1700) : 0;
+  // Weight-shift gesture — eased with easeSoft so the torso hesitates before
+  // leaning and settles gently back, rather than snapping symmetrically.
+  const shift = gesture ? easeSoft(clock.idleElapsed / 1680) * easeSoft((IDLE_MS - clock.idleElapsed) / 1470) : 0;
+  // Greeting ramp — same soft ease so the wave blends in/out of breathing
+  // instead of a mechanical linear fade.
+  const greet = greeting ? easeSoft(clock.waveElapsed / 1550) * easeSoft((WAVE_MS - clock.waveElapsed) / 1700) : 0;
+  // Subtle continuous head drift: two sine waves at different speeds and
+  // amplitudes so the motion never repeats exactly. Amplitude is intentionally
+  // tiny — just enough to keep the neck feeling alive between gestures.
+  const headDrift = Math.sin(clock.elapsed * clock.headFreq + clock.headPhase) * 0.06
+    + Math.sin(clock.elapsed * clock.headFreq * 1.7 + clock.headPhase * 0.5) * 0.025;
+  // Torso leans slightly in the same direction as the head drift but delayed
+  // and attenuated — organic follow-through, not rigid coupling. Only applies
+  // during pure rest (no gesture at all) so gesture skew stays clean.
+  const torsoFollow = gesture ? 0 : Math.sin(clock.elapsed * clock.headFreq * 0.8 + clock.torsoPhase) * 0.02;
+  const gestureSkew = (gesture === 'weight-right' ? -1 : 1) * .8 * Math.PI / 180 * shift * clock.idleStrength;
   return {
     frame: greeting ? Math.min(384, Math.floor(clock.waveElapsed * 60 / 1000)) : 0,
     scaleX: 1 + .003 * clock.breath, scaleY: 1 + .004 * clock.breath,
-    skew: (gesture === 'weight-right' ? -1 : 1) * .8 * Math.PI / 180 * shift * clock.idleStrength,
-    tilt: -.12 * Math.PI / 180 * greet,
+    skew: gestureSkew + torsoFollow * Math.PI / 180,
+    tilt: (-.12 * greet + headDrift * (1 - greet * 0.7)) * Math.PI / 180,
     blink: clock.blink,
   };
 }
