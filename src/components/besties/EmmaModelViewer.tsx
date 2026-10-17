@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { AvatarExpression } from '../../lib/supabase';
-interface Props { modelSrc: string; waveRequest: number; expression: AvatarExpression; onReady: () => void; onFailure: () => void }
+interface Props { modelSrc: string; waveRequest: number; expression: AvatarExpression; onReady: () => void; onFailure: (message: string) => void }
 function disposeModel(root: THREE.Object3D) {
   const materials = new Set<THREE.Material>();
   const textures = new Set<THREE.Texture>();
@@ -18,7 +18,7 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
   useEffect(() => {
     const container = host.current; if (!container) return;
     let disposed = false, frame = 0, renderer: THREE.WebGLRenderer;
-    try { renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, powerPreference:'low-power'}); } catch { callbacks.current.onFailure(); return; }
+    try { renderer = new THREE.WebGLRenderer({alpha:true, antialias:true, powerPreference:'low-power'}); } catch (error) { callbacks.current.onFailure(error instanceof Error ? `WebGL init failed: ${error.message}` : 'WebGL init failed'); return; }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5)); renderer.setClearColor(0, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
     container.appendChild(renderer.domElement);
@@ -58,13 +58,13 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
     const finished = (event: {action: THREE.AnimationAction}) => { if (event.action === waving) { waving?.fadeOut(.2); idle?.reset().fadeIn(.2).play(); nextBlink = elapsed + 1.5; } };
     const preference = () => { if (media.matches) { mixer?.stopAllAction(); eyes.forEach(({mesh,indices}) => indices.forEach(i => { if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[i]=0; })); } else idle?.reset().play(); start(); };
     const visibility = () => document.hidden ? stop() : start();
-    const lost = (event: Event) => { event.preventDefault(); stop(); callbacks.current.onFailure(); };
+    const lost = (event: Event) => { event.preventDefault(); stop(); callbacks.current.onFailure('WebGL context lost'); };
     renderer.domElement.addEventListener('webglcontextlost',lost); media.addEventListener('change',preference); document.addEventListener('visibilitychange',visibility);
     const resize = new ResizeObserver(() => {fit();start();}); resize.observe(container); fit();
     new GLTFLoader().load(modelSrc,gltf => {
       if (disposed) { disposeModel(gltf.scene); return; }
       root = gltf.scene; const bounds = new THREE.Box3().setFromObject(root); const size = bounds.getSize(new THREE.Vector3());
-      if (!Number.isFinite(size.y) || size.y <= 0) {disposeModel(root);root=undefined;callbacks.current.onFailure();return;}
+      if (!Number.isFinite(size.y) || size.y <= 0) {disposeModel(root);root=undefined;callbacks.current.onFailure('model has invalid bounds');return;}
       root.scale.multiplyScalar(2/size.y); const normalized = new THREE.Box3().setFromObject(root); const center = normalized.getCenter(new THREE.Vector3()); root.position.sub(new THREE.Vector3(center.x,normalized.min.y,center.z)); scene.add(root);
       mixer = new THREE.AnimationMixer(root); const find = (pattern: RegExp) => gltf.animations.find(clip => pattern.test(clip.name));
       // Emma-App-v1 exports exactly two clips: "Wave" (6s greeting with baked
@@ -74,7 +74,7 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
       if (idleClip) idle = mixer.clipAction(idleClip); if (waveClip) waving = mixer.clipAction(waveClip);
       root.traverse(node => {if (!(node instanceof THREE.Mesh) || !node.morphTargetDictionary) return; const indices = Object.entries(node.morphTargetDictionary).filter(([name]) => /^(blink|eyeBlinkLeft|eyeBlinkRight)$/i.test(name)).map(([,i])=>i); if(indices.length)eyes.push({mesh:node,indices});});
       mixer.addEventListener('finished',finished); if (!media.matches) idle?.play(); fit(); renderer.render(scene,camera); callbacks.current.onReady(); start(); greetModel();
-    },undefined,() => {if(!disposed)callbacks.current.onFailure();});
+    },undefined,error => {if(!disposed){const message = error instanceof Error ? error.message : String(error ?? 'GLB load failed'); if (import.meta.env.DEV) console.error('[EmmaModelViewer] GLB load failed:', message); callbacks.current.onFailure(message);}});
     return () => {disposed=true;stop();greet.current=()=>{};resize.disconnect();media.removeEventListener('change',preference);document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('webglcontextlost',lost);mixer?.removeEventListener('finished',finished);mixer?.stopAllAction();if(root){mixer?.uncacheRoot(root);disposeModel(root);}renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
   },[modelSrc]);
   return <div className="emma-full-body__canvas" ref={host} aria-hidden="true" />;
