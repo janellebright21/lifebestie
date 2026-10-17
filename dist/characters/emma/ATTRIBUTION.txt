@@ -1,5 +1,0 @@
-Rain Rig (CC) Blender Foundation | studio.blender.org
-Source: https://studio.blender.org/characters/rain/v3/
-License: Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/)
-Adapted into Emma: appearance, clothing, hair, skin, accessories, no earrings, wave and clothing corrections, portable materials and app clips.
-Wave is a six-second baked greeting and return. Idle is a static relaxed pose hold, not a breathing clip.
