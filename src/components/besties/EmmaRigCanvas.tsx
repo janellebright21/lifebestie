@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EmmaMotionClock, pose, type IdleGesture } from './emmaRigMotion';
+import poster from './emmaRigPoster';
 
 const ROOT = '/assets/emma/rig/mesh-v1/';
 type Manifest = {
@@ -9,9 +10,9 @@ type Manifest = {
 };
 type Assets = { manifest: Manifest; body: HTMLImageElement; blink: HTMLImageElement; atlases: HTMLImageElement[] };
 let cachedAssets: Promise<Assets> | undefined;
-async function image(name: string) {
+async function image(source: string) {
   const result = new Image();
-  result.src = ROOT + name;
+  result.src = source;
   await result.decode();
   return result;
 }
@@ -22,8 +23,17 @@ function loadAssets() {
       if (!response.ok) throw new Error('Emma animation unavailable');
       const manifest: Manifest = await response.json();
       if (manifest.frameCount !== 385 || manifest.fps !== 60 || manifest.atlases.length !== 25) throw new Error('Invalid Emma animation');
+      // Bolt's GitHub import may omit binary files. The same lossless pixels
+      // travel in a text bundle so previews and deployed builds use one source.
+      const bundleResponse = await fetch(ROOT + 'images.json');
+      if (!bundleResponse.ok) throw new Error('Emma artwork unavailable');
+      const bundle: Record<string, string> = await bundleResponse.json();
+      const artwork = (name: string) => {
+        if (typeof bundle[name] !== 'string' || !bundle[name]) throw new Error('Incomplete Emma artwork');
+        return image('data:image/webp;base64,' + bundle[name]);
+      };
       const [body, blink, atlases] = await Promise.all([
-        image('body.webp'), image('blink.webp'), Promise.all(manifest.atlases.map(image)),
+        artwork('body.webp'), artwork('blink.webp'), Promise.all(manifest.atlases.map(artwork)),
       ]);
       if ([body, blink].some(asset => asset.width !== manifest.width || asset.height !== manifest.height)
         || atlases.some(asset => asset.width !== manifest.crop.width * 4 || asset.height !== manifest.crop.height * 4)) throw new Error('Incomplete Emma animation');
@@ -91,7 +101,7 @@ export default function EmmaRigCanvas(props: Props) {
     return () => { disposed = true; cancelAnimationFrame(request); };
   }, []);
   return <>
-    <img className="emma-standing__poster" src={ROOT + 'poster.webp'} alt="" aria-hidden="true" hidden={ready} />
+    <img className="emma-standing__poster" src={poster} alt="Emma standing in her lavender sweatshirt, blue jeans and white tennis shoes" hidden={ready} />
     <canvas ref={canvas} className="emma-standing__canvas" hidden={!ready} role="img"
       aria-label="Emma standing in her lavender sweatshirt, blue jeans and white tennis shoes" />
   </>;
