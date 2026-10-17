@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ensureEmmaFacialSymmetry, loadEmmaFacialClips } from './emmaFacialAnimation';
 import type { AvatarExpression } from '../../lib/supabase';
 interface Props { modelSrc: string; waveRequest: number; expression: AvatarExpression; onReady: () => void; onFailure: (message: string) => void }
 function disposeModel(root: THREE.Object3D) {
@@ -14,6 +15,8 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
   const greet = useRef<() => void>(() => {});
   const callbacks = useRef({onReady, onFailure}); callbacks.current = {onReady, onFailure};
   const expressionRef = useRef(expression); expressionRef.current = expression;
+  const refreshExpression = useRef<() => void>(() => {});
+  useEffect(() => { refreshExpression.current(); }, [expression]);
   useEffect(() => { greet.current(); }, [waveRequest]);
   useEffect(() => {
     const container = host.current; if (!container) return;
@@ -25,8 +28,25 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
     const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(30,1,.01,50);
     scene.add(new THREE.HemisphereLight(0xffffff,0x786981,2)); const key = new THREE.DirectionalLight(0xfff5e9,3); key.position.set(2,3,4); scene.add(key);
     let root: THREE.Object3D | undefined, mixer: THREE.AnimationMixer | undefined, idle: THREE.AnimationAction | undefined, waving: THREE.AnimationAction | undefined;
-    let previous = 0, nextBlink = 3.8, blinkEnd = 0, elapsed = 0;
-    const eyes: Array<{ mesh: THREE.Mesh; indices: number[] }> = [];
+    let previous = 0, nextBlink = 3.8, elapsed = 0;
+    let syncMirroredMorphs = () => {};
+    let blink: THREE.AnimationAction | undefined;
+    const faceActions: Partial<Record<'Friendly' | 'Attentive', THREE.AnimationAction>> = {};
+    const faceWeights = { Friendly: 0, Attentive: 0 };
+    const targetExpression = () => {
+      const expression = String(expressionRef.current);
+      return {
+        Friendly: /^(happy|proud|excited|encouraging)$/.test(expression) ? .85 : expression === 'empathetic' ? .2 : 0,
+        Attentive: /^(thinking|focused|listening)$/.test(expression) ? .8 : 0,
+      };
+    };
+    const activateFacePoses = () => {
+      for (const name of ['Friendly', 'Attentive'] as const) {
+        const action = faceActions[name]; if (!action) continue;
+        action.reset().setLoop(THREE.LoopOnce, 1).setEffectiveWeight(faceWeights[name]).play();
+        action.time = action.getClip().duration; action.paused = true;
+      }
+    };
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const fit = () => {
       const w = container.clientWidth, h = container.clientHeight; if (!w || !h) return;
@@ -38,44 +58,68 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
     const draw = (time: number) => {
       frame = 0; if (disposed || document.hidden) return;
       const delta = previous ? Math.min((time-previous)/1000,.05) : 0; previous = time;
-      if (!media.matches && mixer) {
-        elapsed += delta; mixer.update(delta);
-        // While the wave clip runs, its 12 baked morph channels own the face;
-        // the manual blink would overwrite them, so it only runs when idle.
-        const blinking = !waving || (!waving.isRunning() && elapsed >= nextBlink && !blinkEnd);
-        if (blinking && !blinkEnd) blinkEnd = elapsed + .14;
-        const closed = blinkEnd && elapsed < blinkEnd ? 1 : 0;
-        if (!waving?.isRunning()) eyes.forEach(({mesh,indices}) => indices.forEach(i => { if (mesh.morphTargetInfluences) mesh.morphTargetInfluences[i] = closed; }));
-        if (blinkEnd && elapsed >= blinkEnd) { blinkEnd = 0; nextBlink = elapsed + 3.2 + Math.random()*2.8; }
+      if (mixer) {
+        const target = targetExpression();
+        for (const name of ['Friendly', 'Attentive'] as const) {
+          faceWeights[name] = media.matches ? target[name] : THREE.MathUtils.damp(faceWeights[name], target[name], 9, delta);
+          faceActions[name]?.setEffectiveWeight(faceWeights[name]);
+        }
+        if (!media.matches) {
+          elapsed += delta;
+          if (blink && elapsed >= nextBlink && !blink.isRunning()) {
+            blink.reset().setLoop(THREE.LoopOnce, 1).setEffectiveWeight(1).play();
+            nextBlink = elapsed + 3.2 + Math.random() * 2.8;
+          }
+        }
+        // Facial clips are additive: eyelid, lash, brow and lip motion layers
+        // over Idle or Wave without replacing the body's animation tracks.
+        mixer.update(media.matches ? 0 : delta);
       }
+      syncMirroredMorphs();
       renderer.render(scene,camera); if (!media.matches) frame = requestAnimationFrame(draw);
     };
     const start = () => { stop(); if (!document.hidden && root) frame = requestAnimationFrame(draw); };
+    refreshExpression.current = start;
     const greetModel = () => {
       if (media.matches || document.hidden || !waving || waving.isRunning()) return;
       idle?.fadeOut(.2); waving.reset().setLoop(THREE.LoopOnce,1); waving.clampWhenFinished = true; waving.fadeIn(.2).play(); start();
     }; greet.current = greetModel;
     const finished = (event: {action: THREE.AnimationAction}) => { if (event.action === waving) { waving?.fadeOut(.2); idle?.reset().fadeIn(.2).play(); nextBlink = elapsed + 1.5; } };
-    const preference = () => { if (media.matches) { mixer?.stopAllAction(); eyes.forEach(({mesh,indices}) => indices.forEach(i => { if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[i]=0; })); } else idle?.reset().play(); start(); };
+    const preference = () => {
+      mixer?.stopAllAction(); idle?.reset().play(); activateFacePoses();
+      nextBlink = elapsed + 3.8; start();
+    };
     const visibility = () => document.hidden ? stop() : start();
     const lost = (event: Event) => { event.preventDefault(); stop(); callbacks.current.onFailure('WebGL context lost'); };
     renderer.domElement.addEventListener('webglcontextlost',lost); media.addEventListener('change',preference); document.addEventListener('visibilitychange',visibility);
     const resize = new ResizeObserver(() => {fit();start();}); resize.observe(container); fit();
-    new GLTFLoader().load(modelSrc,gltf => {
+    new GLTFLoader().load(modelSrc,async gltf => {
       if (disposed) { disposeModel(gltf.scene); return; }
       root = gltf.scene; const bounds = new THREE.Box3().setFromObject(root); const size = bounds.getSize(new THREE.Vector3());
       if (!Number.isFinite(size.y) || size.y <= 0) {disposeModel(root);root=undefined;callbacks.current.onFailure('model has invalid bounds');return;}
       root.scale.multiplyScalar(2/size.y); const normalized = new THREE.Box3().setFromObject(root); const center = normalized.getCenter(new THREE.Vector3()); root.position.sub(new THREE.Vector3(center.x,normalized.min.y,center.z)); scene.add(root);
+      syncMirroredMorphs = ensureEmmaFacialSymmetry(root);
+      if (!gltf.animations.some(clip => clip.name === 'Blink')) {
+        try { gltf.animations.push(...await loadEmmaFacialClips(root)); }
+        catch (error) { if (import.meta.env.DEV) console.warn('[EmmaModelViewer] facial poses unavailable:', error); }
+        if (disposed) return;
+      }
       mixer = new THREE.AnimationMixer(root); const find = (pattern: RegExp) => gltf.animations.find(clip => pattern.test(clip.name));
-      // Emma-App-v1 exports exactly two clips: "Wave" (6s greeting with baked
-      // morph channels) and "Idle" (static pose hold). Match by name first;
-      // the fallback patterns keep older exports loading.
+      // Keep the existing body clips; the separate facial poses layer over them.
       const idleClip = find(/^(idle|relaxed|standing)([ _-]|$)/i), waveClip = find(/wave|greet/i);
       if (idleClip) idle = mixer.clipAction(idleClip); if (waveClip) waving = mixer.clipAction(waveClip);
-      root.traverse(node => {if (!(node instanceof THREE.Mesh) || !node.morphTargetDictionary) return; const indices = Object.entries(node.morphTargetDictionary).filter(([name]) => /^(blink|eyeBlinkLeft|eyeBlinkRight)$/i.test(name)).map(([,i])=>i); if(indices.length)eyes.push({mesh:node,indices});});
-      mixer.addEventListener('finished',finished); if (!media.matches) idle?.play(); fit(); renderer.render(scene,camera); callbacks.current.onReady(); start(); greetModel();
+      for (const name of ['Blink', 'Friendly', 'Attentive'] as const) {
+        const clip = gltf.animations.find(candidate => candidate.name === name); if (!clip) continue;
+        const additive = THREE.AnimationUtils.makeClipAdditive(clip.clone(), 0, clip, 30);
+        additive.name = `${name}-additive`;
+        const action = mixer.clipAction(additive); action.setLoop(THREE.LoopOnce, 1);
+        if (name === 'Blink') { action.clampWhenFinished = false; blink = action; }
+        else { action.clampWhenFinished = true; faceActions[name] = action; }
+      }
+      activateFacePoses();
+      mixer.addEventListener('finished',finished); idle?.play(); mixer.update(0); fit(); renderer.render(scene,camera); callbacks.current.onReady(); start(); greetModel();
     },undefined,error => {if(!disposed){const message = error instanceof Error ? error.message : String(error ?? 'GLB load failed'); if (import.meta.env.DEV) console.error('[EmmaModelViewer] GLB load failed:', message); callbacks.current.onFailure(message);}});
-    return () => {disposed=true;stop();greet.current=()=>{};resize.disconnect();media.removeEventListener('change',preference);document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('webglcontextlost',lost);mixer?.removeEventListener('finished',finished);mixer?.stopAllAction();if(root){mixer?.uncacheRoot(root);disposeModel(root);}renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
+    return () => {disposed=true;stop();greet.current=()=>{};refreshExpression.current=()=>{};resize.disconnect();media.removeEventListener('change',preference);document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('webglcontextlost',lost);mixer?.removeEventListener('finished',finished);mixer?.stopAllAction();if(root){mixer?.uncacheRoot(root);disposeModel(root);}renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
   },[modelSrc]);
   return <div className="emma-full-body__canvas" ref={host} aria-hidden="true" />;
 }
