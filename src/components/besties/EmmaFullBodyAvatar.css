@@ -13,3 +13,6 @@
 .emma-full-body__sprite--greeting .emma-full-body__breathing{animation:none}
 .emma-full-body__sprite--paused .emma-full-body__breathing{animation-play-state:paused}
 @media(prefers-reduced-motion:reduce){.emma-full-body__breathing{animation:none!important;transform:none!important}}
+
+/* Keep the WebGL drawing buffer within its CSS-sized avatar slot at every pixel ratio. */
+.emma-full-body__canvas > canvas {display:block;width:100%;height:100%}
