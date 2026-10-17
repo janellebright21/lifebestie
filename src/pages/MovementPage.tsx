@@ -87,14 +87,17 @@ function ArrowCurved({ cx, cy, r }: { cx: number; cy: number; r: number }) {
   );
 }
 
-// Standard standing stick figure at center-x, feet at groundY
-function StickStanding({ cx, groundY, label, titleId, descId, desc }: {
-  cx: number; groundY: number; label: string; titleId: string; descId: string; desc: string;
+// Standard standing stick figure at center-x, feet at groundY.
+// Arms hang at the sides (matching the 'arms relaxed at your sides' cues);
+// stance 'together' draws the feet touching for 'feet together' cues.
+function StickStanding({ cx, groundY, label, titleId, descId, desc, stance = 'hip' }: {
+  cx: number; groundY: number; label: string; titleId: string; descId: string; desc: string; stance?: 'hip' | 'together';
 }) {
   const headR = 6;
   const headCy = groundY - 44;
   const neckY = groundY - 38;
   const hipY = groundY - 20;
+  const footSpread = stance === 'together' ? 3 : 8;
   return (
     <g role="img" aria-labelledby={`${titleId} ${descId}`}>
       <title id={titleId}>{label}</title>
@@ -102,8 +105,10 @@ function StickStanding({ cx, groundY, label, titleId, descId, desc }: {
       <circle cx={cx} cy={headCy} r={headR} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" />
       <line x1={cx} y1={neckY} x2={cx} y2={hipY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
       <line x1={cx - 10} y1={groundY - 30} x2={cx + 10} y2={groundY - 30} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
-      <line x1={cx} y1={hipY} x2={cx - 8} y2={groundY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
-      <line x1={cx} y1={hipY} x2={cx + 8} y2={groundY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+      <line x1={cx - 8} y1={groundY - 30} x2={cx - 10} y2={groundY - 14} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+      <line x1={cx + 8} y1={groundY - 30} x2={cx + 10} y2={groundY - 14} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+      <line x1={cx} y1={hipY} x2={cx - footSpread} y2={groundY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
+      <line x1={cx} y1={hipY} x2={cx + footSpread} y2={groundY} stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} strokeLinecap="round" />
     </g>
   );
 }
@@ -154,9 +159,9 @@ function buildDemos(): Record<string, WorkoutDemo> {
                 <circle cx={50} cy={34} r={6} />
                 <line x1={50} y1={40} x2={50} y2={58} />
                 <line x1={50} y1={44} x2={62} y2={38} />
-                <line x1={50} y1={44} x2={38} y2={52} />
+                <line x1={50} y1={44} x2={40} y2={52} />
                 <line x1={50} y1={58} x2={60} y2={78} />
-                <line x1={50} y1={58} x2={38} y2={72} />
+                <line x1={50} y1={58} x2={38} y2={78} />
               </g>
               <ArrowRight x={64} y={38} />
             </svg>
@@ -169,7 +174,7 @@ function buildDemos(): Record<string, WorkoutDemo> {
           svg: (
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Step through and return to tall standing">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Step through" titleId="lw-r-t" descId="lw-r-d" desc="Feet together, back to tall standing posture" />
+              <StickStanding cx={50} groundY={78} label="Step through" titleId="lw-r-t" descId="lw-r-d" desc="Feet together, back to tall standing posture" stance="together" />
               <ArrowRight x={70} y={60} />
             </svg>
           ),
@@ -200,14 +205,14 @@ function buildDemos(): Record<string, WorkoutDemo> {
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Reach overhead and lean gently to the side">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
-                <circle cx={52} cy={30} r={6} />
-                <line x1={52} y1={36} x2={50} y2={58} />
-                <line x1={50} y1={42} x2={38} y2={48} />
-                <line x1={50} y1={42} x2={58} y2={20} />
+                <circle cx={46} cy={30} r={6} />
+                <line x1={46} y1={36} x2={50} y2={58} />
+                <line x1={48} y1={42} x2={58} y2={20} />
+                <line x1={48} y1={42} x2={40} y2={50} />
                 <line x1={50} y1={58} x2={42} y2={78} />
                 <line x1={50} y1={58} x2={56} y2={78} />
               </g>
-              <ArrowUp x={58} y={18} />
+              <ArrowUp x={64} y={34} />
             </svg>
           ),
         },
@@ -220,8 +225,8 @@ function buildDemos(): Record<string, WorkoutDemo> {
               <GroundLine y={78} />
               <StickStanding cx={50} groundY={78} label="Return upright" titleId="ls-r-t" descId="ls-r-d" desc="Back to standing tall, arm lowered" />
               <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
-                <line x1={42} y1={50} x2={42} y2={62} />
-                <polyline points={`${38},${58} ${42},${63} ${46},${58}`} />
+                <line x1={64} y1={50} x2={64} y2={62} />
+                <polyline points={`${60},${58} ${64},${63} ${68},${58}`} />
               </g>
             </svg>
           ),
@@ -288,8 +293,7 @@ function buildDemos(): Record<string, WorkoutDemo> {
           svg: (
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Sit upright on a chair, feet flat on the floor">
               <GroundLine y={80} />
-              <rect x="30" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
-              <line x1="30" y1="64" x2="30" y2="80" stroke={GROUND_COLOR} strokeWidth="2" />
+              <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={36} r={6} />
                 <line x1={50} y1={42} x2={50} y2={58} />
@@ -332,16 +336,18 @@ function buildDemos(): Record<string, WorkoutDemo> {
               <GroundLine y={80} />
               <rect x="34" y="58" width="32" height="6" rx="2" fill="#e2e8f0" stroke={GROUND_COLOR} strokeWidth="1" />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
-                <circle cx={50} cy={32} r={6} />
-                <line x1={50} y1={38} x2={51} y2={58} />
-                <line x1={51} y1={44} x2={41} y2={48} />
-                <line x1={51} y1={44} x2={61} y2={48} />
-                <line x1={51} y1={58} x2={42} y2={80} />
-                <line x1={51} y1={58} x2={60} y2={80} />
+                <circle cx={50} cy={28} r={6} />
+                <line x1={50} y1={34} x2={50} y2={54} />
+                <line x1={50} y1={40} x2={42} y2={46} />
+                <line x1={50} y1={40} x2={58} y2={46} />
+                <line x1={50} y1={54} x2={38} y2={64} />
+                <line x1={38} y1={64} x2={38} y2={80} />
+                <line x1={50} y1={54} x2={62} y2={64} />
+                <line x1={62} y1={64} x2={62} y2={80} />
               </g>
               <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
-                <line x1={50} y1={24} x2={50} y2={36} />
-                <polyline points={`${46},${32} ${50},${38} ${54},${32}`} />
+                <line x1={50} y1={14} x2={50} y2={22} />
+                <polyline points={`${46},${18} ${50},${23} ${54},${18}`} />
               </g>
             </svg>
           ),
@@ -354,11 +360,11 @@ function buildDemos(): Record<string, WorkoutDemo> {
       thumbAlt: 'Emma demonstrating resistance band exercises',
       stages: [
         {
-          label: 'Arms forward',
-          alt: 'Holding a resistance band in both hands at chest height, arms extended forward',
-          desc: 'Hold a resistance band with both hands at chest height, arms extended forward.',
+          label: 'Hold the band',
+          alt: 'Holding a resistance band with both hands at chest height, hands just wider than shoulder-width',
+          desc: 'Hold a resistance band with both hands raised to chest height, hands just wider than your shoulders.',
           svg: (
-            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Hold the band with arms extended forward">
+            <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Hold the band with both hands at chest height">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
                 <circle cx={50} cy={32} r={6} />
@@ -388,7 +394,12 @@ function buildDemos(): Record<string, WorkoutDemo> {
                 <line x1={50} y1={58} x2={58} y2={78} />
               </g>
               <line x1={24} y1={40} x2={76} y2={40} stroke="#f59e0b" strokeWidth="2.5" />
-              <ArrowRight x={18} y={40} />
+              <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
+                <line x1={20} y1={40} x2={12} y2={40} />
+                <polyline points={`${15},${36} ${10},${40} ${15},${44}`} />
+                <line x1={80} y1={40} x2={88} y2={40} />
+                <polyline points={`${85},${36} ${90},${40} ${85},${44}`} />
+              </g>
             </svg>
           ),
         },
@@ -430,10 +441,10 @@ function buildDemos(): Record<string, WorkoutDemo> {
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand tall with a slight forward lean, ready to walk briskly">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
-                <circle cx={51} cy={32} r={6} />
-                <line x1={51} y1={38} x2={50} y2={58} />
-                <line x1={50} y1={44} x2={42} y2={48} />
-                <line x1={50} y1={44} x2={58} y2={48} />
+                <circle cx={53} cy={32} r={6} />
+                <line x1={53} y1={38} x2={50} y2={58} />
+                <line x1={51} y1={44} x2={44} y2={54} />
+                <line x1={51} y1={44} x2={58} y2={54} />
                 <line x1={50} y1={58} x2={44} y2={78} />
                 <line x1={50} y1={58} x2={56} y2={78} />
               </g>
@@ -455,7 +466,8 @@ function buildDemos(): Record<string, WorkoutDemo> {
                 <line x1={50} y1={42} x2={40} y2={48} />
                 <line x1={40} y1={48} x2={36} y2={40} />
                 <line x1={50} y1={58} x2={58} y2={78} />
-                <line x1={50} y1={58} x2={40} y2={72} />
+                <line x1={50} y1={58} x2={40} y2={70} />
+                <line x1={40} y1={70} x2={45} y2={78} />
               </g>
               <ArrowRight x={64} y={42} />
             </svg>
@@ -470,8 +482,8 @@ function buildDemos(): Record<string, WorkoutDemo> {
               <GroundLine y={78} />
               <StickStanding cx={50} groundY={78} label="Easy pace" titleId="fw-r-t" descId="fw-r-d" desc="Slowing down to normal walking pace" />
               <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
-                <line x1={62} y1={60} x2={54} y2={60} />
-                <polyline points={`${56},${57} ${52},${60} ${56},${63}`} />
+                <line x1={70} y1={58} x2={64} y2={58} />
+                <polyline points={`${66},${55} ${62},${58} ${66},${61}`} />
               </g>
             </svg>
           ),
@@ -509,10 +521,10 @@ function buildDemos(): Record<string, WorkoutDemo> {
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Hinge forward at the hips with a flat back">
               <GroundLine y={78} />
               <g stroke={FIG_STROKE} strokeWidth={FIG_STROKE_WIDTH} fill="none" strokeLinecap="round">
-                <circle cx={28} cy={44} r={6} />
-                <line x1={34} y1={44} x2={58} y2={58} />
-                <line x1={40} y1={46} x2={34} y2={40} />
-                <line x1={40} y1={46} x2={34} y2={52} />
+                <circle cx={24} cy={47} r={6} />
+                <line x1={30} y1={48} x2={58} y2={58} />
+                <line x1={36} y1={50} x2={29} y2={43} />
+                <line x1={36} y1={50} x2={29} y2={45} />
                 <line x1={58} y1={58} x2={50} y2={78} />
                 <line x1={58} y1={58} x2={66} y2={78} />
               </g>
@@ -559,7 +571,7 @@ function buildDemos(): Record<string, WorkoutDemo> {
           svg: (
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Stand with feet together, ready for step jacks">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Feet together" titleId="hc-s-t" descId="hc-s-d" desc="Standing tall, feet together, arms at sides" />
+              <StickStanding cx={50} groundY={78} label="Feet together" titleId="hc-s-t" descId="hc-s-d" desc="Standing tall, feet together, arms at sides" stance="together" />
             </svg>
           ),
         },
@@ -575,7 +587,7 @@ function buildDemos(): Record<string, WorkoutDemo> {
                 <line x1={50} y1={36} x2={50} y2={58} />
                 <line x1={50} y1={40} x2={38} y2={28} />
                 <line x1={50} y1={40} x2={62} y2={28} />
-                <line x1={50} y1={58} x2={36} y2={78} />
+                <line x1={50} y1={58} x2={44} y2={78} />
                 <line x1={50} y1={58} x2={64} y2={78} />
               </g>
               <ArrowUp x={38} y={24} />
@@ -590,10 +602,10 @@ function buildDemos(): Record<string, WorkoutDemo> {
           svg: (
             <svg viewBox="0 0 100 90" className="w-full h-full" role="img" aria-label="Step back in and lower both arms">
               <GroundLine y={78} />
-              <StickStanding cx={50} groundY={78} label="Step in, arms lower" titleId="hc-r-t" descId="hc-r-d" desc="Feet back together, arms lowered" />
+              <StickStanding cx={50} groundY={78} label="Step in, arms lower" titleId="hc-r-t" descId="hc-r-d" desc="Feet back together, arms lowered" stance="together" />
               <g stroke={ARROW_COLOR} strokeWidth="2" fill="none" strokeLinecap="round">
-                <line x1={40} y1={50} x2={46} y2={50} />
-                <polyline points={`${42},${47} ${48},${50} ${42},${53}`} />
+                <line x1={30} y1={74} x2={40} y2={74} />
+                <polyline points={`${37},${71} ${42},${74} ${37},${77}`} />
               </g>
             </svg>
           ),
@@ -617,7 +629,7 @@ function buildDemos(): Record<string, WorkoutDemo> {
                 <circle cx={50} cy={32} r={6} />
                 <line x1={50} y1={38} x2={50} y2={58} />
                 <line x1={50} y1={44} x2={40} y2={52} />
-                <line x1={50} y1={44} x2={60} y2={50} />
+                <line x1={50} y1={44} x2={59} y2={41} />
                 <line x1={50} y1={58} x2={44} y2={78} />
                 <line x1={50} y1={58} x2={60} y2={50} />
                 <line x1={60} y1={50} x2={58} y2={64} />
@@ -723,6 +735,7 @@ function WorkoutPoseDialog({
 }) {
   const demo = WORKOUT_DEMOS[activity.id];
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [stageIndex, setStageIndex] = useState(0);
 
   useEffect(() => {
@@ -739,6 +752,24 @@ function WorkoutPoseDialog({
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       setStageIndex(i => Math.min((demo?.stages.length ?? 1) - 1, i + 1));
+    } else if (e.key === 'Tab') {
+      // Keep keyboard focus inside the modal dialog.
+      const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !dialogRef.current?.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !dialogRef.current?.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   }, [onClose, demo]);
 
@@ -759,6 +790,7 @@ function WorkoutPoseDialog({
       onKeyDown={handleKeyDown}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`How-to preview: ${activity.label}`}
@@ -807,13 +839,12 @@ function WorkoutPoseDialog({
             >
               ← Prev
             </button>
-            <div className="flex gap-1.5" role="tablist" aria-label="Demo steps">
+            <div className="flex gap-1.5" role="group" aria-label="Jump to step">
               {demo.stages.map((s, i) => (
                 <button
                   key={i}
                   type="button"
-                  role="tab"
-                  aria-selected={i === stageIndex}
+                  aria-pressed={i === stageIndex}
                   aria-label={`Step ${i + 1}: ${s.label}`}
                   onClick={() => setStageIndex(i)}
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${i === stageIndex ? 'bg-indigo-500' : 'bg-gray-300 hover:bg-gray-400'}`}
