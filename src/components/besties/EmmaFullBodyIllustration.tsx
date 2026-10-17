@@ -50,8 +50,6 @@ export default function EmmaFullBodyIllustration({ expression = 'happy', greetOn
   }, [greetOnArrival, ready, moving]);
   useEffect(() => {
     if (!ready || !moving || greeting || idleGesture) return;
-    // After the first gesture, occasionally skip a cycle — Emma pauses and
-    // simply breathes, which feels more natural than an endless gesture loop.
     const skipChance = idleCount.current > 0 && idleCount.current % 3 === 0 ? 0.35 : 0.12;
     const willSkip = Math.random() < skipChance;
     const timer = window.setTimeout(() => {

@@ -106,20 +106,24 @@ export function pose(clock: EmmaMotionClock, greeting: boolean, gesture: IdleGes
   // Greeting ramp — same soft ease so the wave blends in/out of breathing
   // instead of a mechanical linear fade.
   const greet = greeting ? easeSoft(clock.waveElapsed / 1550) * easeSoft((WAVE_MS - clock.waveElapsed) / 1700) : 0;
-  // Subtle continuous head drift: two sine waves at different speeds and
-  // amplitudes so the motion never repeats exactly. Amplitude is intentionally
-  // tiny — just enough to keep the neck feeling alive between gestures.
-  const headDrift = Math.sin(clock.elapsed * clock.headFreq + clock.headPhase) * 0.06
-    + Math.sin(clock.elapsed * clock.headFreq * 1.7 + clock.headPhase * 0.5) * 0.025;
-  // Torso leans slightly in the same direction as the head drift but delayed
-  // and attenuated — organic follow-through, not rigid coupling. Only applies
+  // Occasional-feeling head tilt: two slow sine waves at incommensurate
+  // speeds so the motion never repeats exactly. Peaks near half a degree —
+  // clearly visible in the head, feet stay planted (rotation origin is ground).
+  const headDrift = Math.sin(clock.elapsed * clock.headFreq + clock.headPhase) * 0.32
+    + Math.sin(clock.elapsed * clock.headFreq * 1.7 + clock.headPhase * 0.5) * 0.14;
+  // Torso leans slightly in the same direction as the head but delayed and
+  // attenuated — organic follow-through, not rigid coupling. Only applies
   // during pure rest (no gesture at all) so gesture skew stays clean.
-  const torsoFollow = gesture ? 0 : Math.sin(clock.elapsed * clock.headFreq * 0.8 + clock.torsoPhase) * 0.02;
+  const torsoFollow = gesture ? 0 : Math.sin(clock.elapsed * clock.headFreq * 0.8 + clock.torsoPhase) * 0.1;
   const gestureSkew = (gesture === 'weight-right' ? -1 : 1) * .8 * Math.PI / 180 * shift * clock.idleStrength;
+  // During the wave the arm motion is baked into the sprite frames; a small
+  // opposing torso lean plus the greeting tilt suggest the body engaging
+  // with the gesture instead of a floating arm.
+  const greetLean = -0.25 * greet;
   return {
     frame: greeting ? Math.min(384, Math.floor(clock.waveElapsed * 60 / 1000)) : 0,
     scaleX: 1 + .003 * clock.breath, scaleY: 1 + .004 * clock.breath,
-    skew: gestureSkew + torsoFollow * Math.PI / 180,
+    skew: gestureSkew + (greetLean + torsoFollow * (1 - greet)) * Math.PI / 180,
     tilt: (-.12 * greet + headDrift * (1 - greet * 0.7)) * Math.PI / 180,
     blink: clock.blink,
   };

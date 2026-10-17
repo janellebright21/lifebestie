@@ -67,26 +67,36 @@ export default function EmmaRigCanvas(props: Props) {
       if (!ctx) return;
       const { manifest: m } = assets;
       element.width = m.width; element.height = m.height;
+      let lastSignature = '';
       const draw = (time: number) => {
         if (disposed) return;
         const p = latest.current;
         const events = clock.tick(time, p.moving && !p.reduced, p.greeting, p.gesture);
         const motion = pose(clock, p.greeting, p.gesture, p.reduced);
-        const index = Math.floor(motion.frame / m.framesPerAtlas);
-        const tile = motion.frame % m.framesPerAtlas;
-        ctx.clearRect(0, 0, m.width, m.height);
-        ctx.save();
-        ctx.translate(m.groundX, m.groundY);
-        ctx.rotate(motion.tilt);
-        ctx.transform(motion.scaleX, 0, Math.tan(motion.skew), motion.scaleY, 0, 0);
-        ctx.translate(-m.groundX, -m.groundY);
-        ctx.drawImage(assets.body, 0, 0);
-        ctx.drawImage(assets.atlases[index], (tile % m.columns) * m.crop.width,
-          Math.floor(tile / m.columns) * m.crop.height, m.crop.width, m.crop.height,
-          m.crop.x, m.crop.y, m.crop.width, m.crop.height);
-        ctx.globalAlpha = motion.blink;
-        ctx.drawImage(assets.blink, 0, 0);
-        ctx.restore();
+        // Skip the expensive redraw while time is frozen (paused/hidden/reduced)
+        // and nothing visual changed; keep the RAF loop so state changes and
+        // resumes are noticed immediately.
+        const signature = `${motion.frame}|${motion.scaleX.toFixed(5)}|${motion.scaleY.toFixed(5)}`
+          + `|${motion.skew.toFixed(5)}|${motion.tilt.toFixed(5)}|${motion.blink.toFixed(3)}`;
+        const changed = signature !== lastSignature || events.waveDone || events.idleDone;
+        if (changed) {
+          lastSignature = signature;
+          const index = Math.floor(motion.frame / m.framesPerAtlas);
+          const tile = motion.frame % m.framesPerAtlas;
+          ctx.clearRect(0, 0, m.width, m.height);
+          ctx.save();
+          ctx.translate(m.groundX, m.groundY);
+          ctx.rotate(motion.tilt);
+          ctx.transform(motion.scaleX, 0, Math.tan(motion.skew), motion.scaleY, 0, 0);
+          ctx.translate(-m.groundX, -m.groundY);
+          ctx.drawImage(assets.body, 0, 0);
+          ctx.drawImage(assets.atlases[index], (tile % m.columns) * m.crop.width,
+            Math.floor(tile / m.columns) * m.crop.height, m.crop.width, m.crop.height,
+            m.crop.x, m.crop.y, m.crop.width, m.crop.height);
+          ctx.globalAlpha = motion.blink;
+          ctx.drawImage(assets.blink, 0, 0);
+          ctx.restore();
+        }
         element.dataset.frame = String(motion.frame);
         element.dataset.wave = p.greeting ? 'active' : 'rest';
         element.dataset.idleGesture = p.gesture ?? 'rest';
