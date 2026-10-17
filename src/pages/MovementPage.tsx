@@ -812,6 +812,31 @@ function WorkoutPoseDialog({
         </div>
 
         <div className="px-4 py-4 space-y-3">
+          {/* Emma reference photo */}
+          <div className="flex items-center gap-3">
+            <div
+              role="img"
+              aria-label={demo.thumbAlt}
+              className="rounded-xl overflow-hidden border border-gray-100 shrink-0"
+              style={{
+                width: 56,
+                height: 56,
+                backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
+                backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
+                backgroundPosition: tileBgPosition(activity.id)
+                  ? `${tileBgPosition(activity.id)!.bgX}% ${tileBgPosition(activity.id)!.bgY}%`
+                  : '0% 0%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            />
+            <div>
+              <p className="text-[11px] font-semibold text-gray-600">
+                {demo.isSequence ? '3-move sequence' : 'Beginner how-to'}
+              </p>
+              <p className="text-[10px] text-gray-400">Emma shows you how</p>
+            </div>
+          </div>
+
           {/* Large current-stage diagram with step controls */}
           <div
             className="rounded-xl border border-gray-100 bg-slate-50/60 px-2 pt-3 pb-2"
