@@ -7,7 +7,7 @@ import EmmaFullBodyAvatar from '../components/besties/EmmaFullBodyAvatar';
 import { type AvatarExpression, CHARACTERS } from '../lib/supabase';
 
 type MyBestiePageProps = ComponentProps<typeof CoreMyBestiePage>;
-type MotionState = 'idle' | 'thinking' | 'encouraging' | 'calm' | 'celebrating' | 'playful' | 'listening';
+type MotionState = 'idle' | 'thinking' | 'encouraging' | 'calm' | 'celebrating' | 'playful' | 'listening' | 'proud-direct' | 'empathetic-direct';
 
 const EXPRESSIONS = ['happy', 'thinking', 'encouraging', 'proud', 'calm'] as const;
 const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
@@ -18,9 +18,11 @@ const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
   { id: 'celebrating', label: 'Celebrate' },
   { id: 'playful', label: 'Excited' },
   { id: 'listening', label: 'Listening' },
+  { id: 'proud-direct', label: 'Proud' },
+  { id: 'empathetic-direct', label: 'Empathetic' },
 ];
 
-const EMMA_MOODS: Record<MotionState, AvatarExpression> = {idle:'happy',thinking:'thinking',encouraging:'encouraging',calm:'calm',celebrating:'proud',playful:'excited',listening:'empathetic'};
+const EMMA_MOODS: Record<MotionState, AvatarExpression> = {idle:'happy',thinking:'thinking',encouraging:'encouraging',calm:'calm',celebrating:'proud',playful:'excited',listening:'empathetic','proud-direct':'proud','empathetic-direct':'empathetic'};
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);

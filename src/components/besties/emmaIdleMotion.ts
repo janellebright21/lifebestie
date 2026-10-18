@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 
-export interface EmmaExpressionTargets { Friendly: number; Attentive: number }
-const EXPRESSIONS: Record<string, EmmaExpressionTargets> = {
+export interface EmmaExpressionTargets { Friendly: number; Attentive: number; Empathetic: number; Proud: number }
+const EXPRESSIONS: Record<string, Pick<EmmaExpressionTargets, 'Friendly' | 'Attentive'> & Partial<EmmaExpressionTargets>> = {
   happy: { Friendly: .68, Attentive: .08 },
   encouraging: { Friendly: .75, Attentive: .2 },
-  proud: { Friendly: .95, Attentive: .16 },
+  proud: { Friendly: 0, Attentive: 0, Proud: 1 },
   calm: { Friendly: .18, Attentive: 0 },
   thinking: { Friendly: .08, Attentive: .9 },
   tired: { Friendly: .08, Attentive: 0 },
   listening: { Friendly: .25, Attentive: .65 },
-  empathetic: { Friendly: .32, Attentive: .45 },
+  empathetic: { Friendly: 0, Attentive: 0, Empathetic: 1 },
   focused: { Friendly: .06, Attentive: .5 },
   excited: { Friendly: 1, Attentive: .28 },
   playful: { Friendly: .88, Attentive: .35 },
 };
 export function getEmmaExpressionTargets(expression: string): EmmaExpressionTargets {
-  return EXPRESSIONS[expression] ?? EXPRESSIONS.happy;
+  return { Empathetic: 0, Proud: 0, ...(EXPRESSIONS[expression] ?? EXPRESSIONS.happy) };
 }
 
 interface Offset { bone: THREE.Bone; rotation: THREE.Quaternion; translation: THREE.Vector3 }
