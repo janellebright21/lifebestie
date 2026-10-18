@@ -1,3 +1,4 @@
+import EmmaAvatarSlot from './EmmaAvatarSlot';
 import { useMemo, useState, useEffect } from 'react';
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
@@ -158,7 +159,7 @@ function FadingImage({
   );
 }
 
-export default function BestieAvatar({
+function LegacyBestieAvatar({
   characterId,
   expression = 'happy',
   size       = 'md',
@@ -401,4 +402,10 @@ export default function BestieAvatar({
       {message && <SpeechBubble message={message} primaryColor={char.primaryColor} />}
     </div>
   );
+}
+
+export default function BestieAvatar(props:BestieAvatarProps) {
+ if(props.characterId!=='emma')return <LegacyBestieAvatar {...props}/>;
+ const size=props.size??'md',dim=SIZES[size],full=size==='full';
+ return <div className={props.className} style={{display:'flex',alignItems:'center',gap:12,...props.style}}><div style={{width:dim,height:full?dim*1.85:dim,flexShrink:0,borderRadius:full?16:'50%',overflow:'hidden'}}><EmmaAvatarSlot expression={props.expression} framing={full?'full':'portrait'}/></div>{props.showSpeechBubble&&props.message&&<SpeechBubble message={props.message} primaryColor={CHARACTERS[0]!.primaryColor}/>}</div>;
 }

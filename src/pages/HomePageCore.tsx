@@ -1,3 +1,4 @@
+import EmmaAvatarSlot from '../components/besties/EmmaAvatarSlot';
 import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks, ArrowRight } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId, GroceryItem } from '../lib/supabase';
@@ -738,7 +739,7 @@ export default function HomePage({
             }}
           />
           {/* Emma's portrait — uses existing asset resolver, contains the full image */}
-          <img
+          {!character || character === 'emma' ? <EmmaAvatarSlot expression={homeExpression}/> : (<img
             key={homeExpression}
             src={resolveExpressionSrc(character ?? 'emma', homeExpression)}
             alt={`${character ?? 'emma'} ${homeExpression}`}
@@ -764,7 +765,7 @@ export default function HomePage({
               pointerEvents:  'none',
               animation:      'bestie-expr-fade 350ms ease-out',
             }}
-          />
+          />)}
         </div>
         {/* Greeting block */}
         <div className="flex-1 min-w-0 pt-1">

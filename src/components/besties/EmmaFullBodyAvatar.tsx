@@ -3,9 +3,9 @@ import type { AvatarExpression } from '../../lib/supabase';
 import type { EmmaActivity } from './emmaMasterController';
 import { loadEmmaModel, resetEmmaModelProbe, type EmmaModelProbe } from '../../lib/emmaModelAsset';
 import './EmmaFullBodyAvatar.css';
-import EmmaFullBodyIllustration from './EmmaFullBodyIllustration';
+
 const ModelViewer = lazy(() => import('./EmmaModelViewer'));
-export const EMMA_FULL_BODY_REFERENCE = '/assets/emma/design/emma-full-body-approved.png';
+
 // Activates automatically when public/characters/emma/Emma-Master.glb is
 // deployed; the 2D artwork remains the fallback until the probe verifies it.
 const DEV = import.meta.env.DEV;
@@ -35,7 +35,7 @@ export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'i
     return () => { active = false; if (retry) window.clearTimeout(retry); };
   }, []);
   return <div className="emma-full-body">
-    {!ready && <EmmaFullBodyIllustration expression={expression} greetOnArrival={greetOnArrival} />}
+    {!ready && <div role="status" aria-label={failed?"Emma unavailable":"Loading Emma"} style={{position:"absolute",inset:0,borderRadius:"inherit",background:"var(--theme-primary-light,#f5f0fa)"}}/>}
     {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} greetOnArrival={greetOnArrival} framing={framing} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); setLoadError(message); }} /></Suspense>}
     {ready && framing === 'full' && <button className="emma-full-body__interaction" type="button" aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={() => setWave(n => n + 1)} />}
     {DEV && !ready && <div style={{ position: 'absolute', left: 0, right: 0, bottom: -20, fontSize: 10, lineHeight: 1.3, textAlign: 'center', color: '#6b7280', pointerEvents: 'none', zIndex: 5 }}>

@@ -1,3 +1,4 @@
+import EmmaAvatarSlot from './EmmaAvatarSlot';
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { CharacterId } from '../../lib/supabase';
@@ -120,7 +121,7 @@ function layerStyle(
   } as CSSProperties;
 }
 
-export default function LayeredBestieAvatar({
+function LegacyLayeredBestieAvatar({
   characterId,
   size = 200,
   motion = 'idle',
@@ -241,4 +242,10 @@ export default function LayeredBestieAvatar({
       </div>
     </div>
   );
+}
+
+export default function LayeredBestieAvatar(props:LayeredBestieAvatarProps){
+ if(props.characterId!=='emma')return <LegacyLayeredBestieAvatar {...props}/>;
+ const emotion=props.motion==='celebrating'?'proud':props.motion==='encouraging'?'encouraging':props.motion==='thinking'?'thinking':'calm';
+ return <div className={props.className} style={{width:props.size??200,height:(props.size??200)*1.85,...props.style}}><EmmaAvatarSlot expression={emotion} framing="full"/></div>;
 }

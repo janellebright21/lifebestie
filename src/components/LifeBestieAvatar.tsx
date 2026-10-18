@@ -1,3 +1,4 @@
+import EmmaAvatarSlot from './besties/EmmaAvatarSlot';
 import { useState } from 'react';
 import {
   AVATAR_THEMES, CHARACTERS,
@@ -240,7 +241,7 @@ function Bubble({ text }: { text: string }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function LifeBestieAvatar({
+function LegacyLifeBestieAvatar({
   size       = 'md',
   variant    = 'portrait',
   pulse      = false,
@@ -323,4 +324,11 @@ export default function LifeBestieAvatar({
       <Bubble text={bubble} />
     </div>
   );
+}
+
+export default function LifeBestieAvatar(props:LifeBestieAvatarProps){
+ if(props.character&&props.character!=='emma')return <LegacyLifeBestieAvatar {...props}/>;
+ const size=props.size??'md',full=props.variant==='full-body';
+ const avatar=<div className={`relative shrink-0 ${full?FULL_BODY_SIZE[size]:PORTRAIT_SIZE[size]} ${props.className??''}`} style={{overflow:'hidden',borderRadius:full?16:'50%'}}><EmmaAvatarSlot expression={props.expression} framing={full?'full':'portrait'}/></div>;
+ return props.bubble?<div className="flex items-center gap-3">{avatar}<div className="rounded-2xl px-3 py-2 text-sm">{props.bubble}</div></div>:avatar;
 }

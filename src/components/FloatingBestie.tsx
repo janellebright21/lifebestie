@@ -1,3 +1,4 @@
+import EmmaAvatarSlot from './besties/EmmaAvatarSlot';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { resolveExpressionSrc, getDefaultSrc } from '../lib/characterAssets';
 import type { CharacterId, AvatarExpression } from '../lib/supabase';
@@ -229,12 +230,12 @@ export default function FloatingBestie({
             className="w-6 h-6 rounded-full overflow-hidden shrink-0"
             style={{ border: '2px solid var(--theme-primary-mid)' }}
           >
-            <img
+            {characterId === 'emma' ? <EmmaAvatarSlot expression={expression}/> : (<img
               src={imgError ? getDefaultSrc(characterId) : imgSrc}
               alt=""
               style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }}
               onError={() => setImgError(true)}
-            />
+            />)}
           </span>
           <span className="text-[11px] font-semibold text-violet-500">Show Emma</span>
         </button>
@@ -292,7 +293,7 @@ export default function FloatingBestie({
             pointerEvents: 'none',
           }}
         >
-          <img
+          {characterId === 'emma' ? <EmmaAvatarSlot expression={expression}/> : (<img
             src={imgError ? getDefaultSrc(characterId) : imgSrc}
             alt="Emma floating companion"
             draggable={false}
@@ -306,7 +307,7 @@ export default function FloatingBestie({
               userSelect: 'none',
               animation: reducedMotionRef.current ? undefined : 'bestie-float-gentle 5s ease-in-out infinite',
             }}
-          />
+          />)}
         </div>
 
         {/* Controls row — 44px hit targets, pointer events only here */}
