@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ensureEmmaFacialSymmetry, loadEmmaFacialClips } from './emmaFacialAnimation';
 import { createEmmaIdleMotion, getEmmaExpressionTargets, type EmmaIdleMotion } from './emmaIdleMotion';
+import { loadEmmaBodyClips, createEmmaBodyPerformance } from './emmaBodyPerformance';
 import type { AvatarExpression } from '../../lib/supabase';
 interface Props { modelSrc: string; waveRequest: number; expression: AvatarExpression; onReady: () => void; onFailure: (message: string) => void }
 function disposeModel(root: THREE.Object3D) {
@@ -32,6 +33,7 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
     let previous = 0, nextBlink = 3.8, elapsed = 0;
     let syncMirroredMorphs = () => {};
     let idleMotion: EmmaIdleMotion | undefined;
+    let bodyPerformance: ReturnType<typeof createEmmaBodyPerformance> | undefined;
     let blink: THREE.AnimationAction | undefined;
     const faceActions: Partial<Record<'Friendly' | 'Attentive' | 'Empathetic' | 'Proud', THREE.AnimationAction>> = {};
     const faceWeights = { Friendly: 0, Attentive: 0, Empathetic: 0, Proud: 0 };
@@ -70,6 +72,7 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
         }
         // Facial clips are additive: eyelid, lash, brow and lip motion layers
         // over Idle or Wave without replacing the body's animation tracks.
+        bodyPerformance?.update(String(expressionRef.current), delta, !media.matches && !waving?.isRunning());
         mixer.update(media.matches ? 0 : delta);
         idleMotion?.apply(elapsed, delta, String(expressionRef.current), !media.matches && !waving?.isRunning());
       }
@@ -81,11 +84,13 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
     const greetModel = () => {
       if (media.matches || document.hidden || !waving || waving.isRunning()) return;
       idleMotion?.restore();
+      bodyPerformance?.update(String(expressionRef.current), 0, false);
       idle?.fadeOut(.2); waving.reset().setLoop(THREE.LoopOnce,1); waving.clampWhenFinished = true; waving.fadeIn(.2).play(); start();
     }; greet.current = greetModel;
     const finished = (event: {action: THREE.AnimationAction}) => { if (event.action === waving) { waving?.fadeOut(.2); idle?.reset().fadeIn(.2).play(); nextBlink = elapsed + 1.5; } };
     const preference = () => {
       idleMotion?.restore();
+      bodyPerformance?.update(String(expressionRef.current), 0, false);
       mixer?.stopAllAction(); idle?.reset().play(); activateFacePoses();
       nextBlink = elapsed + 3.8; start();
     };
@@ -116,11 +121,14 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
         if (name === 'Blink') { action.clampWhenFinished = false; blink = action; }
         else { action.clampWhenFinished = true; faceActions[name] = action; }
       }
+      const bodyClips = await loadEmmaBodyClips(root);
+      if (disposed) return;
+      bodyPerformance = createEmmaBodyPerformance(mixer, bodyClips);
       activateFacePoses();
       idleMotion = createEmmaIdleMotion(root);
       mixer.addEventListener('finished',finished); idle?.play(); mixer.update(0); fit(); renderer.render(scene,camera); callbacks.current.onReady(); start(); greetModel();
     },undefined,error => {if(!disposed){const message = error instanceof Error ? error.message : String(error ?? 'GLB load failed'); if (import.meta.env.DEV) console.error('[EmmaModelViewer] GLB load failed:', message); callbacks.current.onFailure(message);}});
-    return () => {disposed=true;stop();idleMotion?.restore();greet.current=()=>{};refreshExpression.current=()=>{};resize.disconnect();media.removeEventListener('change',preference);document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('webglcontextlost',lost);mixer?.removeEventListener('finished',finished);mixer?.stopAllAction();if(root){mixer?.uncacheRoot(root);disposeModel(root);}renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
+    return () => {disposed=true;stop();bodyPerformance?.dispose();idleMotion?.restore();greet.current=()=>{};refreshExpression.current=()=>{};resize.disconnect();media.removeEventListener('change',preference);document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('webglcontextlost',lost);mixer?.removeEventListener('finished',finished);mixer?.stopAllAction();if(root){mixer?.uncacheRoot(root);disposeModel(root);}renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
   },[modelSrc]);
   return <div className="emma-full-body__canvas" ref={host} aria-hidden="true" />;
 }

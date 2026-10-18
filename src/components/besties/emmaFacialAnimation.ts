@@ -3,12 +3,13 @@ import * as THREE from 'three';
 export interface EmmaFacialPose {
   name: string;
   times: number[];
+  weights?: number[];
   channels: Array<[string, string, string, number[], number[]]>;
 }
 
 export function buildEmmaFacialClip(root: THREE.Object3D, pose: EmmaFacialPose): THREE.AnimationClip {
   const tracks: THREE.KeyframeTrack[] = [];
-  const weights = pose.name === 'Blink' ? [0, 1, 1, 0] : [0, 1, 1];
+  const weights = pose.weights ?? (pose.name === 'Blink' ? [0, 1, 1, 0] : [0, 1, 1]);
   if (pose.times.length !== weights.length) throw new Error('Invalid Emma face timing');
   for (const [name, path, , neutral, target] of pose.channels) {
     const node = root.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
@@ -24,8 +25,19 @@ export function buildEmmaFacialClip(root: THREE.Object3D, pose: EmmaFacialPose):
     }
     const property = path === 'translation' ? 'position' : path === 'rotation' ? 'quaternion' : path === 'weights' ? 'morphTargetInfluences' : path === 'scale' ? 'scale' : undefined;
     if (!property) throw new Error(`Unsupported Emma facial property: ${path}`);
-    const trackName = `${node.uuid}.${property}`;
-    tracks.push(path === 'rotation' ? new THREE.QuaternionKeyframeTrack(trackName, pose.times, values) : path === 'weights' ? new THREE.NumberKeyframeTrack(trackName, pose.times, values) : new THREE.VectorKeyframeTrack(trackName, pose.times, values));
+    const targets: THREE.Object3D[] = [];
+    if (path === 'weights') {
+      // Multi-material glTF meshes load as groups. Each primitive owns its
+      // own morph influences, including the sweatshirt's elbow corrective.
+      node.traverse(child => {
+        if (child instanceof THREE.Mesh && child.morphTargetInfluences?.length === neutral.length) targets.push(child);
+      });
+      if (!targets.length) throw new Error(`Missing Emma morph target: ${name}`);
+    } else targets.push(node);
+    for (const targetNode of targets) {
+      const trackName = `${targetNode.uuid}.${property}`;
+      tracks.push(path === 'rotation' ? new THREE.QuaternionKeyframeTrack(trackName, pose.times, values) : path === 'weights' ? new THREE.NumberKeyframeTrack(trackName, pose.times, values) : new THREE.VectorKeyframeTrack(trackName, pose.times, values));
+    }
   }
   return new THREE.AnimationClip(pose.name, -1, tracks);
 }
