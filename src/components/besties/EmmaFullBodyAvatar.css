@@ -16,3 +16,7 @@
 
 /* Keep the WebGL drawing buffer within its CSS-sized avatar slot at every pixel ratio. */
 .emma-full-body__canvas > canvas {display:block;width:100%;height:100%}
+
+.emma-model-layer{position:absolute;inset:0;opacity:0;transition:opacity .32s ease}
+.emma-model-layer.is-ready{opacity:1}
+@media(prefers-reduced-motion:reduce){.emma-model-layer{transition:none}}

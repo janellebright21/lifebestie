@@ -3,6 +3,10 @@ import {useEffect, useRef} from 'react';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import { EmmaMasterController, measureEmmaEnvelope, type EmmaActivity } from './emmaMasterController';
+const envelopeCache = new Map<string,THREE.Box3>();
+const idlePhases = new Map<string,number>();
+let lastGreeting = 0;
+function shouldGreet(){let last=lastGreeting;try{last=Math.max(last,Number(sessionStorage.getItem('emma-last-greeting'))||0);}catch{} const now=Date.now();if(now-last<20*60*1000)return false;lastGreeting=now;try{sessionStorage.setItem('emma-last-greeting',String(now));}catch{}return true;}
 interface Props {
   modelSrc: string; waveRequest: number; expression: string;
   activity?: EmmaActivity; greetOnArrival?: boolean;
@@ -28,7 +32,7 @@ export default function EmmaModelViewer(props: Props) {
   const refresh = useRef<() => void>(() => {});
   const previousWave = useRef(props.waveRequest);
   useEffect(() => {control.current?.setExpression(props.expression); refresh.current();}, [props.expression]);
-  useEffect(() => {control.current?.setActivity(props.activity ?? 'idle'); refresh.current();}, [props.activity]);
+  useEffect(() => {const timer=window.setTimeout(()=>{control.current?.setActivity(latest.current.activity ?? 'idle');refresh.current();},180);return()=>window.clearTimeout(timer);}, [props.activity]);
   useEffect(() => {
     if (latest.current.framing === 'portrait') return;
     if (props.waveRequest !== previousWave.current) {previousWave.current = props.waveRequest; control.current?.request('Wave'); refresh.current();}
@@ -82,15 +86,16 @@ export default function EmmaModelViewer(props: Props) {
       if (disposed || failed) {disposeModel(gltf.scene); return;}
       root = gltf.scene;
       try {
-        envelope = measureEmmaEnvelope(root,gltf.animations);
-        controller = new EmmaMasterController(root,gltf.animations); control.current = controller;
+        envelope = envelopeCache.get(props.modelSrc)?.clone();
+        if(!envelope){envelope=measureEmmaEnvelope(root,gltf.animations);envelopeCache.set(props.modelSrc,envelope.clone());}
+        controller = new EmmaMasterController(root,gltf.animations,{allowStance:latest.current.framing!=='portrait',idleTime:idlePhases.get(latest.current.framing??'full')??0}); control.current = controller;
         controller.setReducedMotion(media.matches); controller.setExpression(latest.current.expression); controller.setActivity(latest.current.activity ?? 'idle');
         scene.add(root); fit(); renderer.render(scene,camera); if(latest.current.framing==='portrait'&&!getEmmaPortrait().src){try{publishEmmaPortrait(renderer.domElement.toDataURL('image/png'));}catch{/* Main animated view remains usable. */}} latest.current.onReady();
-        if (latest.current.greetOnArrival && latest.current.framing !== 'portrait') controller.request('Wave'); start();
+        if (latest.current.greetOnArrival && latest.current.framing !== 'portrait' && !media.matches && shouldGreet()) controller.request('Wave'); start();
       } catch (error) {fail(error instanceof Error ? error.message : 'Emma initialization failed');}
     },undefined,error => fail(error instanceof Error ? error.message : 'Emma model failed to load'));
     return () => {
-      disposed = true; stop(); refresh.current = () => {}; control.current = undefined; controller?.dispose();
+      disposed = true; stop(); refresh.current = () => {}; control.current = undefined; if(controller)idlePhases.set(latest.current.framing??'full',controller.idleTime); controller?.dispose();
       resize.disconnect(); observer.disconnect(); media.removeEventListener('change',preference); document.removeEventListener('visibilitychange',visibility); renderer.domElement.removeEventListener('webglcontextlost',lost);
       if (root) disposeModel(root); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     };

@@ -378,6 +378,7 @@ function ChatPageInner({
     return saved ?? [buildInitMessage()];
   });
   const [input, setInput]                         = useState('');
+  const [inputFocused,setInputFocused] = useState(false);
   const [isTyping, setIsTyping]                   = useState(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
   const [savingMemory, setSavingMemory]           = useState(false);
@@ -591,7 +592,7 @@ function ChatPageInner({
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="relative shrink-0 overflow-hidden rounded-full" style={{ width: 72, height: 72, minWidth: 64 }}>
           {character === 'emma' || character === undefined ? (
-            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : 'idle'} framing="portrait" />
+            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : inputFocused && input.trim() ? 'listening' : 'idle'} framing="portrait" />
           ) : (
             <BestieAvatar
               characterId={character}
@@ -708,6 +709,8 @@ function ChatPageInner({
             type="text"
             placeholder="Ask me anything or plan your day…"
             value={input}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400 py-1"

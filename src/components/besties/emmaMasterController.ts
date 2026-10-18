@@ -20,7 +20,12 @@ export class EmmaMasterController {
   private activity: EmmaActivity = 'idle';
   private speakingWait = 0;
   private disposed = false;
-  constructor(readonly root: THREE.Object3D, clips: THREE.AnimationClip[]) {
+  private idlePhase = 0;
+  private idleWait = 0;
+  private attentionWait = 7;
+  private waveWait = 8;
+  private performedExpression = '';
+  constructor(readonly root: THREE.Object3D, clips: THREE.AnimationClip[], private options: {allowStance?:boolean;idleTime?:number} = {}) {
     this.mixer = new THREE.AnimationMixer(root);
     for (const name of EMMA_CLIPS) {
       const clip = clips.find(c => c.name === name);
@@ -29,43 +34,53 @@ export class EmmaMasterController {
     }
     this.mixer.addEventListener('finished', this.finished);
     this.play('Idle');
+    this.idlePhase = options.idleTime ?? 0; this.actions.get('Idle')!.time = this.idlePhase;
   }
   get state(): EmmaClip { return this.current; }
+  get idleTime(): number { return this.idlePhase; }
   private finished = (event: {action: THREE.AnimationAction}) => {
     if (this.disposed || event.action !== this.actions.get(this.current) || this.current === 'Idle') return;
     const next = this.pending ?? 'Idle'; this.pending = undefined;
-    this.play(next); this.speakingWait = 4;
+    this.play(next); this.speakingWait = 4; this.attentionWait = 7;
   };
   private play(name: EmmaClip) {
     if (this.disposed) return;
     const next = this.actions.get(name)!;
     const old = this.actions.get(this.current);
+    if(name === 'Wave')this.waveWait = 0;
     this.current = name; this.retiring.delete(next);
+    const phase = name === 'Idle' ? this.idlePhase : 0;
     next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1);
+    next.time = phase; this.idleWait = 0;
     next.setLoop(name === 'Idle' ? THREE.LoopRepeat : THREE.LoopOnce, name === 'Idle' ? Infinity : 1);
     next.clampWhenFinished = name !== 'Idle'; next.play();
     if (old && old !== next && old.isScheduled()) {
-      old.fadeOut(.30); next.fadeIn(.30); this.retiring.set(old, .31);
+      const fade = name === 'Wave' || old.getClip().name === 'Stance-Change' ? .35 : .55;
+      old.fadeOut(fade); next.fadeIn(fade); this.retiring.set(old, fade + .01);
     }
   }
   request(name: EmmaClip): boolean {
     if (this.disposed || this.reduced) return false;
     if (name === this.current) return false;
+    if (name === 'Wave' && this.waveWait < 8) return false;
     // Let the lifted foot plant before switching away from the stance change.
     // Finish a greeting before another emotional performance takes ownership.
     if (this.current === 'Stance-Change' || (this.current === 'Wave' && name !== 'Wave')) {
       this.pending = name; return true;
     }
-    this.pending = undefined; this.play(name); return true;
+    this.pending = undefined; if (name === 'Wave') this.waveWait = 0; this.play(name); return true;
   }
   setExpression(expression: string) {
     if (this.expression === expression) return;
-    this.expression = expression; this.request(emotionClip(expression));
+    this.expression = expression;
+    if (this.activity === 'idle') {this.performedExpression = expression; this.request(emotionClip(expression));}
   }
   setActivity(activity: EmmaActivity) {
     if (this.activity === activity) return;
     this.activity = activity; this.speakingWait = 0;
-    this.request(activity === 'speaking' ? 'Conversational' : activity === 'idle' ? emotionClip(this.expression) : 'Listening');
+    const reaction = this.performedExpression !== this.expression ? emotionClip(this.expression) : 'Idle';
+    if (activity === 'idle') this.performedExpression = this.expression;
+    this.request(activity === 'speaking' ? 'Conversational' : activity === 'idle' ? reaction : 'Listening');
   }
   setReducedMotion(reduced: boolean) {
     if (this.disposed || this.reduced === reduced) return;
@@ -75,10 +90,16 @@ export class EmmaMasterController {
   }
   update(delta: number) {
     if (this.disposed || this.reduced || !Number.isFinite(delta) || delta <= 0) return;
-    const dt = Math.min(delta, .05); this.mixer.update(dt);
+    const dt = Math.min(delta, .05); this.waveWait += dt; this.mixer.update(dt); if(this.current === 'Idle') this.idlePhase = this.actions.get('Idle')!.time;
     for (const [action, time] of this.retiring) {
       if (time <= dt) { action.stop(); this.retiring.delete(action); }
       else this.retiring.set(action, time - dt);
+    }
+    if (this.current === 'Idle' && (this.activity === 'listening' || this.activity === 'thinking')) {
+      this.attentionWait -= dt; if(this.attentionWait <= 0) this.request('Listening');
+    }
+    if (this.current === 'Idle' && this.activity === 'idle' && this.options.allowStance) {
+      this.idleWait += dt; if(this.idleWait >= 24) this.request('Stance-Change');
     }
     if (this.current === 'Idle' && this.activity === 'speaking') {
       this.speakingWait -= dt;
