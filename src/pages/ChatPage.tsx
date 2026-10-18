@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
 import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal, AvatarExpression } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
+import EmmaFullBodyAvatar from '../components/besties/EmmaFullBodyAvatar';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { buildEmmaContextSummary, type EmmaContextSummary } from '../lib/emmaGreeting';
 
@@ -588,13 +589,19 @@ function ChatPageInner({
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
-        <BestieAvatar
-          characterId={character ?? 'emma'}
-          expression={isTyping ? 'thinking' : emmaEmotion}
-          size="md"
-          motionOverride={celebrationMotion ?? greetingMotion ?? undefined}
-          onMotionEnd={() => { setGreetingMotion(null); setCelebrationMotion(null); }}
-        />
+        <div className="relative shrink-0" style={{ width: 44, height: 60 }}>
+          {character === 'emma' || character === undefined ? (
+            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} />
+          ) : (
+            <BestieAvatar
+              characterId={character}
+              expression={isTyping ? 'thinking' : emmaEmotion}
+              size="md"
+              motionOverride={celebrationMotion ?? greetingMotion ?? undefined}
+              onMotionEnd={() => { setGreetingMotion(null); setCelebrationMotion(null); }}
+            />
+          )}
+        </div>
         <div>
           <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Emma</h1>
           <p className="text-xs font-medium" style={{ color: 'var(--theme-primary)' }}>Always here for you</p>
