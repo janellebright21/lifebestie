@@ -5,6 +5,8 @@ import { EmmaMasterController, measureEmmaEnvelope, type EmmaActivity } from './
 interface Props {
   modelSrc: string; waveRequest: number; expression: string;
   activity?: EmmaActivity; greetOnArrival?: boolean;
+  /** 'full' (default) shows the whole figure; 'portrait' frames head to shoulders. */
+  framing?: 'full' | 'portrait';
   onReady: () => void; onFailure: (message: string) => void;
 }
 function disposeModel(root: THREE.Object3D) {
@@ -27,6 +29,7 @@ export default function EmmaModelViewer(props: Props) {
   useEffect(() => {control.current?.setExpression(props.expression); refresh.current();}, [props.expression]);
   useEffect(() => {control.current?.setActivity(props.activity ?? 'idle'); refresh.current();}, [props.activity]);
   useEffect(() => {
+    if (latest.current.framing === 'portrait') return;
     if (props.waveRequest !== previousWave.current) {previousWave.current = props.waveRequest; control.current?.request('Wave'); refresh.current();}
   }, [props.waveRequest]);
   useEffect(() => {
@@ -49,9 +52,16 @@ export default function EmmaModelViewer(props: Props) {
       const w = container.clientWidth, h = container.clientHeight; if (!w || !h) return;
       renderer.setSize(w,h,false); if (!envelope) return;
       const size = envelope.getSize(new THREE.Vector3()), center = envelope.getCenter(new THREE.Vector3()), aspect = w/h;
-      const halfHeight = Math.max(size.y*.56,size.x*.56/aspect), halfWidth = halfHeight*aspect;
+      // Portrait framing is a fixed head-and-shoulders shot derived from the
+      // static animated envelope: top margin above the bun, bottom at upper
+      // chest, wide enough for both shoulders. It never tracks the clips.
+      const portrait = latest.current.framing === 'portrait';
+      const span = portrait ? size.y * .32 : size.y * 1.12;
+      const focusY = portrait ? envelope.max.y - size.y * .015 - span / 2 : center.y;
+      const halfHeight = Math.max(span * .5, portrait ? size.x * .30 / aspect : size.x * .56 / aspect);
+      const halfWidth = halfHeight * aspect;
       camera.left = -halfWidth; camera.right = halfWidth; camera.top = halfHeight; camera.bottom = -halfHeight;
-      camera.position.set(center.x,center.y,center.z+Math.max(3,size.z+1)); camera.lookAt(center); camera.updateProjectionMatrix();
+      camera.position.set(center.x, focusY, center.z + Math.max(3, size.z + 1)); camera.lookAt(center.x, focusY, center.z); camera.updateProjectionMatrix();
     };
     const draw = (time: number) => {
       raf = 0; if (disposed || failed || document.hidden || !onscreen || !root) return;
@@ -75,7 +85,7 @@ export default function EmmaModelViewer(props: Props) {
         controller = new EmmaMasterController(root,gltf.animations); control.current = controller;
         controller.setReducedMotion(media.matches); controller.setExpression(latest.current.expression); controller.setActivity(latest.current.activity ?? 'idle');
         scene.add(root); fit(); renderer.render(scene,camera); latest.current.onReady();
-        if (latest.current.greetOnArrival) controller.request('Wave'); start();
+        if (latest.current.greetOnArrival && latest.current.framing !== 'portrait') controller.request('Wave'); start();
       } catch (error) {fail(error instanceof Error ? error.message : 'Emma initialization failed');}
     },undefined,error => fail(error instanceof Error ? error.message : 'Emma model failed to load'));
     return () => {

@@ -589,9 +589,9 @@ function ChatPageInner({
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
-        <div className="relative shrink-0" style={{ width: 44, height: 60 }}>
+        <div className="relative shrink-0 overflow-hidden rounded-full" style={{ width: 72, height: 72, minWidth: 64 }}>
           {character === 'emma' || character === undefined ? (
-            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : 'idle'} />
+            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : 'idle'} framing="portrait" />
           ) : (
             <BestieAvatar
               characterId={character}

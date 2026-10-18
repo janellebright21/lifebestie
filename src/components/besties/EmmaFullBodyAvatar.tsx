@@ -16,7 +16,7 @@ function statusText(probe: EmmaModelProbe, loadError: string | undefined, ready:
   if (loadError) return `loader error: ${loadError}`;
   return 'loading GLB…';
 }
-export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'idle', greetOnArrival = false }: { expression?: AvatarExpression; activity?: EmmaActivity; greetOnArrival?: boolean }) {
+export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'idle', greetOnArrival = false, framing = 'full' }: { expression?: AvatarExpression; activity?: EmmaActivity; greetOnArrival?: boolean; framing?: 'full' | 'portrait' }) {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
@@ -36,8 +36,8 @@ export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'i
   }, []);
   return <div className="emma-full-body">
     {!ready && <EmmaFullBodyIllustration expression={expression} greetOnArrival={greetOnArrival} />}
-    {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} greetOnArrival={greetOnArrival} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); setLoadError(message); }} /></Suspense>}
-    {ready && <button className="emma-full-body__interaction" type="button" aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={() => setWave(n => n + 1)} />}
+    {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} greetOnArrival={greetOnArrival} framing={framing} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); setLoadError(message); }} /></Suspense>}
+    {ready && framing === 'full' && <button className="emma-full-body__interaction" type="button" aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={() => setWave(n => n + 1)} />}
     {DEV && !ready && <div style={{ position: 'absolute', left: 0, right: 0, bottom: -20, fontSize: 10, lineHeight: 1.3, textAlign: 'center', color: '#6b7280', pointerEvents: 'none', zIndex: 5 }}>
       {statusText(probeResult, loadError, ready)}
     </div>}
