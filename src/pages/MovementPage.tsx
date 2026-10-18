@@ -1,3 +1,4 @@
+import EmmaAvatarSlot from '../components/besties/EmmaAvatarSlot';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy, Calendar, X } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
@@ -33,9 +34,7 @@ interface MovementPageProps {
 
 // ─── Workout pose thumbnail + preview dialog ──────────────────────────────────
 
-const WORKOUT_DEMO_SHEET = '/assets/exec/exec-3ad98760-df7f-4d2d-aba6-3fcf43915e1d.png';
-const SHEET_COLS = 3;
-const SHEET_ROWS = 3;
+
 
 const THUMB_TILES: Record<string, { row: number; col: number; alt: string }> = {
   'low-walk':      { row: 0, col: 0, alt: 'Emma demonstrating a walk around the block' },
@@ -685,14 +684,6 @@ function buildDemos(): Record<string, WorkoutDemo> {
 
 const WORKOUT_DEMOS = buildDemos();
 
-function tileBgPosition(activityId: string): { bgX: number; bgY: number } | null {
-  const tile = THUMB_TILES[activityId];
-  if (!tile) return null;
-  return {
-    bgX: (tile.col / (SHEET_COLS - 1)) * 100,
-    bgY: (tile.row / (SHEET_ROWS - 1)) * 100,
-  };
-}
 
 function WorkoutPoseThumb({
   activityId,
@@ -704,23 +695,18 @@ function WorkoutPoseThumb({
   onOpen: () => void;
 }) {
   const tile = THUMB_TILES[activityId];
-  const pos = tileBgPosition(activityId);
-  if (!tile || !pos) return null;
+  if (!tile) return null;
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Preview demo: ${tile.alt}`}
+      aria-label={`Preview exercise guide: ${tile.alt.replace("Emma demonstrating", "Emma guides")}`}
       className="rounded-lg overflow-hidden shrink-0 border border-white/60 cursor-pointer hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-400"
       style={{
         width: size,
         height: size,
-        backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
-        backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
-        backgroundPosition: `${pos.bgX}% ${pos.bgY}%`,
-        backgroundRepeat: 'no-repeat',
       }}
-    />
+    ><EmmaAvatarSlot expression="encouraging"/></button>
   );
 }
 
@@ -812,28 +798,14 @@ function WorkoutPoseDialog({
         </div>
 
         <div className="px-4 py-4 space-y-3">
-          {/* Emma reference photo */}
+          {/* Current Emma accompanies the separate exercise diagrams. */}
           <div className="flex items-center gap-3">
-            <div
-              role="img"
-              aria-label={demo.thumbAlt}
-              className="rounded-xl overflow-hidden border border-gray-100 shrink-0"
-              style={{
-                width: 56,
-                height: 56,
-                backgroundImage: `url(${WORKOUT_DEMO_SHEET})`,
-                backgroundSize: `${SHEET_COLS * 100}% ${SHEET_ROWS * 100}%`,
-                backgroundPosition: tileBgPosition(activity.id)
-                  ? `${tileBgPosition(activity.id)!.bgX}% ${tileBgPosition(activity.id)!.bgY}%`
-                  : '0% 0%',
-                backgroundRepeat: 'no-repeat',
-              }}
-            />
+            <div className="rounded-xl overflow-hidden border border-gray-100 shrink-0" style={{width:56,height:56}}><EmmaAvatarSlot expression="encouraging"/></div>
             <div>
               <p className="text-[11px] font-semibold text-gray-600">
                 {demo.isSequence ? '3-move sequence' : 'Beginner how-to'}
               </p>
-              <p className="text-[10px] text-gray-400">Emma shows you how</p>
+              <p className="text-[10px] text-gray-400">Emma’s exercise guide</p>
             </div>
           </div>
 

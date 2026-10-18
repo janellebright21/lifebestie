@@ -1,3 +1,4 @@
+import {getEmmaPortrait,publishEmmaPortrait} from './emmaPortraitCache';
 import {useEffect, useRef} from 'react';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
@@ -84,7 +85,7 @@ export default function EmmaModelViewer(props: Props) {
         envelope = measureEmmaEnvelope(root,gltf.animations);
         controller = new EmmaMasterController(root,gltf.animations); control.current = controller;
         controller.setReducedMotion(media.matches); controller.setExpression(latest.current.expression); controller.setActivity(latest.current.activity ?? 'idle');
-        scene.add(root); fit(); renderer.render(scene,camera); latest.current.onReady();
+        scene.add(root); fit(); renderer.render(scene,camera); if(latest.current.framing==='portrait'&&!getEmmaPortrait().src){try{publishEmmaPortrait(renderer.domElement.toDataURL('image/png'));}catch{/* Main animated view remains usable. */}} latest.current.onReady();
         if (latest.current.greetOnArrival && latest.current.framing !== 'portrait') controller.request('Wave'); start();
       } catch (error) {fail(error instanceof Error ? error.message : 'Emma initialization failed');}
     },undefined,error => fail(error instanceof Error ? error.message : 'Emma model failed to load'));
