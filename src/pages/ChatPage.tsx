@@ -511,6 +511,12 @@ function ChatPageInner({
       console.error('[Chat] sendMessage failed:', errMsg);
 
       const FRIENDLY: Record<string, string> = {
+        ACCESS_CHECK_FAILED:  "Emma could not verify chat access. Please try again shortly.",
+        ACCESS_DENIED:        "Chat access is unavailable for this account. Please check your trial or subscription in Settings.",
+        AI_LIMIT_REACHED:     "You've reached today's AI message limit. You can chat again tomorrow.",
+        BAD_REQUEST:          "Emma couldn't read this message. Please shorten it and send it again.",
+        GROQ_503:             "Emma's AI service is temporarily unavailable. Please try again shortly.",
+        GROQ_500:             "Emma's AI service is temporarily unavailable. Please try again shortly.",
         AI_NOT_CONFIGURED:    "Emma's AI isn't connected yet. An admin needs to add GROQ_API_KEY in Supabase Edge Function secrets.",
         GROQ_401:             "Emma's Groq API key is invalid. An admin needs to update GROQ_API_KEY in Supabase.",
         GROQ_400:             "Emma received a bad request error from Groq. Please try again.",
@@ -522,7 +528,8 @@ function ChatPageInner({
         UNAUTHORIZED:         "Your session has expired. Please sign out and sign back in.",
         INTERNAL_ERROR:       "Emma ran into an unexpected issue. Please try again.",
       };
-      const friendlyText = FRIENDLY[errMsg] ?? "I'm sorry—I had trouble responding. Please try again.";
+      const errorReference = /^[A-Z][A-Z0-9_]{0,48}$/.test(errMsg) ? errMsg : 'CHAT_ERROR';
+      const friendlyText = FRIENDLY[errMsg] ?? `Emma couldn't respond right now. Error reference: ${errorReference}.`;
 
       setMessages((prev) => [
         ...prev,

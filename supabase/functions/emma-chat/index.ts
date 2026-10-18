@@ -219,8 +219,22 @@ Deno.serve(async (req: Request) => {
     console.log("[emma-chat] Auth: OK, user", user.id.slice(0, 8) + "...");
 
     // ── Access check: verify subscription/trial/owner/dev access ──────────────
-    const { data: hasAccess } = await supabase.rpc("has_access", { p_user_id: user.id });
-    if (!hasAccess) {
+    // has_access validates auth.uid(), so use the verified caller's JWT.
+    // Keep the admin client separate for service-only quota reservations.
+    const callerClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      },
+    );
+    const { data: hasAccess, error: accessError } = await callerClient.rpc("has_access", { p_user_id: user.id });
+    if (accessError) {
+      console.error("[emma-chat] Access verification failed:", accessError.code);
+      return ok({ error: "ACCESS_CHECK_FAILED", message: "Could not verify chat access." });
+    }
+    if (hasAccess !== true) {
       return ok({
         error: "ACCESS_DENIED",
         message: "Your free trial has ended. Subscribe to continue chatting with Emma.",
