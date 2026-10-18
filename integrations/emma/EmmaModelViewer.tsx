@@ -33,11 +33,11 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
     let syncMirroredMorphs = () => {};
     let idleMotion: EmmaIdleMotion | undefined;
     let blink: THREE.AnimationAction | undefined;
-    const faceActions: Partial<Record<'Friendly' | 'Attentive', THREE.AnimationAction>> = {};
-    const faceWeights = { Friendly: 0, Attentive: 0 };
+    const faceActions: Partial<Record<'Friendly' | 'Attentive' | 'Empathetic' | 'Proud', THREE.AnimationAction>> = {};
+    const faceWeights = { Friendly: 0, Attentive: 0, Empathetic: 0, Proud: 0 };
     const targetExpression = () => getEmmaExpressionTargets(String(expressionRef.current));
     const activateFacePoses = () => {
-      for (const name of ['Friendly', 'Attentive'] as const) {
+      for (const name of ['Friendly', 'Attentive', 'Empathetic', 'Proud'] as const) {
         const action = faceActions[name]; if (!action) continue;
         action.reset().setLoop(THREE.LoopOnce, 1).setEffectiveWeight(faceWeights[name]).play();
         action.time = action.getClip().duration; action.paused = true;
@@ -57,7 +57,7 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
       if (mixer) {
         idleMotion?.restore();
         const target = targetExpression();
-        for (const name of ['Friendly', 'Attentive'] as const) {
+        for (const name of ['Friendly', 'Attentive', 'Empathetic', 'Proud'] as const) {
           faceWeights[name] = media.matches ? target[name] : THREE.MathUtils.damp(faceWeights[name], target[name], 9, delta);
           faceActions[name]?.setEffectiveWeight(faceWeights[name]);
         }
@@ -108,7 +108,7 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
       // Keep the existing body clips; the separate facial poses layer over them.
       const idleClip = find(/^(idle|relaxed|standing)([ _-]|$)/i), waveClip = find(/wave|greet/i);
       if (idleClip) idle = mixer.clipAction(idleClip); if (waveClip) waving = mixer.clipAction(waveClip);
-      for (const name of ['Blink', 'Friendly', 'Attentive'] as const) {
+      for (const name of ['Blink', 'Friendly', 'Attentive', 'Empathetic', 'Proud'] as const) {
         const clip = gltf.animations.find(candidate => candidate.name === name); if (!clip) continue;
         const additive = THREE.AnimationUtils.makeClipAdditive(clip.clone(), 0, clip, 30);
         additive.name = `${name}-additive`;

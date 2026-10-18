@@ -31,7 +31,7 @@ export function buildEmmaFacialClip(root: THREE.Object3D, pose: EmmaFacialPose):
 }
 
 export async function loadEmmaFacialClips(root: THREE.Object3D): Promise<THREE.AnimationClip[]> {
-  return Promise.all(['blink', 'friendly', 'attentive'].map(async name => {
+  return Promise.all(['blink', 'friendly', 'attentive', 'empathetic', 'proud'].map(async name => {
     const response = await fetch(`/characters/emma/face-${name}.json`);
     if (!response.ok) throw new Error(`Emma ${name} pose HTTP ${response.status}`);
     return buildEmmaFacialClip(root, await response.json() as EmmaFacialPose);
