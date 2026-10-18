@@ -7,7 +7,7 @@ export function refineEmmaTorso(root: THREE.Object3D): number {
   const smooth = (v: number) => { const t = THREE.MathUtils.clamp(v, 0, 1); return t*t*(3-2*t); };
   root.traverse(node => {
     const jewelry = node.name === 'Emma_gold_necklace' || node.name === 'Emma_gold_pendant';
-    if (!(node instanceof THREE.SkinnedMesh) || (!jewelry && node.parent?.name !== 'Emma_movement-ready_sweatshirt') || node.userData.emmaTorsoRefined) return;
+    if (!(node instanceof THREE.SkinnedMesh) || (jewelry || node.parent?.name !== 'Emma_movement-ready_sweatshirt') || node.userData.emmaTorsoRefined) return;
     const source = node.geometry;
     const position = source.getAttribute('position');
     if (!position || position.itemSize !== 3) return;
@@ -17,11 +17,6 @@ export function refineEmmaTorso(root: THREE.Object3D): number {
     const normals = geometry.getAttribute('normal') as THREE.BufferAttribute;
     const sourceNormals = source.getAttribute('normal');
     const shape = (x: number, height: number, front: number) => {
-      if (jewelry) {
-        // Keep the necklace outside the fuller knit; the pendant stays rigid.
-        const clearance = node.name === 'Emma_gold_pendant' ? .045 : .065*gaussian(height,1.265,.10)*smooth((front-.005)/.04);
-        return new THREE.Vector3(x,height,front+clearance);
-      }
       const torso = (1-smooth((Math.abs(x)-.155)/.035))*smooth((height-.99)/.05)*(1-smooth((height-1.36)/.045));
       const facing = smooth((front-.015)/.10);
       const waist = gaussian(height,1.105,.072);
@@ -53,6 +48,49 @@ export function refineEmmaTorso(root: THREE.Object3D): number {
     // preserves skin weights, joint bindings and clothing motion.
     geometry.computeBoundingBox(); geometry.computeBoundingSphere();
     node.geometry = geometry; node.userData.emmaTorsoRefined = true;
+  });
+  // Fit front jewelry to the sculpted cloth surface instead of floating it forward.
+  const grid = new Map<string, THREE.Vector3[]>(), cell = .02;
+  root.traverse(node => {
+    if (!(node instanceof THREE.Mesh) || node.parent?.name !== 'Emma_movement-ready_sweatshirt') return;
+    const p = node.geometry.getAttribute('position');
+    for (let i=0;i<p.count;i++) {
+      if (p.getZ(i)<.04 || Math.abs(p.getX(i))>.18) continue;
+      const point = new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i));
+      const key = `${Math.floor(point.x/cell)},${Math.floor(point.y/cell)}`;
+      const list = grid.get(key) ?? []; list.push(point); grid.set(key,list);
+    }
+  });
+  const cache = new Map<string,number>();
+  const surface = (x: number, y: number, fallback: number) => {
+    const key = `${Math.round(x/.00001)},${Math.round(y/.00001)}`;
+    if (cache.has(key)) return cache.get(key)!;
+    const candidates: Array<{distance:number; depth:number}> = [];
+    const gx=Math.floor(x/cell), gy=Math.floor(y/cell);
+    for (let i=-2;i<=2;i++) for(let j=-2;j<=2;j++) {
+      for(const point of grid.get(`${gx+i},${gy+j}`) ?? []) {
+        candidates.push({distance:(point.x-x)**2+(point.y-y)**2,depth:point.z});
+      }
+    }
+    let total=0, weight=0;
+    for (const point of candidates) { const w = Math.exp(-point.distance/.00020); total += w*point.depth; weight += w; }
+    const value = weight ? total/weight : fallback; cache.set(key,value); return value;
+  };
+  root.traverse(node => {
+    if (!(node instanceof THREE.SkinnedMesh) || !/^Emma_gold_(necklace|pendant)$/.test(node.name) || node.userData.emmaTorsoRefined) return;
+    const geometry=node.geometry.clone(), p=geometry.getAttribute('position') as THREE.BufferAttribute;
+    const pendant=node.name==='Emma_gold_pendant';
+    const center=new THREE.Vector3(); for(let i=0;i<p.count;i++)center.add(new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i)));center.multiplyScalar(1/p.count);
+    const shift=surface(center.x,center.y,center.z)+.005-center.z;
+    for(let i=0;i<p.count;i++) {
+      const x=p.getX(i), y=p.getY(i), z=p.getZ(i);
+      const blend=smooth((z-.025)/.04)*(1-smooth((y-1.335)/.035));
+      const dz=pendant ? shift : (surface(x,y,z)+.006-z)*blend;
+      if(Math.abs(dz)<1e-7)continue;
+      p.setXYZ(i,x,y,z+dz);changed++;
+    }
+    p.needsUpdate=true;geometry.computeBoundingBox();geometry.computeBoundingSphere();
+    node.geometry=geometry;node.userData.emmaTorsoRefined=true;
   });
   return changed;
 }
