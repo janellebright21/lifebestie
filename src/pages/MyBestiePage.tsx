@@ -22,7 +22,7 @@ const LAB_MOTIONS: Array<{ id: MotionState; label: string }> = [
   { id: 'empathetic-direct', label: 'Empathetic' },
 ];
 
-const EMMA_MOODS: Record<MotionState, AvatarExpression> = {idle:'happy',thinking:'thinking',encouraging:'encouraging',calm:'calm',celebrating:'proud',playful:'excited',listening:'empathetic','proud-direct':'proud','empathetic-direct':'empathetic'};
+const EMMA_MOODS: Record<MotionState, AvatarExpression> = {idle:'happy',thinking:'thinking',encouraging:'encouraging',calm:'calm',celebrating:'proud',playful:'excited',listening:'listening','proud-direct':'proud','empathetic-direct':'empathetic'};
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
