@@ -2,23 +2,26 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ensureEmmaFacialSymmetry, loadEmmaFacialClips } from './emmaFacialAnimation';
-import { createEmmaIdleMotion, getEmmaExpressionTargets, type EmmaIdleMotion } from './emmaIdleMotion';
+import { createEmmaIdleMotion, getEmmaExpressionTargets, type EmmaActivity, type EmmaIdleMotion } from './emmaIdleMotion';
+import { refineEmmaTorso } from './emmaTorsoRefinement';
 import { loadEmmaBodyClips, createEmmaBodyPerformance } from './emmaBodyPerformance';
 import type { AvatarExpression } from '../../lib/supabase';
-interface Props { modelSrc: string; waveRequest: number; expression: AvatarExpression; onReady: () => void; onFailure: (message: string) => void }
+interface Props { modelSrc: string; waveRequest: number; expression: AvatarExpression; activity?: EmmaActivity; onReady: () => void; onFailure: (message: string) => void }
 function disposeModel(root: THREE.Object3D) {
   const materials = new Set<THREE.Material>();
   const textures = new Set<THREE.Texture>();
   root.traverse(node => { if (!(node instanceof THREE.Mesh)) return; node.geometry.dispose(); const list = Array.isArray(node.material) ? node.material : [node.material]; list.forEach(material => { materials.add(material); Object.values(material).forEach(value => { if (value instanceof THREE.Texture) textures.add(value); }); }); });
   textures.forEach(texture => texture.dispose()); materials.forEach(material => material.dispose());
 }
-export default function EmmaModelViewer({modelSrc, waveRequest, expression, onReady, onFailure}: Props) {
+export default function EmmaModelViewer({modelSrc, waveRequest, expression, activity, onReady, onFailure}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const greet = useRef<() => void>(() => {});
   const callbacks = useRef({onReady, onFailure}); callbacks.current = {onReady, onFailure};
   const expressionRef = useRef(expression); expressionRef.current = expression;
+  const activityRef = useRef(activity); activityRef.current = activity;
   const refreshExpression = useRef<() => void>(() => {});
   useEffect(() => { refreshExpression.current(); }, [expression]);
+  useEffect(() => { refreshExpression.current(); }, [activity]);
   useEffect(() => { greet.current(); }, [waveRequest]);
   useEffect(() => {
     const container = host.current; if (!container) return;
@@ -74,7 +77,7 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
         // over Idle or Wave without replacing the body's animation tracks.
         bodyPerformance?.update(String(expressionRef.current), delta, !media.matches && !waving?.isRunning());
         mixer.update(media.matches ? 0 : delta);
-        idleMotion?.apply(elapsed, delta, String(expressionRef.current), !media.matches && !waving?.isRunning());
+        idleMotion?.apply(elapsed, delta, String(expressionRef.current), !media.matches && !waving?.isRunning(), activityRef.current ?? 'idle');
       }
       syncMirroredMorphs();
       renderer.render(scene,camera); if (!media.matches) frame = requestAnimationFrame(draw);
@@ -100,7 +103,9 @@ export default function EmmaModelViewer({modelSrc, waveRequest, expression, onRe
     const resize = new ResizeObserver(() => {fit();start();}); resize.observe(container); fit();
     new GLTFLoader().load(modelSrc,async gltf => {
       if (disposed) { disposeModel(gltf.scene); return; }
-      root = gltf.scene; const bounds = new THREE.Box3().setFromObject(root); const size = bounds.getSize(new THREE.Vector3());
+      root = gltf.scene;
+      refineEmmaTorso(root);
+      const bounds = new THREE.Box3().setFromObject(root); const size = bounds.getSize(new THREE.Vector3());
       if (!Number.isFinite(size.y) || size.y <= 0) {disposeModel(root);root=undefined;callbacks.current.onFailure('model has invalid bounds');return;}
       root.scale.multiplyScalar(2/size.y); const normalized = new THREE.Box3().setFromObject(root); const center = normalized.getCenter(new THREE.Vector3()); root.position.sub(new THREE.Vector3(center.x,normalized.min.y,center.z)); scene.add(root);
       syncMirroredMorphs = ensureEmmaFacialSymmetry(root);
