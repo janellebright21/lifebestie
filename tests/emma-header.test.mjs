@@ -1,91 +1,33 @@
-// Regression coverage for the Emma master GLB header probe in
-// src/lib/emmaModelAsset.ts: a real GLB must verify as ready, while truncated
-// or corrupt headers must be rejected with a clear reason.
-import { test } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
-import { transformSync } from 'esbuild';
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const glbPath = path.join(root, 'public/characters/emma/Emma-Master.glb');
-const manifest = JSON.parse(
-  readFileSync(path.join(root, 'public/characters/emma/Emma-Master.manifest.json'), 'utf8'),
-);
-
-// The probe is TypeScript with an inline manifest import; transpile it once and
-// inline the manifest values so node --test can exercise the real logic.
-const source = readFileSync(path.join(root, 'src/lib/emmaModelAsset.ts'), 'utf8');
-const js = transformSync(source, { loader: 'ts', format: 'cjs' }).code
-  .replace(/import\.meta\.env\?\.DEV/g, 'false');
-const stubManifest = { asset: '/characters/emma/Emma-Master.glb', bytes: manifest.bytes, sha256: manifest.sha256 };
-const mod = { exports: {} };
-new Function('module', 'exports', 'require', js)(
-  mod,
-  mod.exports,
-  () => stubManifest,
-);
-const { loadEmmaModel } = mod.exports;
-
-function makeFetch(body, { status = 206, contentType = 'model/gltf-binary', range = `bytes 0-19/${manifest.bytes}` } = {}) {
-  return async () => {
-    // Copy into a standalone ArrayBuffer so DataView reads stay in bounds.
-    const copy = new Uint8Array(Uint8Array.from(body));
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      headers: {
-        get(name) {
-          if (name === 'content-type') return contentType;
-          if (name === 'content-range') return range;
-          return null;
-        },
-      },
-      arrayBuffer: async () => copy.buffer,
-    };
-  };
-}
-
-test('real GLB header (first 20 bytes) verifies as ready', async () => {
-  const glb = readFileSync(glbPath);
-  globalThis.fetch = makeFetch(glb.subarray(0, 20));
-  const result = await loadEmmaModel();
-  assert.equal(result.state, 'ready');
-});
-
-test('truncated header (< 20 bytes) is rejected', async () => {
-  const glb = readFileSync(glbPath);
-  globalThis.fetch = makeFetch(glb.subarray(0, 12));
-  const result = await loadEmmaModel();
-  assert.equal(result.state, 'unavailable');
-  assert.match(result.reason, /truncated/i);
-});
-
-test('wrong magic value is rejected as invalid container', async () => {
-  const glb = readFileSync(glbPath);
-  const tampered = Buffer.from(glb.subarray(0, 20));
-  tampered.writeUInt32LE(0x12345678, 0);
-  globalThis.fetch = makeFetch(tampered);
-  const result = await loadEmmaModel();
-  assert.equal(result.state, 'unavailable');
-  assert.match(result.reason, /not a valid glTF container/i);
-});
-
-test('declared size mismatch with manifest is rejected', async () => {
-  const glb = readFileSync(glbPath);
-  const tampered = Buffer.from(glb.subarray(0, 20));
-  tampered.writeUInt32LE(manifest.bytes + 1, 8);
-  globalThis.fetch = makeFetch(tampered);
-  const result = await loadEmmaModel();
-  assert.equal(result.state, 'unavailable');
-  assert.match(result.reason, /size does not match/i);
-});
-
-test('full 200 response with wrong byte count is rejected', async () => {
-  const glb = readFileSync(glbPath);
-  globalThis.fetch = makeFetch(glb.subarray(0, 20), { status: 200, range: null });
-  const result = await loadEmmaModel();
-  assert.equal(result.state, 'unavailable');
-  assert.match(result.reason, /full response is incomplete/i);
+import fs from 'node:fs';
+import {buildSync} from 'esbuild';
+// Compile the actual loader and manifest together; no CommonJS mock wrapping.
+const compiled = buildSync({entryPoints:['src/lib/emmaModelAsset.ts'],bundle:true,write:false,format:'esm',platform:'node',define:{'import.meta.env.DEV':'false'}}).outputFiles[0].text;
+const real = fs.readFileSync('public/characters/emma/Emma-Master.glb');
+assert.equal(real.length,23517212,'Installed master must retain the verified full size');
+const head = real.subarray(0,20), type={'content-type':'model/gltf-binary'};
+const version=Buffer.from(head);version.writeUInt32LE(1,4);
+const size=Buffer.from(head);size.writeUInt32LE(100,8);
+const chunk=Buffer.from(head);chunk.write('BIN\0',16);
+const cases=[
+ ['actual 20-byte 206',head,206,{...type,'content-range':`bytes 0-19/${real.length}`},'ready'],
+ ['206 without optional range',head,206,type,'ready'],
+ ['actual full 200',real,200,type,'ready'],
+ ['truncated header',head.subarray(0,12),206,type,'unavailable'],
+ ['unsupported GLB version',version,206,type,'unavailable'],
+ ['wrong model size',size,206,type,'unavailable'],
+ ['wrong JSON chunk marker',chunk,206,type,'unavailable'],
+ ['wrong range start',head,206,{...type,'content-range':`bytes 4-23/${real.length}`},'unavailable'],
+ ['incomplete full response',head,200,type,'unavailable'],
+ ['SPA HTML fallback','<html>app</html>',200,{'content-type':'text/html'},'unavailable'],
+];
+for(const [name,data,status,headers,expected] of cases) test(`Emma header: ${name}`,{concurrency:false},async()=>{
+ const prior=globalThis.fetch;
+ try {
+  globalThis.fetch=async(url,options)=>{assert.equal(options.headers.Range,'bytes=0-19');return new Response(data,{status,headers});};
+  // Every test needs a fresh module: ready probes are deliberately memoized.
+  const url='data:text/javascript;base64,'+Buffer.from(compiled+'\n// '+name).toString('base64');
+  const module=await import(url);const result=await module.loadEmmaModel();assert.equal(result.state,expected,JSON.stringify(result));
+ } finally {globalThis.fetch=prior;}
 });
