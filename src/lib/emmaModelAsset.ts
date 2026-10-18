@@ -28,8 +28,27 @@ function verify(url: string): Promise<EmmaModelProbe> {
       const type = response.headers.get('content-type') || '';
       if (type.includes('text/html')) return { state: 'unavailable', reason: `HTML served for ${describe(response)}` };
       const buffer = new Uint8Array(await response.arrayBuffer());
-      if (buffer.length < 20 || String.fromCharCode(...buffer.slice(0, 4)) !== 'glTF' || String.fromCharCode(...buffer.slice(8, 12)) !== 'JSON') return { state: 'unavailable', reason: `not a valid glTF container (${describe(response)})` };
-      if (import.meta.env.DEV) console.info('[emmaModelAsset] probe ok:', url);
+      // GLB: magic[0..3], version[4..7], total length[8..11],
+      // first chunk length[12..15], first chunk type[16..19].
+      if (buffer.length < 20) return { state: 'unavailable', reason: `truncated glTF header (${describe(response)})` };
+      const header = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      const declaredBytes = header.getUint32(8, true);
+      const jsonBytes = header.getUint32(12, true);
+      if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2 ||
+          header.getUint32(16, true) !== 0x4e4f534a || jsonBytes === 0 || jsonBytes % 4 !== 0 ||
+          jsonBytes > declaredBytes - 20) return { state: 'unavailable', reason: `not a valid glTF container (${describe(response)})` };
+      if (declaredBytes !== manifest.bytes) return { state: 'unavailable', reason: 'Emma model size does not match its manifest' };
+      if (response.status === 206) {
+        const range = response.headers.get('content-range');
+        if (range) {
+          const match = /^bytes 0-(\d+)\/(\d+)$/.exec(range);
+          if (!match || Number(match[1]) < 19 || Number(match[2]) !== manifest.bytes || buffer.length !== Number(match[1]) + 1)
+            return { state: 'unavailable', reason: 'Emma model has an invalid partial response' };
+        }
+      } else if (response.status !== 200 || buffer.length !== manifest.bytes) {
+        return { state: 'unavailable', reason: 'Emma model full response is incomplete' };
+      }
+      if (import.meta.env?.DEV) console.info('[emmaModelAsset] probe ok:', url);
       return { state: 'ready', url };
     } catch (error) {
       return { state: 'unavailable', reason: error instanceof Error ? error.message : String(error) };
