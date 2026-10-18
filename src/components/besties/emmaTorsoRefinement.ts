@@ -19,15 +19,15 @@ export function refineEmmaTorso(root: THREE.Object3D): number {
     const shape = (x: number, height: number, front: number) => {
       if (jewelry) {
         // Keep the necklace outside the fuller knit; the pendant stays rigid.
-        const clearance = node.name === 'Emma_gold_pendant' ? .030 : .038*gaussian(height,1.265,.10)*smooth((front-.005)/.04);
+        const clearance = node.name === 'Emma_gold_pendant' ? .045 : .065*gaussian(height,1.265,.10)*smooth((front-.005)/.04);
         return new THREE.Vector3(x,height,front+clearance);
       }
       const torso = (1-smooth((Math.abs(x)-.155)/.035))*smooth((height-.99)/.05)*(1-smooth((height-1.36)/.045));
       const facing = smooth((front-.015)/.10);
       const waist = gaussian(height,1.105,.072);
-      const bust = .90*(gaussian(x,-.068,.052)+gaussian(x,.068,.052));
+      const bust = .98*(gaussian(x,-.067,.057)+gaussian(x,.067,.057));
       return new THREE.Vector3(x+(-x*.17*waist+x*.025*gaussian(height,1.27,.065))*torso,
-        height,front+(.062*bust*gaussian(height,1.275,.065)-.008*gaussian(height,1.18,.035))*facing*torso);
+        height,front+(.100*bust*gaussian(height,1.265,.058)-.018*gaussian(height,1.175,.034)-.010*gaussian(x,0,.024)*gaussian(height,1.26,.043))*facing*torso);
     };
     const jacobian = new THREE.Matrix3(), normalMatrix = new THREE.Matrix3();
     const epsilon = .0001;
