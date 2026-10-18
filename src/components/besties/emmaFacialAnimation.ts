@@ -4,22 +4,28 @@ export interface EmmaFacialPose {
   name: string;
   times: number[];
   weights?: number[];
-  channels: Array<[string, string, string, number[], number[]]>;
+  channels: Array<[string, string, string, number[], number[], number[]?]>;
 }
 
 export function buildEmmaFacialClip(root: THREE.Object3D, pose: EmmaFacialPose): THREE.AnimationClip {
   const tracks: THREE.KeyframeTrack[] = [];
   const weights = pose.weights ?? (pose.name === 'Blink' ? [0, 1, 1, 0] : [0, 1, 1]);
-  if (pose.times.length !== weights.length) throw new Error('Invalid Emma face timing');
-  for (const [name, path, , neutral, target] of pose.channels) {
+  for (const [name, path, , neutral, target, samples] of pose.channels) {
     const node = root.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
     if (!node || neutral.length !== target.length) throw new Error(`Missing Emma facial target: ${name}`);
+    if (samples ? samples.length !== pose.times.length * neutral.length : pose.times.length !== weights.length) throw new Error('Invalid Emma pose timing');
     const values: number[] = [];
-    for (const weight of weights) {
-      const row = neutral.map((value, i) => value + (target[i] - value) * weight);
+    let previousRotation: THREE.Quaternion | undefined;
+    for (let frame = 0; frame < pose.times.length; frame++) {
+      const weight = weights[frame];
+      const row = samples ? samples.slice(frame * neutral.length, (frame + 1) * neutral.length) : neutral.map((value, i) => value + (target[i] - value) * weight);
       if (row.some(value => !Number.isFinite(value))) throw new Error('Invalid Emma facial pose');
       if (path === 'rotation') {
-        const q = new THREE.Quaternion().fromArray(row).normalize(); row.splice(0, row.length, ...q.toArray());
+        // q and -q represent the same orientation. Interpolating their raw
+        // components can create a full wrist flip between identical poses.
+        const q = samples ? new THREE.Quaternion().fromArray(row).normalize() : new THREE.Quaternion().fromArray(neutral).normalize().slerp(new THREE.Quaternion().fromArray(target).normalize(), weight);
+        if (previousRotation && previousRotation.dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+        previousRotation = q.clone(); row.splice(0, row.length, ...q.toArray());
       }
       values.push(...row);
     }
@@ -35,7 +41,10 @@ export function buildEmmaFacialClip(root: THREE.Object3D, pose: EmmaFacialPose):
       if (!targets.length) throw new Error(`Missing Emma morph target: ${name}`);
     } else targets.push(node);
     for (const targetNode of targets) {
-      const trackName = `${targetNode.uuid}.${property}`;
+      // Match GLTFLoader's existing Idle/Wave binding keys. UUID aliases for
+      // the same bone create separate mixers that overwrite one another with
+      // the original T-pose instead of layering over the evaluated Idle.
+      const trackName = `${targetNode.name || targetNode.uuid}.${property}`;
       tracks.push(path === 'rotation' ? new THREE.QuaternionKeyframeTrack(trackName, pose.times, values) : path === 'weights' ? new THREE.NumberKeyframeTrack(trackName, pose.times, values) : new THREE.VectorKeyframeTrack(trackName, pose.times, values));
     }
   }
