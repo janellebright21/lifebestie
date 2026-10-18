@@ -1,12 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { AvatarExpression } from '../../lib/supabase';
-import type { EmmaActivity } from './emmaIdleMotion';
+import type { EmmaActivity } from './emmaMasterController';
 import { loadEmmaModel, resetEmmaModelProbe, type EmmaModelProbe } from '../../lib/emmaModelAsset';
 import './EmmaFullBodyAvatar.css';
 import EmmaFullBodyIllustration from './EmmaFullBodyIllustration';
 const ModelViewer = lazy(() => import('./EmmaModelViewer'));
 export const EMMA_FULL_BODY_REFERENCE = '/assets/emma/design/emma-full-body-approved.png';
-// Activates automatically when public/characters/emma/Emma-App-v1.glb is
+// Activates automatically when public/characters/emma/Emma-Master.glb is
 // deployed; the 2D artwork remains the fallback until the probe verifies it.
 const DEV = import.meta.env.DEV;
 function statusText(probe: EmmaModelProbe, loadError: string | undefined, ready: boolean): string {
@@ -36,7 +36,7 @@ export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'i
   }, []);
   return <div className="emma-full-body">
     {!ready && <EmmaFullBodyIllustration expression={expression} greetOnArrival={greetOnArrival} />}
-    {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); setLoadError(message); }} /></Suspense>}
+    {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} greetOnArrival={greetOnArrival} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); setLoadError(message); }} /></Suspense>}
     {ready && <button className="emma-full-body__interaction" type="button" aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={() => setWave(n => n + 1)} />}
     {DEV && !ready && <div style={{ position: 'absolute', left: 0, right: 0, bottom: -20, fontSize: 10, lineHeight: 1.3, textAlign: 'center', color: '#6b7280', pointerEvents: 'none', zIndex: 5 }}>
       {statusText(probeResult, loadError, ready)}

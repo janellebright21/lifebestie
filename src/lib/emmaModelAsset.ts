@@ -1,7 +1,9 @@
 // Runtime probe for the rigged Blender export. When the GLB is present and
 // valid, EmmaFullBodyAvatar swaps the 2D illustration for the 3D viewer;
 // until then the existing artwork stays. The check is cached per session.
-export const EMMA_GLB_PATH = '/characters/emma/Emma-App-v1.glb';
+// The verified path and manifest fields come from the pinned Emma-Master.
+import manifest from './emmaAssetManifest';
+export const EMMA_GLB_PATH = manifest.asset;
 
 export type EmmaModelProbe =
   | { state: 'probing' }
@@ -21,13 +23,12 @@ function verify(url: string): Promise<EmmaModelProbe> {
       // The SPA rewrites unknown paths to index.html with HTTP 200, so a
       // status check alone would mistake the app shell for the model.
       // Range-request the first bytes and verify the glTF magic number.
-      const response = await fetch(url, { headers: { Range: 'bytes=0-3' } });
+      const response = await fetch(url, { headers: { Range: 'bytes=0-19' } });
       if (!response.ok) return { state: 'unavailable', reason: describe(response) };
       const type = response.headers.get('content-type') || '';
       if (type.includes('text/html')) return { state: 'unavailable', reason: `HTML served for ${describe(response)}` };
       const buffer = new Uint8Array(await response.arrayBuffer());
-      const magic = String.fromCharCode(...buffer.slice(0, 4));
-      if (magic !== 'glTF') return { state: 'unavailable', reason: `bad magic "${magic}" (${describe(response)})` };
+      if (buffer.length < 20 || String.fromCharCode(...buffer.slice(0, 4)) !== 'glTF' || String.fromCharCode(...buffer.slice(8, 12)) !== 'JSON') return { state: 'unavailable', reason: `not a valid glTF container (${describe(response)})` };
       if (import.meta.env.DEV) console.info('[emmaModelAsset] probe ok:', url);
       return { state: 'ready', url };
     } catch (error) {
@@ -37,7 +38,7 @@ function verify(url: string): Promise<EmmaModelProbe> {
 }
 
 export function loadEmmaModel(): Promise<EmmaModelProbe> {
-  probe ??= verify(EMMA_GLB_PATH);
+  probe ??= verify(manifest.asset);
   return probe;
 }
 
