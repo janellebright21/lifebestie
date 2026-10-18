@@ -395,7 +395,7 @@ function ChatPageInner({
   }, [messages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const pane=bottomRef.current?.parentElement; pane?.scrollTo({top:pane.scrollHeight,behavior:"smooth"});
   }, [messages, isTyping, pendingSuggestion]);
 
   // Play one subtle greeting motion when Chat first opens
