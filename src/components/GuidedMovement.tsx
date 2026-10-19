@@ -7,12 +7,12 @@ const STEP_MOTIONS: Record<string, (Motion | null)[]> = {
   'low-walk': [null, 'walk', 'walk'],
   'low-stretch': [null, 'reach', null],
   'low-mobility': [null, null, null],
-  'mod-bodyweight': ['march', 'squat', 'push', null],
+  'mod-bodyweight': ['march', null, 'push', null],
   'mod-bands': [null, 'row', null],
   'mod-fastwalk': ['walk', 'walk', 'walk'],
-  'high-strength': ['march', 'squat', null, null],
+  'high-strength': ['march', null, null, null],
   'high-cardio': ['walk', 'walk', 'walk', 'walk'],
-  'high-full': ['walk', null, 'walk', 'reach'],
+  'high-full': ['walk', null, null, 'reach'],
 };
 import { ArrowLeft, ArrowRight, X, CheckCircle2 } from 'lucide-react';
 import type { MovementActivity } from '../hooks/useMovement';
@@ -97,7 +97,7 @@ export default function GuidedMovement({ activity, onClose, onFinish }: {
         </div>
         {stepMotion ? <StickFigureDemo key={`${activity.id}-${step}`} activity={activity} motion={stepMotion} caption={current.title} /> : (
           <div className="rounded-2xl border border-gray-200 bg-slate-50 px-4 py-5 text-center text-xs text-slate-600">
-            No verified matching animation for this step yet. Follow the written instructions above.
+            A matching movement demonstration is still being developed for this step. Please use the written instructions above.
           </div>
         )}
         <p className="text-xs text-gray-500">Move at your own pace. Stop if anything hurts, or if you feel faint or unwell. These are general instructions, not a live form check.</p>
