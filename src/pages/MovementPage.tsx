@@ -725,6 +725,11 @@ function WorkoutPoseDialog({
   const [stageIndex, setStageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSlow, setIsSlow] = useState(false);
+  const goToStep = useCallback((next: number) => {
+    setIsPlaying(false);
+    setStageIndex(next);
+  }, []);
+
 
   // Cycle the existing step-by-step SVG positions without changing their exercise labels.
   // These are still individual instructional poses, not continuous biomechanical animations.
@@ -747,10 +752,10 @@ function WorkoutPoseDialog({
       onClose();
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      setStageIndex(i => Math.max(0, i - 1));
+      goToStep(Math.max(0, stageIndex - 1));
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      setStageIndex(i => Math.min((demo?.stages.length ?? 1) - 1, i + 1));
+      goToStep(Math.min((demo?.stages.length ?? 1) - 1, stageIndex + 1));
     } else if (e.key === 'Tab') {
       // Keep keyboard focus inside the modal dialog.
       const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -770,7 +775,7 @@ function WorkoutPoseDialog({
         first.focus();
       }
     }
-  }, [onClose, demo]);
+  }, [onClose, demo, goToStep, stageIndex]);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -864,7 +869,7 @@ function WorkoutPoseDialog({
           <div className="flex items-center justify-center gap-2">
             <button
               type="button"
-              onClick={() => setStageIndex(i => Math.max(0, i - 1))}
+              onClick={() => goToStep(Math.max(0, stageIndex - 1))}
               disabled={stageIndex === 0}
               aria-label={`Previous step${demo.stages[stageIndex - 1] ? `: ${demo.stages[stageIndex - 1].label}` : ''}`}
               className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-600 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
@@ -879,14 +884,14 @@ function WorkoutPoseDialog({
                   type="button"
                   aria-pressed={i === stageIndex}
                   aria-label={`Step ${i + 1}: ${s.label}`}
-                  onClick={() => setStageIndex(i)}
+                  onClick={() => goToStep(i)}
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${i === stageIndex ? 'bg-indigo-500' : 'bg-gray-300 hover:bg-gray-400'}`}
                 />
               ))}
             </div>
             <button
               type="button"
-              onClick={() => setStageIndex(i => Math.min(demo.stages.length - 1, i + 1))}
+              onClick={() => goToStep(Math.min(demo.stages.length - 1, stageIndex + 1))}
               disabled={stageIndex === demo.stages.length - 1}
               aria-label={`Next step${demo.stages[stageIndex + 1] ? `: ${demo.stages[stageIndex + 1].label}` : ''}`}
               className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-600 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
