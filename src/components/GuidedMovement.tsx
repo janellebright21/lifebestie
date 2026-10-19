@@ -1,5 +1,19 @@
 import { useState } from 'react';
-import StickFigureDemo from './StickFigureDemo';
+import StickFigureDemo, { type Motion } from './StickFigureDemo';
+
+// Only show a motion where the current illustration represents the named step.
+// Other steps show written guidance until purpose-built animation frames exist.
+const STEP_MOTIONS: Record<string, (Motion | null)[]> = {
+  'low-walk': [null, 'walk', 'walk'],
+  'low-stretch': [null, 'reach', null],
+  'low-mobility': [null, null, null],
+  'mod-bodyweight': ['march', 'squat', 'push', null],
+  'mod-bands': [null, 'row', null],
+  'mod-fastwalk': ['walk', 'walk', 'walk'],
+  'high-strength': ['march', 'squat', null, null],
+  'high-cardio': ['walk', 'walk', 'walk', 'walk'],
+  'high-full': ['walk', null, 'walk', 'reach'],
+};
 import { ArrowLeft, ArrowRight, X, CheckCircle2 } from 'lucide-react';
 import type { MovementActivity } from '../hooks/useMovement';
 
@@ -63,6 +77,7 @@ export default function GuidedMovement({ activity, onClose, onFinish }: {
   const [step, setStep] = useState(0);
   const steps = GUIDES[activity.id] ?? [];
   const current = steps[step];
+  const stepMotion = STEP_MOTIONS[activity.id]?.[step] ?? null;
   if (!current) return null;
   return (
     <div role="dialog" aria-modal="true" aria-label={`Guided ${activity.label}`} className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-3">
@@ -80,7 +95,11 @@ export default function GuidedMovement({ activity, onClose, onFinish }: {
           <h3 className="font-bold text-gray-800 text-xl">{current.title}</h3>
           <p className="text-sm text-gray-700 leading-relaxed mt-3">{current.instruction}</p>
         </div>
-        <StickFigureDemo activity={activity} />
+        {stepMotion ? <StickFigureDemo key={`${activity.id}-${step}`} activity={activity} motion={stepMotion} caption={current.title} /> : (
+          <div className="rounded-2xl border border-gray-200 bg-slate-50 px-4 py-5 text-center text-xs text-slate-600">
+            No verified matching animation for this step yet. Follow the written instructions above.
+          </div>
+        )}
         <p className="text-xs text-gray-500">Move at your own pace. Stop if anything hurts, or if you feel faint or unwell. These are general instructions, not a live form check.</p>
         <div className="flex gap-2">
           <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} className="px-4 py-3 rounded-xl border text-sm font-semibold disabled:opacity-40 flex items-center gap-1"><ArrowLeft size={15}/> Back</button>
