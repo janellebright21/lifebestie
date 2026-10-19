@@ -39,7 +39,7 @@ export default function StickFigureDemo({ activity, motion, caption }: { activit
       `}</style>
       <div className="flex justify-between items-center">
         <p className="text-xs font-bold text-slate-600">Movement preview</p>
-        <span className="text-[11px] text-slate-500">{selectedMotion === 'squat' ? 'Squat example' : selectedMotion === 'walk' ? 'Walking motion' : selectedMotion === 'reach' ? 'Gentle reach' : selectedMotion === 'row' ? 'Band row motion' : 'Push motion'}</span>
+        <span className="text-[11px] text-slate-500">{caption ?? selectedMotion.replace('-', ' ')}</span>
       </div>
       {selectedMotion === 'rest' && <p className="text-xs text-slate-600 text-center">Preparation or recovery step — follow the instructions above.</p>}
       <svg viewBox="0 0 280 180" role="img" aria-label={`Animated stick-figure ${selectedMotion} demonstration for ${activity.label}`} className="w-full h-44">
@@ -52,7 +52,7 @@ export default function StickFigureDemo({ activity, motion, caption }: { activit
               <path d="M140 53 L140 105 M140 70 L114 92 L99 83 M140 70 L165 92 L180 83" />
               <path d="M140 105 L117 137 L111 155 M140 105 L164 137 L170 155" />
             </g>
-          ) : motion === 'walk' ? (
+          ) : (selectedMotion === 'walk' || selectedMotion === 'march') ? (
             <g>
               <circle cx="140" cy="38" r="14" fill="#fff" />
               <path d="M140 52 L140 108" />
@@ -61,7 +61,7 @@ export default function StickFigureDemo({ activity, motion, caption }: { activit
               <g style={{transformOrigin:'140px 108px',...animation('bestie-walk-a')}}><path d="M140 108 L140 151" /></g>
               <g style={{transformOrigin:'140px 108px',...animation('bestie-walk-b')}}><path d="M140 108 L140 151" /></g>
             </g>
-          ) : motion === 'reach' ? (
+          ) : selectedMotion === 'reach' ? (
             <g>
               <circle cx="140" cy="38" r="14" fill="#fff" />
               <path d="M140 52 L140 108 M140 108 L122 154 M140 108 L158 154 M140 72 L160 105" />
@@ -74,7 +74,7 @@ export default function StickFigureDemo({ activity, motion, caption }: { activit
               <g style={animation(selectedMotion === 'row' ? 'bestie-row' : 'bestie-push')}>
                 <path d="M120 70 L150 78 L183 78 M120 70 L150 94 L183 94" />
               </g>
-              {motion === 'row' && <path d="M183 78 L214 86 L183 94" stroke="#e11d48" strokeWidth="2" />}
+              {selectedMotion === 'row' && <path d="M183 78 L214 86 L183 94" stroke="#e11d48" strokeWidth="2" />}
             </g>
           )}
         </g>
