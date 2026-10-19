@@ -907,7 +907,7 @@ function WorkoutPoseDialog({
               <button
                 key={i}
                 type="button"
-                onClick={() => setStageIndex(i)}
+                onClick={() => goToStep(i)}
                 className={`w-full text-left flex items-baseline gap-2 rounded-lg px-2 py-1.5 transition-colors ${i === stageIndex ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
               >
                 <span className="wpm-stage-num">{i + 1}</span>
