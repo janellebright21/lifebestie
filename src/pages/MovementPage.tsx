@@ -723,6 +723,19 @@ function WorkoutPoseDialog({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [stageIndex, setStageIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isSlow, setIsSlow] = useState(false);
+
+  // Cycle the existing step-by-step SVG positions without changing their exercise labels.
+  // These are still individual instructional poses, not continuous biomechanical animations.
+  useEffect(() => {
+    if (!isPlaying || !demo || demo.stages.length < 2) return;
+    const timer = window.setInterval(() => {
+      setStageIndex(index => (index + 1) % demo.stages.length);
+    }, isSlow ? 3000 : 1600);
+    return () => window.clearInterval(timer);
+  }, [demo, isPlaying, isSlow]);
+
 
   useEffect(() => {
     closeBtnRef.current?.focus();
@@ -824,6 +837,29 @@ function WorkoutPoseDialog({
             <p className="text-xs text-gray-600 text-center leading-snug px-2">{stage.desc}</p>
           </div>
 
+          {/* Optional automatic pose playback; all manual step navigation remains available. */}
+          <div className="flex items-center gap-2" role="group" aria-label="Demonstration playback controls">
+            <button
+              type="button"
+              onClick={() => setIsPlaying(value => !value)}
+              aria-pressed={isPlaying}
+              className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700"
+            >
+              {isPlaying ? 'Pause steps' : 'Play steps'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSlow(value => !value)}
+              aria-pressed={isSlow}
+              className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700"
+            >
+              {isSlow ? 'Slow playback on' : 'Slow down'}
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-500 text-center">
+            Playback cycles through illustrated positions; it does not yet animate joint movement between poses.
+          </p>
+
           {/* Step controls */}
           <div className="flex items-center justify-center gap-2">
             <button
@@ -903,7 +939,8 @@ const LEVEL_ICONS: Record<EnergyLevel, React.ReactNode> = {
 };
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getNow() {
