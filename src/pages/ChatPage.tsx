@@ -395,7 +395,7 @@ function ChatPageInner({
   }, [messages]);
 
   useEffect(() => {
-    const pane=bottomRef.current?.parentElement; pane?.scrollTo({top:pane.scrollHeight,behavior:"smooth"});
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, pendingSuggestion]);
 
   // Play one subtle greeting motion when Chat first opens
@@ -597,9 +597,9 @@ function ChatPageInner({
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
-        <div className="relative shrink-0 overflow-hidden" style={{ width: !character || character === 'emma' ? 112 : 72, height: !character || character === 'emma' ? 96 : 72, minWidth: 64, borderRadius: !character || character === 'emma' ? 20 : '50%' }}>
+        <div className="relative shrink-0 overflow-hidden rounded-full" style={{ width: 72, height: 72, minWidth: 64 }}>
           {character === 'emma' || character === undefined ? (
-            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : inputFocused && input.trim() ? 'listening' : 'idle'} framing="portrait" allowPortraitWave />
+            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : inputFocused && input.trim() ? 'listening' : 'idle'} framing="portrait" />
           ) : (
             <BestieAvatar
               characterId={character}

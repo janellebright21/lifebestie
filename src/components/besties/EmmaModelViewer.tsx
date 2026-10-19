@@ -1,11 +1,9 @@
-import {measureChatWaveEnvelope} from './emmaChatWave';
 import {getEmmaPortrait,publishEmmaPortrait} from './emmaPortraitCache';
 import {useEffect, useRef} from 'react';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import { EmmaMasterController, measureEmmaEnvelope, type EmmaActivity } from './emmaMasterController';
 const envelopeCache = new Map<string,THREE.Box3>();
-const waveEnvelopeCache = new Map<string,THREE.Box3>();
 const idlePhases = new Map<string,number>();
 let lastGreeting = 0;
 function shouldGreet(){let last=lastGreeting;try{last=Math.max(last,Number(sessionStorage.getItem('emma-last-greeting'))||0);}catch{} const now=Date.now();if(now-last<20*60*1000)return false;lastGreeting=now;try{sessionStorage.setItem('emma-last-greeting',String(now));}catch{}return true;}
@@ -13,7 +11,7 @@ interface Props {
   modelSrc: string; waveRequest: number; expression: string;
   activity?: EmmaActivity; greetOnArrival?: boolean;
   /** 'full' (default) shows the whole figure; 'portrait' frames head to shoulders. */
-  framing?: 'full' | 'portrait'; allowPortraitWave?: boolean;
+  framing?: 'full' | 'portrait';
   onReady: () => void; onFailure: (message: string) => void;
 }
 function disposeModel(root: THREE.Object3D) {
@@ -36,7 +34,7 @@ export default function EmmaModelViewer(props: Props) {
   useEffect(() => {control.current?.setExpression(props.expression); refresh.current();}, [props.expression]);
   useEffect(() => {const timer=window.setTimeout(()=>{control.current?.setActivity(latest.current.activity ?? 'idle');refresh.current();},180);return()=>window.clearTimeout(timer);}, [props.activity]);
   useEffect(() => {
-    if (latest.current.framing === 'portrait' && !latest.current.allowPortraitWave) return;
+    if (latest.current.framing === 'portrait') return;
     if (props.waveRequest !== previousWave.current) {previousWave.current = props.waveRequest; control.current?.request('Wave'); refresh.current();}
   }, [props.waveRequest]);
   useEffect(() => {
@@ -46,16 +44,7 @@ export default function EmmaModelViewer(props: Props) {
     catch (error) {latest.current.onFailure(error instanceof Error ? error.message : 'WebGL unavailable'); return;}
     let disposed = false, failed = false, raf = 0, previous = 0, onscreen = true;
     let root: THREE.Object3D | undefined, controller: EmmaMasterController | undefined;
-    let envelope: THREE.Box3 | undefined, waveEnvelope: THREE.Box3 | undefined;
-    let waveBlend = 0;
-    let closeShot = {x:0,y:0,halfHeight:1}, greetingShot = {...closeShot};
-    let shotAspect = 1, shotZ = 3, targetZ = 0;
-    const applyShot = () => {
-      const halfHeight=THREE.MathUtils.lerp(closeShot.halfHeight,greetingShot.halfHeight,waveBlend);
-      const x=THREE.MathUtils.lerp(closeShot.x,greetingShot.x,waveBlend), y=THREE.MathUtils.lerp(closeShot.y,greetingShot.y,waveBlend);
-      camera.left=-halfHeight*shotAspect;camera.right=halfHeight*shotAspect;camera.top=halfHeight;camera.bottom=-halfHeight;
-      camera.position.set(x,y,shotZ);camera.lookAt(x,y,targetZ);camera.updateProjectionMatrix();
-    };
+    let envelope: THREE.Box3 | undefined;
     const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1,1,1,-1,.01,100);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,1.5)); renderer.setClearColor(0,0);
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
@@ -75,23 +64,14 @@ export default function EmmaModelViewer(props: Props) {
       const span = portrait ? size.y * .32 : size.y * 1.12;
       const focusY = portrait ? envelope.max.y - size.y * .015 - span / 2 : center.y;
       const halfHeight = Math.max(span * .5, portrait ? size.x * .30 / aspect : size.x * .56 / aspect);
-      shotAspect=aspect;shotZ=center.z+Math.max(3,size.z+1);targetZ=center.z;
-      closeShot={x:center.x,y:focusY,halfHeight};greetingShot={...closeShot};
-      if(portrait && latest.current.allowPortraitWave && waveEnvelope){
-        const waveSize=waveEnvelope.getSize(new THREE.Vector3());
-        const wideHalf=Math.max(size.y*.42*.54,waveSize.x*.56/aspect);
-        greetingShot={x:waveEnvelope.getCenter(new THREE.Vector3()).x,y:waveEnvelope.max.y+size.y*.025-wideHalf,halfHeight:Math.max(halfHeight,wideHalf)};
-      }
-      applyShot();
+      const halfWidth = halfHeight * aspect;
+      camera.left = -halfWidth; camera.right = halfWidth; camera.top = halfHeight; camera.bottom = -halfHeight;
+      camera.position.set(center.x, focusY, center.z + Math.max(3, size.z + 1)); camera.lookAt(center.x, focusY, center.z); camera.updateProjectionMatrix();
     };
     const draw = (time: number) => {
       raf = 0; if (disposed || failed || document.hidden || !onscreen || !root) return;
       const dt = previous ? Math.min((time-previous)/1000,.05) : 0; previous = time;
-      try {controller?.update(dt);
-        const desired=latest.current.framing==='portrait' && latest.current.allowPortraitWave && controller?.state==='Wave' && !media.matches ? 1 : 0;
-        waveBlend=THREE.MathUtils.lerp(waveBlend,desired,1-Math.exp(-dt/.22));
-        if(Math.abs(waveBlend-desired)<.0001)waveBlend=desired;
-        applyShot(); renderer.render(scene,camera);} catch (error) {fail(error instanceof Error ? error.message : 'Emma render failed'); return;}
+      try {controller?.update(dt); renderer.render(scene,camera);} catch (error) {fail(error instanceof Error ? error.message : 'Emma render failed'); return;}
       if (!media.matches) raf = requestAnimationFrame(draw);
     };
     const start = () => {stop(); if (!disposed && !failed && !document.hidden && onscreen && root) raf = requestAnimationFrame(draw);};
@@ -108,7 +88,6 @@ export default function EmmaModelViewer(props: Props) {
       try {
         envelope = envelopeCache.get(props.modelSrc)?.clone();
         if(!envelope){envelope=measureEmmaEnvelope(root,gltf.animations);envelopeCache.set(props.modelSrc,envelope.clone());}
-        if(latest.current.allowPortraitWave){waveEnvelope=waveEnvelopeCache.get(props.modelSrc)?.clone();if(!waveEnvelope){waveEnvelope=measureChatWaveEnvelope(root,gltf.animations);waveEnvelopeCache.set(props.modelSrc,waveEnvelope.clone());}}
         controller = new EmmaMasterController(root,gltf.animations,{allowStance:latest.current.framing!=='portrait',idleTime:idlePhases.get(latest.current.framing??'full')??0}); control.current = controller;
         controller.setReducedMotion(media.matches); controller.setExpression(latest.current.expression); controller.setActivity(latest.current.activity ?? 'idle');
         scene.add(root); fit(); renderer.render(scene,camera); if(latest.current.framing==='portrait'&&!getEmmaPortrait().src){try{publishEmmaPortrait(renderer.domElement.toDataURL('image/png'));}catch{/* Main animated view remains usable. */}} latest.current.onReady();
