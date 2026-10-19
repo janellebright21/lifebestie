@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import StickFigureDemo from './StickFigureDemo';
 import { ArrowLeft, ArrowRight, X, CheckCircle2 } from 'lucide-react';
 import type { MovementActivity } from '../hooks/useMovement';
 
@@ -79,6 +80,7 @@ export default function GuidedMovement({ activity, onClose, onFinish }: {
           <h3 className="font-bold text-gray-800 text-xl">{current.title}</h3>
           <p className="text-sm text-gray-700 leading-relaxed mt-3">{current.instruction}</p>
         </div>
+        <StickFigureDemo activity={activity} />
         <p className="text-xs text-gray-500">Move at your own pace. Stop if anything hurts, or if you feel faint or unwell. These are general instructions, not a live form check.</p>
         <div className="flex gap-2">
           <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} className="px-4 py-3 rounded-xl border text-sm font-semibold disabled:opacity-40 flex items-center gap-1"><ArrowLeft size={15}/> Back</button>
