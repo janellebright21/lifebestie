@@ -723,6 +723,40 @@ function WorkoutPoseDialog({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [stageIndex, setStageIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isSlow, setIsSlow] = useState(false);
+  // Respect system reduced-motion preferences and never autoplay on opening.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setIsPlaying(false);
+    }
+  }, []);
+
+  // If a user leaves the browser tab, stop advancement until they choose Play again.
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) setIsPlaying(false);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  const goToStep = useCallback((next: number) => {
+    setIsPlaying(false);
+    setStageIndex(next);
+  }, []);
+
+
+  // Cycle the existing step-by-step SVG positions without changing their exercise labels.
+  // These are still individual instructional poses, not continuous biomechanical animations.
+  useEffect(() => {
+    if (!isPlaying || !demo || demo.stages.length < 2) return;
+    const timer = window.setInterval(() => {
+      setStageIndex(index => (index + 1) % demo.stages.length);
+    }, isSlow ? 3000 : 1600);
+    return () => window.clearInterval(timer);
+  }, [demo, isPlaying, isSlow]);
+
 
   useEffect(() => {
     closeBtnRef.current?.focus();
@@ -731,13 +765,14 @@ function WorkoutPoseDialog({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
+      setIsPlaying(false);
       onClose();
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      setStageIndex(i => Math.max(0, i - 1));
+      goToStep(Math.max(0, stageIndex - 1));
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      setStageIndex(i => Math.min((demo?.stages.length ?? 1) - 1, i + 1));
+      goToStep(Math.min((demo?.stages.length ?? 1) - 1, stageIndex + 1));
     } else if (e.key === 'Tab') {
       // Keep keyboard focus inside the modal dialog.
       const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -757,7 +792,7 @@ function WorkoutPoseDialog({
         first.focus();
       }
     }
-  }, [onClose, demo]);
+  }, [onClose, demo, goToStep, stageIndex]);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -824,11 +859,34 @@ function WorkoutPoseDialog({
             <p className="text-xs text-gray-600 text-center leading-snug px-2">{stage.desc}</p>
           </div>
 
+          {/* Optional automatic pose playback; all manual step navigation remains available. */}
+          <div className="flex items-center gap-2" role="group" aria-label="Demonstration playback controls">
+            <button
+              type="button"
+              onClick={() => setIsPlaying(value => !value)}
+              aria-pressed={isPlaying}
+              className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700"
+            >
+              {isPlaying ? 'Pause steps' : 'Play steps'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSlow(value => !value)}
+              aria-pressed={isSlow}
+              className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700"
+            >
+              {isSlow ? 'Slow playback on' : 'Slow down'}
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-500 text-center">
+            Playback cycles through illustrated positions, not continuous joint movement. It pauses when you navigate manually or leave the tab.
+          </p>
+
           {/* Step controls */}
           <div className="flex items-center justify-center gap-2">
             <button
               type="button"
-              onClick={() => setStageIndex(i => Math.max(0, i - 1))}
+              onClick={() => goToStep(Math.max(0, stageIndex - 1))}
               disabled={stageIndex === 0}
               aria-label={`Previous step${demo.stages[stageIndex - 1] ? `: ${demo.stages[stageIndex - 1].label}` : ''}`}
               className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-600 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
@@ -843,14 +901,14 @@ function WorkoutPoseDialog({
                   type="button"
                   aria-pressed={i === stageIndex}
                   aria-label={`Step ${i + 1}: ${s.label}`}
-                  onClick={() => setStageIndex(i)}
+                  onClick={() => goToStep(i)}
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${i === stageIndex ? 'bg-indigo-500' : 'bg-gray-300 hover:bg-gray-400'}`}
                 />
               ))}
             </div>
             <button
               type="button"
-              onClick={() => setStageIndex(i => Math.min(demo.stages.length - 1, i + 1))}
+              onClick={() => goToStep(Math.min(demo.stages.length - 1, stageIndex + 1))}
               disabled={stageIndex === demo.stages.length - 1}
               aria-label={`Next step${demo.stages[stageIndex + 1] ? `: ${demo.stages[stageIndex + 1].label}` : ''}`}
               className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-600 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
@@ -866,7 +924,7 @@ function WorkoutPoseDialog({
               <button
                 key={i}
                 type="button"
-                onClick={() => setStageIndex(i)}
+                onClick={() => goToStep(i)}
                 className={`w-full text-left flex items-baseline gap-2 rounded-lg px-2 py-1.5 transition-colors ${i === stageIndex ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
               >
                 <span className="wpm-stage-num">{i + 1}</span>
@@ -903,7 +961,8 @@ const LEVEL_ICONS: Record<EnergyLevel, React.ReactNode> = {
 };
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getNow() {

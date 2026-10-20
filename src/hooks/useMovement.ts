@@ -95,11 +95,16 @@ function getStreakMessage(streak: number): string {
   return 'Start your streak today';
 }
 
+/** Device-local date for movement logging and streak calculations. */
+export function localMovementDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Returns a YYYY-MM-DD string offset by `daysAgo` from today. */
 function dateOffset(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split('T')[0];
+  return localMovementDate(d);
 }
 
 /**
@@ -177,8 +182,8 @@ export function getWeeklyMovements(events: Event[], today: string): WeeklyMoveme
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
 
-  const startDate = start.toISOString().split('T')[0];
-  const endDate = end.toISOString().split('T')[0];
+  const startDate = localMovementDate(start);
+  const endDate = localMovementDate(end);
 
   const weekMovements = events.filter(
     (e) => e.category === 'Movement' && e.event_date >= startDate && e.event_date <= endDate
@@ -201,7 +206,7 @@ export function getWeeklyMovements(events: Event[], today: string): WeeklyMoveme
 }
 
 export function useMovement(events: Event[]) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localMovementDate(new Date());
 
   const todayMovements = useMemo((): TodayMovement[] => {
     return events
