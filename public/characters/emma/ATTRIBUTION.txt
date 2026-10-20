@@ -1,0 +1,6 @@
+Base: Rain Rig (CC), Blender Foundation / Blender Studio.
+https://studio.blender.org/characters/rain/v3/
+License: Creative Commons Attribution 4.0 International (CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/
+
+Modified into Emma: hair and palette adaptation, clothing and accessories, reference body/wardrobe proportions, physical mirrored facial geometry, rig/control repairs, skin/corrective refinements and animation actions. The original Emma illustration supplied in this project is packed as a visual reference.

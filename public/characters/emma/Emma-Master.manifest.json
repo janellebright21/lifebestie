@@ -1,0 +1,90 @@
+{
+  "asset": "/characters/emma/Emma-Master.glb",
+  "bytes": 23517212,
+  "sha256": "329f670418f62ad5428fad8dbe85cdee135ea01914b813696089d670ba189fe9",
+  "clips": [
+    {
+      "name": "Idle",
+      "action": "Emma-Idle",
+      "frames": 361,
+      "fps": 30
+    },
+    {
+      "name": "Wave",
+      "action": "Emma-Wave",
+      "frames": 181,
+      "fps": 30
+    },
+    {
+      "name": "Listening",
+      "action": "Emma-Listening",
+      "frames": 139,
+      "fps": 30
+    },
+    {
+      "name": "Empathetic",
+      "action": "Emma-Empathetic",
+      "frames": 139,
+      "fps": 30
+    },
+    {
+      "name": "Proud",
+      "action": "Emma-Proud",
+      "frames": 139,
+      "fps": 30
+    },
+    {
+      "name": "Conversational",
+      "action": "Emma-Conversational",
+      "frames": 241,
+      "fps": 30
+    },
+    {
+      "name": "Stance-Change",
+      "action": "Emma-Stance-Change",
+      "frames": 241,
+      "fps": 30
+    }
+  ],
+  "expressionMap": {
+    "happy": "Idle",
+    "calm": "Idle",
+    "tired": "Idle",
+    "thinking": "Listening",
+    "listening": "Listening",
+    "focused": "Listening",
+    "empathetic": "Empathetic",
+    "encouraging": "Empathetic",
+    "proud": "Proud",
+    "excited": "Proud",
+    "playful": "Proud"
+  },
+  "expressionBehavior": "One complete authored reaction, then Idle. Names sharing a clip do not represent separate sculpted emotions.",
+  "activityMap": {
+    "idle": "current emotion reaction or Idle",
+    "thinking": "Listening",
+    "listening": "Listening",
+    "speaking": "Conversational with rests; gesture only, no speech or mouth synchronization"
+  },
+  "explicitRequests": [
+    "Wave",
+    "Stance-Change"
+  ],
+  "included": [
+    "physical paired eyebrows and lashes",
+    "facial, eye, body, garment and curl morph animation embedded in clips",
+    "latest hair and neck seam repair"
+  ],
+  "knownLimitations": [
+    "Small underarm pinch during exported Wave remains.",
+    "No phoneme/viseme speech synchronization or live physics.",
+    "App sizing, lighting, WebGL loading and phone frame rate must be tested in Bolt preview."
+  ],
+  "validation": [
+    "strict local TypeScript check passed",
+    "actual GLTFLoader and all seven existing animation playback checks passed",
+    "actual GLB hair motion verified in all seven clips",
+    "controller queued emotions, stance completion, reduced-motion and finite transforms passed"
+  ],
+  "liveAppChanged": false
+}
