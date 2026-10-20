@@ -725,6 +725,22 @@ function WorkoutPoseDialog({
   const [stageIndex, setStageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSlow, setIsSlow] = useState(false);
+  // Respect system reduced-motion preferences and never autoplay on opening.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setIsPlaying(false);
+    }
+  }, []);
+
+  // If a user leaves the browser tab, stop advancement until they choose Play again.
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) setIsPlaying(false);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
   const goToStep = useCallback((next: number) => {
     setIsPlaying(false);
     setStageIndex(next);
@@ -749,6 +765,7 @@ function WorkoutPoseDialog({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
+      setIsPlaying(false);
       onClose();
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
@@ -862,7 +879,7 @@ function WorkoutPoseDialog({
             </button>
           </div>
           <p className="text-[10px] text-gray-500 text-center">
-            Playback cycles through illustrated positions; it does not yet animate joint movement between poses.
+            Playback cycles through illustrated positions, not continuous joint movement. It pauses when you navigate manually or leave the tab.
           </p>
 
           {/* Step controls */}
