@@ -152,6 +152,8 @@ export default function BestieAvatar({
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
   const dim  = SIZES[size];
 
+  const [emma3dFailed, setEmma3dFailed] = useState(false);
+
   // 3D is on by default for lg and full, off for small avatars and portrait
   const isPortrait = size === 'portrait';
   const useEmmaModel = characterId === 'emma' && size === 'full' && !emma3dFailed;
@@ -159,7 +161,6 @@ export default function BestieAvatar({
 
   const [fallback, setFallback] = useState<FallbackState>('expression');
   const [src, setSrc]           = useState(() => resolveExpressionSrc(characterId, expression));
-  const [emma3dFailed, setEmma3dFailed] = useState(false);
   const [waveRequest, setWaveRequest] = useState(0);
 
   useEffect(() => {
