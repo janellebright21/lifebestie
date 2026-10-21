@@ -548,6 +548,14 @@ function ChatPageInner({
             key={msg.id}
             className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
+            {msg.role === 'assistant' && (
+              <BestieAvatar
+                characterId={character ?? 'emma'}
+                expression="happy"
+                size="sm"
+                className="shrink-0"
+              />
+            )}
             <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
               <div
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
@@ -578,6 +586,12 @@ function ChatPageInner({
 
         {isTyping && (
           <div className="flex items-start gap-2">
+            <BestieAvatar
+              characterId={character ?? 'emma'}
+              expression="thinking"
+              size="sm"
+              className="shrink-0"
+            />
             <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-50">
               <div className="flex gap-1 items-center h-4">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
