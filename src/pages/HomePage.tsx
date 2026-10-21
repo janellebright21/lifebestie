@@ -9,6 +9,7 @@ import { getHomeExpression } from '../lib/bestieExpression';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { useMovement } from '../hooks/useMovement';
 import { generateEmmaGreeting, getEmmaAction, type EmmaActionType } from '../lib/emmaGreeting';
+import BestieAvatar from '../components/besties/BestieAvatar';
 
 type HomePageProps = ComponentProps<typeof CoreHomePage>;
 
@@ -117,26 +118,36 @@ export default function HomePage(props: HomePageProps) {
                 zIndex: 2,
               }}
             />
-            <img
-              src={resolveExpressionSrc(characterId, homeExpression)}
-              alt={`${characterDef.name} ${homeExpression}`}
-              onError={(event) => {
-                const target = event.currentTarget;
-                const fallback = getDefaultSrc(characterId);
-                if (!target.src.endsWith(fallback)) target.src = fallback;
-              }}
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                display: 'block',
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                objectPosition: 'center',
-                userSelect: 'none',
-                pointerEvents: 'none',
-              }}
-            />
+            {characterId === 'emma' ? (
+              <BestieAvatar
+                characterId={characterId}
+                expression={homeExpression}
+                size="full"
+                enable3D={false}
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : (
+              <img
+                src={resolveExpressionSrc(characterId, homeExpression)}
+                alt={`${characterDef.name} ${homeExpression}`}
+                onError={(event) => {
+                  const target = event.currentTarget;
+                  const fallback = getDefaultSrc(characterId);
+                  if (!target.src.endsWith(fallback)) target.src = fallback;
+                }}
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  objectPosition: 'center',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
           </div>
 
           <div className="flex-1 min-w-0 pt-1">
