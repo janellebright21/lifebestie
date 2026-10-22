@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import GuidedMovement from '../components/GuidedMovement';
 import { Activity, CheckCircle2, Circle, Flame, Zap, Wind, ChevronDown, ChevronUp, Plus, Clock, Trophy } from 'lucide-react';
 import { Event, EventCategory } from '../lib/supabase';
 import {
@@ -34,7 +35,8 @@ const LEVEL_ICONS: Record<EnergyLevel, React.ReactNode> = {
 };
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getNow() {
@@ -51,6 +53,7 @@ function ActivityCard({
   isCompleted,
   onAdd,
   onComplete,
+  onGuide,
 }: {
   activity: MovementActivity;
   level: EnergyLevel;
@@ -58,6 +61,7 @@ function ActivityCard({
   isCompleted: boolean;
   onAdd: () => void;
   onComplete: () => void;
+  onGuide: () => void;
 }) {
   const { color } = MOVEMENT_OPTIONS[level];
 
@@ -71,6 +75,7 @@ function ActivityCard({
         </div>
       </div>
 
+      <button type="button" onClick={onGuide} className="text-xs font-semibold text-rose-600 underline underline-offset-2 px-1" aria-label={`Guide for ${activity.label}`}>Guide</button>
       {isAdded ? (
         <button
           onClick={onComplete}
@@ -105,11 +110,13 @@ function EnergySection({
   todayMovements,
   onAdd,
   onComplete,
+  onGuide,
 }: {
   level: EnergyLevel;
   todayMovements: TodayMovement[];
   onAdd: (activity: MovementActivity) => void;
   onComplete: (movement: TodayMovement) => void;
+  onGuide: (activity: MovementActivity) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const opts = MOVEMENT_OPTIONS[level];
@@ -157,6 +164,7 @@ function EnergySection({
                 level={level}
                 isAdded={!!addedMovement}
                 isCompleted={addedMovement?.done ?? false}
+                onGuide={() => onGuide(activity)}
                 onAdd={() => onAdd(activity)}
                 onComplete={() => addedMovement && onComplete(addedMovement)}
               />
@@ -215,6 +223,7 @@ function TodaySummary({ todayMovements }: { todayMovements: TodayMovement[] }) {
 export default function MovementPage({ events, onAddEvent, onUpdateEvent }: MovementPageProps) {
   const { todayMovements, streakResult } = useMovement(events);
   const [adding, setAdding] = useState<string | null>(null);
+  const [guidedActivity, setGuidedActivity] = useState<MovementActivity | null>(null);
 
   async function handleAdd(activity: MovementActivity) {
     if (adding === activity.id) return;
@@ -273,6 +282,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
             key={level}
             level={level}
             todayMovements={todayMovements}
+            onGuide={setGuidedActivity}
             onAdd={handleAdd}
             onComplete={handleComplete}
           />
@@ -286,6 +296,14 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
           </p>
         </div>
       </div>
+      {guidedActivity && (
+        <GuidedMovement
+          key={guidedActivity.id}
+          activity={guidedActivity}
+          onClose={() => setGuidedActivity(null)}
+          onFinish={() => setGuidedActivity(null)}
+        />
+      )}
     </div>
   );
 }
