@@ -1766,7 +1766,7 @@ const existingNames = new Set(
   const lowStockSuggestions = getLowStockSuggestions(habits, 3);
 
   return (
-    <div className="px-4 sm:px-6 pt-6 pb-32 space-y-5 max-w-2xl mx-auto">
+    <div className="px-4 sm:px-6 pt-6 pb-40 space-y-5 max-w-2xl mx-auto">
       {/* Shopping mode overlays */}
       {shoppingMode === 'today' && (
         <ShoppingMode

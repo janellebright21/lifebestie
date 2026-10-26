@@ -356,7 +356,7 @@ export default function RoutinesPage({
   }
 
   return (
-    <div className="min-h-[100dvh] theme-app-bg pb-24">
+    <div className="min-h-[100dvh] theme-app-bg pb-40">
       {/* Header */}
       <div className="border-b px-4 pt-12 pb-4 sticky top-0 z-10" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">

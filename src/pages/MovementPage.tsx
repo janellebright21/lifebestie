@@ -1357,7 +1357,7 @@ export default function MovementPage({ events, onAddEvent, onUpdateEvent }: Move
   const levels: EnergyLevel[] = ['low', 'moderate', 'high'];
 
   return (
-    <div className="min-h-[100dvh] theme-app-bg pb-32">
+    <div className="min-h-[100dvh] theme-app-bg pb-40">
       {/* Header */}
       <div className="border-b px-4 pt-12 pb-4 sticky top-0 z-10" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="max-w-2xl mx-auto flex items-center">
