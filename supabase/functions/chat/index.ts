@@ -98,7 +98,20 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // emma-chat should always return JSON. If the gateway returned HTML
+  // (e.g. JWT verification failure, function not found), wrap it as a
+  // proper JSON error so the client never receives HTML.
+  const contentType = proxyRes.headers.get("Content-Type") ?? "";
   const body = await proxyRes.text();
+
+  if (!contentType.includes("application/json") || body.trimStart().startsWith("<")) {
+    console.error("[chat-deprecated] emma-chat returned non-JSON, status:", proxyRes.status, "type:", contentType);
+    return new Response(
+      JSON.stringify({ error: "PROXY_ERROR", message: "emma-chat returned a non-JSON response." }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   return new Response(body, {
     status: proxyRes.status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -2,7 +2,7 @@
 verify_jwt = true
 
 [functions.chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.check-subscription]
 verify_jwt = true
@@ -11,7 +11,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.emma-chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.grocery-suggestions]
 verify_jwt = true
