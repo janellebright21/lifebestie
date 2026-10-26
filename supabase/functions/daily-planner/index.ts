@@ -7,6 +7,63 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+function ok(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function stripJsonFences(raw: string): string {
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").trim();
+  cleaned = cleaned.replace(/\s*```$/i, "").trim();
+  return cleaned;
+}
+
+function tryParseJson(raw: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(stripJsonFences(raw)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+// When the model fails twice, return a safe deterministic plan so the user
+// still gets something usable instead of an error screen.
+function fallbackPlan(tasks: Task[], goals: Goal[], planDate: string): PlanResponse {
+  const pending = tasks.filter((t) => !t.completed);
+  const high: PlanTask[] = [];
+  const wins: PlanTask[] = [];
+  for (const t of pending.slice(0, 3)) {
+    const goal = t.linked_goal_id ? goals.find((g) => g.id === t.linked_goal_id) : null;
+    high.push({
+      id: t.id,
+      title: t.title,
+      type: "high_impact",
+      reason: "Picked this from your list so we keep momentum going.",
+      ...(goal ? { linked_goal_id: goal.id, linked_goal_title: goal.title } : {}),
+      ...(t.duration ? { duration: t.duration } : {}),
+      completed: false,
+    });
+  }
+  for (const t of pending.slice(3, 6)) {
+    wins.push({
+      id: t.id,
+      title: t.title,
+      type: "small_win",
+      reason: "A quick win to build momentum.",
+      ...(t.duration ? { duration: t.duration } : {}),
+      completed: false,
+    });
+  }
+  return {
+    message: "I had trouble generating a custom plan, so here's a quick look at your tasks for today. We'll figure it out together.",
+    high_impact: high,
+    small_wins: wins,
+  };
+}
+
 interface PlanTask {
   id: string;
   title: string;
@@ -242,59 +299,78 @@ Deno.serve(async (req: Request) => {
 
     const userMessage = `${contextLines.join("\n")}\n\nGenerate today's morning plan. Return only valid JSON.`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "daily-planner" }); } catch {}
-      return new Response(
-        JSON.stringify({ error: "AI request failed", detail: err }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const aiData = await response.json();
-    const rawText: string = aiData.content?.[0]?.text ?? "{}";
-
-    let plan: PlanResponse;
-    try {
-      plan = JSON.parse(rawText);
-    } catch {
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        plan = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("Could not parse AI response as JSON");
+    // ── Call Anthropic (with JSON repair + single retry + graceful fallback) ──
+    async function callAnthropic(msgs: Array<{ role: string; content: string }>): Promise<{ ok: boolean; status: number; rawText: string | null }> {
+      let res: Response;
+      try {
+        res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey!,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5",
+            max_tokens: 1000,
+            system: SYSTEM_PROMPT,
+            messages: msgs,
+          }),
+        });
+      } catch {
+        return { ok: false, status: -1, rawText: null };
+      }
+      if (!res.ok) return { ok: false, status: res.status, rawText: null };
+      try {
+        const data = await res.json();
+        return { ok: true, status: res.status, rawText: data.content?.[0]?.text ?? null };
+      } catch {
+        return { ok: true, status: res.status, rawText: null };
       }
     }
 
-    plan.high_impact = (plan.high_impact ?? []).slice(0, 3).map((t) => ({ ...t, completed: false, type: "high_impact" as const }));
-    plan.small_wins = (plan.small_wins ?? []).slice(0, 3).map((t) => ({ ...t, completed: false, type: "small_win" as const }));
+    // ── First attempt ───────────────────────────────────────────────────────
+    let result = await callAnthropic([{ role: "user", content: userMessage }]);
+
+    if (!result.ok) {
+      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "daily-planner" }); } catch {}
+      if (result.status === -1) {
+        return ok({ error: "FUNCTION_NETWORK_ERROR", message: "Could not reach the AI service. Check your network." });
+      }
+      return ok({ error: "AI_REQUEST_FAILED", message: "The AI service returned an error. Please try again." });
+    }
+
+    // ── JSON repair + single retry ──────────────────────────────────────────
+    let parsed: Record<string, unknown> | null = result.rawText ? tryParseJson(result.rawText) : null;
+
+    if (!parsed && result.rawText) {
+      console.log("[daily-planner] First response was not valid JSON — retrying with stricter prompt");
+      const retryResult = await callAnthropic([
+        { role: "user", content: userMessage },
+        { role: "assistant", content: result.rawText },
+        { role: "user", content: "Your last response was not valid JSON. Please respond again with ONLY a valid JSON object matching the format specified. No markdown, no code fences, no extra text." },
+      ]);
+      if (retryResult.ok && retryResult.rawText) {
+        parsed = tryParseJson(retryResult.rawText);
+      }
+    }
+
+    // ── Graceful fallback if both attempts fail ─────────────────────────────
+    if (!parsed) {
+      console.error("[daily-planner] Both attempts failed — returning fallback plan");
+      const plan = fallbackPlan(tasks, goals, planDate);
+      return ok(plan);
+    }
+
+    // ── Validate and normalize the parsed plan ──────────────────────────────
+    const plan = parsed as unknown as PlanResponse;
+    plan.high_impact = (Array.isArray(plan.high_impact) ? plan.high_impact : []).slice(0, 3).map((t) => ({ ...t, completed: false, type: "high_impact" as const }));
+    plan.small_wins = (Array.isArray(plan.small_wins) ? plan.small_wins : []).slice(0, 3).map((t) => ({ ...t, completed: false, type: "small_win" as const }));
     plan.message = plan.message ?? "Let's make today count!";
 
-    // Quota already reserved atomically before the API call
-
-    return new Response(
-      JSON.stringify(plan),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return ok(plan);
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: "Unexpected error", detail: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("[daily-planner] Unhandled exception:", err);
+    return ok({ error: "INTERNAL_ERROR", message: "Unexpected server error." });
   }
 });

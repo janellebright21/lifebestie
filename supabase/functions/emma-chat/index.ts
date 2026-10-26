@@ -160,6 +160,27 @@ interface ConversationMessage {
   content: string;
 }
 
+// ── JSON helpers ─────────────────────────────────────────────────────────────
+// Models occasionally wrap JSON in markdown fences or prepend stray text.
+// stripJsonFences removes those wrappers; tryParseJson returns a parsed object
+// or null so callers can decide whether to retry or fall back gracefully.
+function stripJsonFences(raw: string): string {
+  let cleaned = raw.trim();
+  // Remove leading ```json or ``` fence
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").trim();
+  // Remove trailing ``` fence
+  cleaned = cleaned.replace(/\s*```$/i, "").trim();
+  return cleaned;
+}
+
+function tryParseJson(raw: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(stripJsonFences(raw)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 interface Memory {
   category: string;
   title: string;
@@ -378,51 +399,82 @@ Deno.serve(async (req: Request) => {
         return ok({ error: "GROQ_INVALID_RESPONSE", message: "Response missing content." });
       }
 
-      // Parse brain dump JSON strictly — reject malformed output with honest error
-      try {
-        const cleaned = brainRaw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-        const parsed = JSON.parse(cleaned);
+      // Parse brain dump JSON — use shared helper, then retry once if unparseable
+      let brainParsed: Record<string, unknown> | null = tryParseJson(brainRaw);
 
-        if (typeof parsed.text !== "string" || !parsed.text.trim()) {
+      if (!brainParsed) {
+        console.log("[emma-chat] brain_dump first response was not JSON — retrying with stricter prompt");
+        const retryMessages = [
+          { role: "system" as const, content: brainDumpSystem },
+          { role: "user" as const, content: dumpText },
+          { role: "assistant" as const, content: brainRaw },
+          { role: "user" as const, content: "Your last response was not valid JSON. Please respond again with ONLY a valid JSON object matching the format specified. No markdown, no code fences, no extra text." },
+        ];
+        let retryRes: Response;
+        try {
+          retryRes = await fetch(GROQ_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqApiKey}` },
+            body: JSON.stringify({ model, messages: retryMessages, temperature: 0.4, max_tokens: 1000 }),
+          });
+        } catch (retryNetErr) {
+          console.error("[emma-chat] brain_dump retry network error:", retryNetErr);
           try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-          return ok({ error: "AI_INVALID_OUTPUT", message: "Emma's response was missing required text. Please try again." });
+          return ok({ error: "FUNCTION_NETWORK_ERROR", message: "Could not reach Groq. Check your network." });
         }
-        if (!Array.isArray(parsed.suggestions)) {
-          try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-          return ok({ error: "AI_INVALID_OUTPUT", message: "Emma's response was missing suggestions. Please try again." });
-        }
-        if (parsed.suggestions.length > 20) {
-          try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-          return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned too many suggestions. Please try again." });
-        }
-
-        // Validate each suggestion minimally on server; client does full validation
-        const validTypes = new Set(["task", "grocery", "note"]);
-        for (const s of parsed.suggestions) {
-          if (!s || typeof s !== "object") {
-            try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-            return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned a malformed suggestion. Please try again." });
-          }
-          if (!validTypes.has(String(s.type))) {
-            try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-            return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned an invalid suggestion type. Please try again." });
-          }
-          if (typeof s.title !== "string" || !s.title.trim()) {
-            try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-            return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned a suggestion without a title. Please try again." });
+        if (retryRes.ok) {
+          let retryData: Record<string, unknown>;
+          try { retryData = await retryRes.json(); } catch { retryData = {}; }
+          const retryChoices = retryData.choices as Array<{ message?: { content?: string } }> | undefined;
+          const retryRaw = retryChoices?.[0]?.message?.content ?? null;
+          if (retryRaw) {
+            brainParsed = tryParseJson(retryRaw);
           }
         }
+      }
 
-        console.log("[emma-chat] brain_dump success, suggestions:", parsed.suggestions.length);
-        return ok({
-          text: String(parsed.text).slice(0, 2000),
-          suggestions: parsed.suggestions,
-        });
-      } catch {
+      if (!brainParsed) {
         try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-        console.error("[emma-chat] brain_dump: model returned non-JSON, rejecting honestly");
+        console.error("[emma-chat] brain_dump: model returned non-JSON after retry, rejecting honestly");
         return ok({ error: "AI_INVALID_OUTPUT", message: "Emma's response was not valid JSON. Please try again." });
       }
+
+      const parsed = brainParsed;
+      if (typeof parsed.text !== "string" || !parsed.text.trim()) {
+        try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+        return ok({ error: "AI_INVALID_OUTPUT", message: "Emma's response was missing required text. Please try again." });
+      }
+      if (!Array.isArray(parsed.suggestions)) {
+        try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+        return ok({ error: "AI_INVALID_OUTPUT", message: "Emma's response was missing suggestions. Please try again." });
+      }
+      if (parsed.suggestions.length > 20) {
+        try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+        return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned too many suggestions. Please try again." });
+      }
+
+      // Validate each suggestion minimally on server; client does full validation
+      const validTypes = new Set(["task", "grocery", "note"]);
+      for (const s of parsed.suggestions) {
+        if (!s || typeof s !== "object") {
+          try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+          return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned a malformed suggestion. Please try again." });
+        }
+        if (!validTypes.has(String((s as Record<string, unknown>).type))) {
+          try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+          return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned an invalid suggestion type. Please try again." });
+        }
+        if (typeof (s as Record<string, unknown>).title !== "string" || !String((s as Record<string, unknown>).title).trim()) {
+          try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+          return ok({ error: "AI_INVALID_OUTPUT", message: "Emma returned a suggestion without a title. Please try again." });
+        }
+      }
+
+      console.log("[emma-chat] brain_dump success, suggestions:", parsed.suggestions.length);
+      return ok({
+        text: String(parsed.text).slice(0, 2000),
+        suggestions: parsed.suggestions,
+      });
     }
 
     if (!message || typeof message !== "string" || !message.trim()) {
@@ -466,157 +518,164 @@ Deno.serve(async (req: Request) => {
       { role: "user" as const, content: message.trim() },
     ];
 
-    // ── Call Groq ──────────────────────────────────────────────────────────────
-    let groqRes: Response;
-    try {
-      groqRes = await fetch(GROQ_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${groqApiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: apiMessages,
-          temperature: 0.7,
-          max_tokens: 500,
-        }),
-      });
-    } catch (netErr) {
-      console.error("[emma-chat] Network error reaching Groq:", netErr);
-      // Release the quota reservation — failed requests don't consume the limit
-      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-      return ok({ error: "FUNCTION_NETWORK_ERROR", message: "Could not reach Groq. Check your network." });
+    // ── Call Groq (with JSON repair + single retry) ───────────────────────────
+    // If the model returns non-JSON (or JSON missing the required "text" field),
+    // we retry once with a stricter reminder. This handles the most common
+    // user-facing failure: a valid HTTP response whose body is unparseable.
+    interface GroqCallResult {
+      rawContent: string | null;
+      status: number;
+      errorBody?: Record<string, unknown>;
     }
 
-    console.log("[emma-chat] Groq HTTP status:", groqRes.status);
+    async function callGroq(msgs: Array<{ role: string; content: string }>): Promise<GroqCallResult> {
+      let res: Response;
+      try {
+        res = await fetch(GROQ_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${groqApiKey}`,
+          },
+          body: JSON.stringify({ model, messages: msgs, temperature: 0.7, max_tokens: 500 }),
+        });
+      } catch (netErr) {
+        console.error("[emma-chat] Network error reaching Groq:", netErr);
+        return { rawContent: null, status: -1 };
+      }
 
-    // ── Handle Groq errors ─────────────────────────────────────────────────────
-    if (!groqRes.ok) {
-      // Release quota on API error — failed requests don't consume the limit
-      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+      console.log("[emma-chat] Groq HTTP status:", res.status);
+      if (!res.ok) {
+        let errBody: Record<string, unknown> = {};
+        try { errBody = await res.json(); } catch { /* ignore */ }
+        return { rawContent: null, status: res.status, errorBody: errBody };
+      }
 
-      let groqErr: Record<string, unknown> = {};
-      try { groqErr = await groqRes.json(); } catch { /* ignore */ }
+      let data: Record<string, unknown>;
+      try {
+        data = await res.json();
+      } catch {
+        console.error("[emma-chat] Failed to parse Groq JSON response");
+        return { rawContent: null, status: res.status };
+      }
 
-      const errObj = groqErr.error as Record<string, unknown> | undefined;
+      const choices = data.choices as Array<{ message?: { content?: string } }> | undefined;
+      const content = choices?.[0]?.message?.content ?? null;
+      console.log("[emma-chat] content present:", content !== null && content.length > 0);
+      return { rawContent: content, status: res.status };
+    }
+
+    function mapGroqError(status: number, errorBody?: Record<string, unknown>): Response {
+      try { void supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
+      const errObj = errorBody?.error as Record<string, unknown> | undefined;
       const errCode = String(errObj?.code ?? "");
       const errMsg  = String(errObj?.message ?? "");
       const errType = String(errObj?.type ?? "");
-
       console.error("[emma-chat] Groq error code:", errCode, "| type:", errType, "| message:", errMsg.slice(0, 120));
-
-      if (groqRes.status === 401) {
-        return ok({ error: "GROQ_401", message: "Groq API key is invalid or revoked." });
-      }
-      if (groqRes.status === 429) {
+      if (status === 401) return ok({ error: "GROQ_401", message: "Groq API key is invalid or revoked." });
+      if (status === 429) {
         const isQuota = errCode === "rate_limit_exceeded" && errType.includes("token");
         return ok({
           error: isQuota ? "GROQ_QUOTA" : "GROQ_429",
-          message: isQuota
-            ? "Groq free-tier quota reached. Try again later."
-            : "Groq rate limit hit. Wait a moment and try again.",
+          message: isQuota ? "Groq free-tier quota reached. Try again later." : "Groq rate limit hit. Wait a moment and try again.",
         });
       }
-      if (groqRes.status === 400) {
+      if (status === 400) {
         const isModel = errMsg.toLowerCase().includes("model");
         return ok({
           error: isModel ? "GROQ_MODEL_ERROR" : "GROQ_400",
-          message: isModel
-            ? `Model "${model}" not found or invalid. Update GROQ_MODEL secret.`
-            : `Groq rejected the request (400): ${errMsg.slice(0, 100)}`,
+          message: isModel ? `Model "${model}" not found or invalid. Update GROQ_MODEL secret.` : `Groq rejected the request (400): ${errMsg.slice(0, 100)}`,
         });
       }
-      return ok({
-        error: `GROQ_${groqRes.status}`,
-        message: `Groq returned HTTP ${groqRes.status}. ${errMsg.slice(0, 100)}`,
-      });
+      return ok({ error: `GROQ_${status}`, message: `Groq returned HTTP ${status}. ${errMsg.slice(0, 100)}` });
     }
 
-    // ── Parse Groq response ────────────────────────────────────────────────────
-    let groqData: Record<string, unknown>;
-    try {
-      groqData = await groqRes.json();
-    } catch {
-      console.error("[emma-chat] Failed to parse Groq JSON response");
+    // ── First attempt ───────────────────────────────────────────────────────
+    let result = await callGroq(apiMessages);
+
+    if (result.status === -1) {
       try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
-      return ok({ error: "GROQ_INVALID_RESPONSE", message: "Groq response was not valid JSON." });
+      return ok({ error: "FUNCTION_NETWORK_ERROR", message: "Could not reach Groq. Check your network." });
+    }
+    if (result.status !== 200) {
+      return mapGroqError(result.status, result.errorBody);
     }
 
-    const choices = groqData.choices as Array<{ message?: { content?: string } }> | undefined;
-    const rawContent = choices?.[0]?.message?.content ?? null;
+    // ── JSON repair + single retry ──────────────────────────────────────────
+    // If parsing fails or "text" is missing, retry once with a stricter prompt.
+    let rawContent = result.rawContent;
+    let parsed = rawContent ? tryParseJson(rawContent) : null;
 
-    console.log("[emma-chat] choices[0].message.content present:", rawContent !== null && rawContent.length > 0);
+    if (rawContent && (!parsed || typeof (parsed as Record<string, unknown>).text !== "string" || !String((parsed as Record<string, unknown>).text).trim())) {
+      console.log("[emma-chat] First response unparseable or missing text — retrying with stricter prompt");
+      const retryMessages = [
+        ...apiMessages,
+        { role: "assistant" as const, content: rawContent },
+        { role: "user" as const, content: "Your last response was not valid JSON or was missing the required \"text\" field. Please respond again with ONLY a valid JSON object matching the format specified. No markdown, no code fences, no extra text." },
+      ];
+      const retryResult = await callGroq(retryMessages);
+      if (retryResult.status === 200 && retryResult.rawContent) {
+        const retryParsed = tryParseJson(retryResult.rawContent);
+        if (retryParsed && typeof retryParsed.text === "string" && String(retryParsed.text).trim()) {
+          rawContent = retryResult.rawContent;
+          parsed = retryParsed;
+          console.log("[emma-chat] Retry succeeded — valid JSON received");
+        }
+      }
+    }
+
     if (!rawContent) {
-      const keys = Object.keys(groqData).join(", ");
-      console.error("[emma-chat] Missing content. Top-level keys:", keys);
+      const keys = "unknown";
+      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "emma-chat" }); } catch {}
       return ok({ error: "GROQ_INVALID_RESPONSE", message: `Response missing content. Shape: { ${keys} }` });
     }
 
-    // ── Parse Emma's JSON text ────────────────────────────────────────────────
+    // ── Extract fields from parsed JSON (or fall back to raw text) ──────────
     let emmaText = rawContent;
     let emotion = "happy";
     let memorySuggestion: { category: string; title: string; value: string } | null = null;
 
-    try {
-      const cleaned = rawContent
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-      const parsed = JSON.parse(cleaned);
-
+    if (parsed) {
       if (typeof parsed.text === "string" && parsed.text.trim()) {
         emmaText = parsed.text;
       }
       if (typeof parsed.emotion === "string") {
         emotion = sanitizeEmotion(parsed.emotion);
       }
+      const ms = parsed.memory_suggestion as Record<string, unknown> | undefined;
       if (
-        parsed.memory_suggestion &&
-        typeof parsed.memory_suggestion.category === "string" &&
-        typeof parsed.memory_suggestion.title === "string" &&
-        parsed.memory_suggestion.title.trim()
+        ms &&
+        typeof ms.category === "string" &&
+        typeof ms.title === "string" &&
+        String(ms.title).trim()
       ) {
         memorySuggestion = {
-          category: parsed.memory_suggestion.category,
-          title: String(parsed.memory_suggestion.title).slice(0, 80),
-          value: typeof parsed.memory_suggestion.value === "string"
-            ? parsed.memory_suggestion.value : "",
+          category: String(ms.category),
+          title: String(ms.title).slice(0, 80),
+          value: typeof ms.value === "string" ? ms.value : "",
         };
       }
-    } catch {
-      // Model returned plain text — use as-is
-      console.log("[emma-chat] Response was plain text, not JSON — using as-is");
+    } else {
+      console.log("[emma-chat] Response was plain text after retry — using as-is");
     }
 
-    // ── Parse structured action ────────────────────────────────────────────
+    // ── Parse structured action (same parsed object) ────────────────────────
     let action: { type: string; name: string; category?: string } | null = null;
-    try {
-      const cleanedAct = rawContent
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-      const parsedAct = JSON.parse(cleanedAct);
+    if (parsed) {
+      const act = parsed.action as Record<string, unknown> | undefined;
       if (
-        parsedAct.action &&
-        typeof parsedAct.action === "object" &&
-        typeof parsedAct.action.type === "string" &&
-        typeof parsedAct.action.name === "string"
+        act &&
+        typeof act === "object" &&
+        typeof act.type === "string" &&
+        typeof act.name === "string"
       ) {
         action = {
-          type: parsedAct.action.type,
-          name: String(parsedAct.action.name).trim(),
-          ...(typeof parsedAct.action.category === "string"
-            ? { category: parsedAct.action.category }
-            : {}),
+          type: String(act.type),
+          name: String(act.name).trim(),
+          ...(typeof act.category === "string" ? { category: String(act.category) } : {}),
         };
       }
-    } catch {
-      // action not present or unparseable — continue without it
     }
-
-    // ── Quota already reserved atomically before the API call ──────────────────
-    // On success, the reservation stands. On failure, we release it below.
 
     console.log("[emma-chat] Returning text, length:", emmaText.length, "| emotion:", emotion, "| action:", action ? action.type : "none");
     return ok({

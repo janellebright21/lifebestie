@@ -1,0 +1,57 @@
+{
+  "projectId": "66619152",
+  "functions": {
+    "budget-suggestions": {
+      "hasChanged": false,
+      "hash": "282aaca6ba8a16f557e3317c0d9bca3686e2c668c0e56c62039d494b7f516777"
+    },
+    "chat": {
+      "hasChanged": false,
+      "hash": "7bf1c2ca2d48b17eb7e20179cb4949be3747fbece7b611db0ab94a998823b9e2"
+    },
+    "check-subscription": {
+      "hasChanged": false,
+      "hash": "19eb943e3d8719d436f8b798d48015de5f4152a5f55a0bbbd6528db1e6203761"
+    },
+    "daily-planner": {
+      "hasChanged": false,
+      "hash": "c71f18b886a9986719d7332aeb9a24a0f8e57bce35e7d265d29172c4dc7ea9f0"
+    },
+    "emma-chat": {
+      "hasChanged": false,
+      "hash": "95960a77867d17c96e4a7f55ca2d16ddea3aa5dce505a894e1d9daf94b0cb78c"
+    },
+    "grocery-suggestions": {
+      "hasChanged": false,
+      "hash": "7eab24171e8122b6d8c95cdfd331fa72e052606631e17a4279af08952b2a4b8f"
+    },
+    "meal-ingredients": {
+      "hasChanged": false,
+      "hash": "bd48227772b2774e2f2379720d92f17fb3d9a9a537ddd25da80fde0ce7c756d8"
+    },
+    "prepare-for-tomorrow": {
+      "hasChanged": false,
+      "hash": "c05fbd0f917f5d6525f0b54fe8d65f3b86a575d89380ac04c9260d4870882198"
+    },
+    "scan-receipt": {
+      "hasChanged": false,
+      "hash": "39d16fcdac000fd1b810d916b89a29b310cb5f07e24ad0f0b821d96f9845b11b"
+    },
+    "stripe-checkout": {
+      "hasChanged": false,
+      "hash": "a07459cc94f98109cb461c9739518b58fca520832857f5a67d79bb6188fa07c7"
+    },
+    "stripe-portal": {
+      "hasChanged": false,
+      "hash": "e4f06528ee9b5fd609766387fe1a0929bb16743484c1da4bddddda65d85ee90a"
+    },
+    "stripe-webhook": {
+      "hasChanged": false,
+      "hash": "e69ea7d62efd83b8f03b084d4e287c4247b3816a95ea127e217966f5f76609f5"
+    },
+    "weekly-grocery-intro": {
+      "hasChanged": false,
+      "hash": "02081435343d20c2a640cb99fa38a9c0ac235621ca4e4dbdd1d4d37771aec0f4"
+    }
+  }
+}
