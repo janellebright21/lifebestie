@@ -1,0 +1,1 @@
+ALTER TABLE weekly_grocery_lists ALTER COLUMN memory_id DROP NOT NULL;

@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react
 import type { AvatarExpression } from '../../lib/supabase';
 import type { EmmaActivity } from './emmaMasterController';
 import { loadEmmaModel, resetEmmaModelProbe, type EmmaModelProbe } from '../../lib/emmaModelAsset';
+import { resolveExpressionSrc, getDefaultSrc } from '../../lib/characterAssets';
 import './EmmaFullBodyAvatar.css';
 
 const ModelViewer = lazy(() => import('./EmmaModelViewer'));
@@ -38,7 +39,10 @@ export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'i
   }, []);
   return <div className="emma-full-body">
     {!ready && framing === "portrait" && poster.src && <img src={poster.src} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"contain"}}/>}
-    {!ready && !(framing === "portrait" && poster.src) && <div role="status" aria-label={failed?"Emma unavailable":"Loading Emma"} style={{position:"absolute",inset:0,borderRadius:"inherit",background:"var(--theme-primary-light,#f5f0fa)"}}/>}
+    {!ready && !(framing === "portrait" && poster.src) && (probeResult.state === 'unavailable' || failed
+      ? <img src={failed ? getDefaultSrc('emma') : resolveExpressionSrc('emma', expression)} alt="Emma" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"contain",objectPosition:framing==='portrait'?'center 25%':'center bottom'}}/>
+      : <div role="status" aria-label="Loading Emma" style={{position:"absolute",inset:0,borderRadius:"inherit",background:"var(--theme-primary-light,#f5f0fa)"}}/>)
+    }
     {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><div className={ready?"emma-model-layer is-ready":"emma-model-layer"}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} greetOnArrival={greetOnArrival} framing={framing} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); setLoadError(message); }} /></div></Suspense>}
     {ready && framing === 'full' && <button className="emma-full-body__interaction" type="button" aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={() => setWave(n => n + 1)} />}
     {DEV && !ready && <div style={{ position: 'absolute', left: 0, right: 0, bottom: -20, fontSize: 10, lineHeight: 1.3, textAlign: 'center', color: '#6b7280', pointerEvents: 'none', zIndex: 5 }}>

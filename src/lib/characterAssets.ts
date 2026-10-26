@@ -4,7 +4,7 @@ function charUrl(name: string) { return `/characters/${name}.webp`; }
 function exprWebpUrl(name: string) { return `/characters/expression/${name}.webp`; }
 
 const DEFAULT_IMAGES: Record<CharacterId, string> = {
-  emma: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2232%22 fill=%22%23f5f0fa%22/%3E%3C/svg%3E',
+  emma: charUrl('emma'),
   ava:  charUrl('ava'),
   nora: charUrl('nora'),
   luna: charUrl('luna'),
@@ -21,7 +21,19 @@ const DEFAULT_IMAGES: Record<CharacterId, string> = {
  * dedicated asset is added.
  */
 const EXPRESSION_IMAGES: Record<CharacterId, Partial<Record<AvatarExpression, string>>> = {
-  emma: {},
+  emma: {
+    happy:        exprWebpUrl('emma_happy'),
+    thinking:     exprWebpUrl('emma_thinking'),
+    encouraging:  exprWebpUrl('emma_encouraging'),
+    proud:        exprWebpUrl('emma_proud'),
+    calm:         exprWebpUrl('emma_calm'),
+    listening:    exprWebpUrl('emma_calm'),
+    empathetic:   exprWebpUrl('emma_encouraging'),
+    focused:      exprWebpUrl('emma_thinking'),
+    excited:      exprWebpUrl('emma_proud'),
+    playful:      exprWebpUrl('emma_happy'),
+    tired:        exprWebpUrl('emma_calm'),
+  },
   ava: {
     happy:        exprWebpUrl('ava_happy'),
     thinking:     exprWebpUrl('ava_thinking'),
