@@ -1,3 +1,4 @@
+import EmmaAvatarSlot from '../components/besties/EmmaAvatarSlot';
 import { CheckCircle2, Circle, Sparkles, Plus, Calendar, ShoppingCart, X, Pencil, Sunrise, UtensilsCrossed, Activity, Flame, Zap, Wind, Trophy, ListChecks, ArrowRight } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Task, Event, UserMemory, GroceryHabit, GroceryCategory, Goal, getLowStockSuggestions, Meal, RoutineTemplate, RoutineRun, ModuleId, GroceryItem } from '../lib/supabase';
@@ -14,6 +15,7 @@ import type { BestieNotes } from '../hooks/useBestiePersonalization';
 import { useTomorrowPrepChecklist, DEFAULT_PREP_ITEMS } from '../hooks/useTomorrowPrepChecklist';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { generateEmmaGreeting, getEmmaAction, type EmmaActionType } from '../lib/emmaGreeting';
+import BrainDumpCard from '../components/BrainDumpCard';
 
 function emmaActionTab(type: EmmaActionType): TabName {
   switch (type) {
@@ -28,6 +30,9 @@ function emmaActionTab(type: EmmaActionType): TabName {
 
 interface HomePageProps {
   tasks: Task[];
+  tasksLoading?: boolean;
+  tasksError?: string | null;
+  onRefreshTasks?: () => void;
   events: Event[];
   meals: Meal[];
   memory: UserMemory | null;
@@ -37,7 +42,7 @@ interface HomePageProps {
   dailyPlanLoading: boolean;
   dailyPlanGenerating: boolean;
   pendingRoutineSuggestions: PatternCandidate[];
-  onToggleTask: (id: string, completed: boolean) => void;
+  onToggleTask: (id: string, completed: boolean) => void | Promise<void>;
   onTabChange: (tab: TabName) => void;
   onOpenRoutineSheet: (candidate: PatternCandidate) => void;
   onDismissRoutine: (taskTitle: string) => void;
@@ -64,6 +69,7 @@ interface HomePageProps {
   memoriesCount?: number;
   relationshipScore?: number;
   groceryItems?: GroceryItem[];
+  onOpenBrainDump?: () => void;
 }
 
 // (greeting helpers moved to src/lib/emmaGreeting.ts)
@@ -512,6 +518,9 @@ function TomorrowPrepCard({
 
 export default function HomePage({
   tasks,
+  tasksLoading = false,
+  tasksError = null,
+  onRefreshTasks,
   events,
   meals,
   memory,
@@ -547,11 +556,16 @@ export default function HomePage({
   memoriesCount = 0,
   relationshipScore = 0,
   groceryItems = [],
+  onOpenBrainDump,
 }: HomePageProps) {
   const [proudFlash, setProudFlash] = useState(false);
   const proudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
-  const handleToggleTask = useCallback((id: string, completed: boolean) => {
+  const handleToggleTask = useCallback(async (id: string, completed: boolean) => {
+    setToggleError(null);
+    setTogglingTaskId(id);
     if (completed) {
       setProudFlash(true);
       if (proudTimer.current) clearTimeout(proudTimer.current);
@@ -559,13 +573,39 @@ export default function HomePage({
         setProudFlash(false);
       }, 2000);
     }
-    onToggleTask(id, completed);
+    try {
+      await onToggleTask(id, completed);
+    } catch {
+      setToggleError('Could not update that task. Please try again.');
+    } finally {
+      setTogglingTaskId(null);
+    }
   }, [onToggleTask]);
 
   const today = new Date().toISOString().split('T')[0];
   const pendingTasks = tasks.filter((t) => !t.completed);
   const hasOverdueTasks = pendingTasks.some((t) => t.due_date && t.due_date < today);
-  const homeExpression = getHomeExpression(pendingTasks.length, hasOverdueTasks, proudFlash);
+  const completedTaskCount = tasks.filter((t) => t.completed).length;
+
+  // Today's top 3 incomplete tasks: today-due first (by priority), then overdue, then undated.
+  // Future-dated tasks are excluded from the Today list.
+  const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const todayTopTasks = useMemo(() => {
+    return [...pendingTasks]
+      .filter((t) => !t.due_date || t.due_date <= today)
+      .sort((a, b) => {
+        const aToday = a.due_date === today ? 0 : 1;
+        const bToday = b.due_date === today ? 0 : 1;
+        if (aToday !== bToday) return aToday - bToday;
+        const pa = priorityRank[a.priority ?? 'medium'] ?? 1;
+        const pb = priorityRank[b.priority ?? 'medium'] ?? 1;
+        if (pa !== pb) return pa - pb;
+        return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
+      })
+      .slice(0, 3);
+  }, [pendingTasks, today]);
+
+  const allTasksComplete = tasks.length > 0 && pendingTasks.length === 0;
 
   const tomorrowDate = (() => {
     const d = new Date();
@@ -573,7 +613,6 @@ export default function HomePage({
     return d.toISOString().split('T')[0];
   })();
   const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-  const todayTasks = tasks.slice(0, 4);
   const todayEvents = events
     .filter((e) => e.event_date === today)
     .sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
@@ -602,6 +641,17 @@ export default function HomePage({
     groceryItems,
     movementPlanned: todayMovements.length > 0,
     firstVisitToday,
+  });
+
+  const homeExpression = getHomeExpression({
+    pendingTaskCount: pendingTasks.length,
+    hasOverdueTasks,
+    proudFlash,
+    firstVisitToday,
+    localTimePeriod: emmaContext.localTimePeriod,
+    hasMoved,
+    hasCompletedMovement: hasCompleted,
+    completedTaskCount,
   });
 
   const emmaGreeting = generateEmmaGreeting(emmaContext);
@@ -689,7 +739,8 @@ export default function HomePage({
             }}
           />
           {/* Emma's portrait — uses existing asset resolver, contains the full image */}
-          <img
+          {!character || character === 'emma' ? <EmmaAvatarSlot expression={homeExpression}/> : (<img
+            key={homeExpression}
             src={resolveExpressionSrc(character ?? 'emma', homeExpression)}
             alt={`${character ?? 'emma'} ${homeExpression}`}
             onError={(e) => {
@@ -712,15 +763,16 @@ export default function HomePage({
               objectPosition: 'center',
               userSelect:     'none',
               pointerEvents:  'none',
+              animation:      'bestie-expr-fade 350ms ease-out',
             }}
-          />
+          />)}
         </div>
         {/* Greeting block */}
         <div className="flex-1 min-w-0 pt-1">
           <p className="text-xs font-medium uppercase tracking-widest mb-0.5" style={{ color: 'var(--theme-primary)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">
+          <h1 className="bl-page-title leading-tight" style={{ fontSize: '1.5rem' }}>
             {emmaGreeting}
           </h1>
           <p className="text-sm text-gray-400 mt-0.5">
@@ -928,6 +980,11 @@ export default function HomePage({
         />
       )}
 
+      {/* Brain Dump */}
+      {onOpenBrainDump && (
+        <BrainDumpCard onClick={onOpenBrainDump} />
+      )}
+
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-3">
         <button
@@ -984,39 +1041,143 @@ export default function HomePage({
       )}
 
       {/* Today's Tasks */}
-      <section>
+      <section aria-label="Today's tasks">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">All Tasks</h2>
-          <span className="text-xs text-gray-400">{tasks.filter((t) => !t.completed).length} remaining</span>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Today</h2>
+          {pendingTasks.length > 0 && (
+            <span className="text-xs text-gray-400">{pendingTasks.length} to go</span>
+          )}
         </div>
-        {todayTasks.length === 0 ? (
+
+        {tasksLoading ? (
+          <div className="bg-white rounded-2xl px-4 py-6 flex items-center justify-center gap-2 shadow-sm border border-gray-50">
+            <div className="w-4 h-4 rounded-full border-2 border-gray-200 border-t-rose-400 animate-spin" />
+            <span className="text-sm text-gray-400">Loading your tasks…</span>
+          </div>
+        ) : tasksError ? (
+          <div className="bg-white rounded-2xl px-4 py-5 shadow-sm border border-gray-50 space-y-2">
+            <p className="text-sm text-rose-500">Couldn't load your tasks.</p>
+            <p className="text-xs text-gray-400">{tasksError}</p>
+            {onRefreshTasks && (
+              <button
+                onClick={onRefreshTasks}
+                className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full text-white active:scale-95 transition-all"
+                style={{ backgroundColor: 'var(--theme-primary)' }}
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        ) : allTasksComplete ? (
           <div className="bg-white rounded-2xl px-4 py-6 text-center shadow-sm border border-gray-50">
-            <p className="text-sm text-gray-400">No tasks yet. Add something to get started!</p>
+            <p className="text-sm font-medium text-gray-700">All caught up!</p>
+            <p className="text-xs text-gray-400 mt-1">Nice work. Go enjoy your day.</p>
+          </div>
+        ) : todayTopTasks.length > 0 ? (
+          <div className="space-y-2">
+            {toggleError && (
+              <p role="alert" className="text-xs text-rose-500 px-1">{toggleError}</p>
+            )}
+            {todayTopTasks[0] && !todayTopTasks[0].completed && (
+              <p className="text-xs italic px-1" style={{ color: 'var(--theme-primary)' }}>
+                Let's start here — one small step.
+              </p>
+            )}
+            {todayTopTasks.map((task, idx) => {
+              const isToggling = togglingTaskId === task.id;
+              const isNextUp = idx === 0 && !task.completed;
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => handleToggleTask(task.id, !task.completed)}
+                  disabled={isToggling}
+                  aria-label={`Mark "${task.title}" as ${task.completed ? 'incomplete' : 'complete'}`}
+                  className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 shadow-sm border active:scale-[0.99] transition-transform text-left disabled:opacity-60"
+                  style={{
+                    minHeight: 44,
+                    borderColor: isNextUp ? 'var(--theme-primary)' : 'rgb(249 250 251)',
+                    borderWidth: isNextUp ? '1.5px' : '1px',
+                    backgroundColor: isNextUp ? 'var(--theme-primary-light)' : 'white',
+                  }}
+                >
+                  {isToggling ? (
+                    <div className="w-5 h-5 rounded-full border-2 border-gray-200 border-t-rose-400 animate-spin shrink-0" aria-hidden="true" />
+                  ) : task.completed ? (
+                    <CheckCircle2 size={20} style={{ color: 'var(--theme-primary)' }} className="shrink-0" />
+                  ) : (
+                    <Circle size={20} className="shrink-0" style={isNextUp ? { color: 'var(--theme-primary)' } : { color: 'rgb(209 213 219)' }} />
+                  )}
+                  <span
+                    className={`text-sm font-medium flex-1 min-w-0 ${
+                      task.completed ? 'line-through text-gray-300' : 'text-gray-700'
+                    }`}
+                  >
+                    {task.title}
+                  </span>
+                  {isNextUp ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 text-white" style={{ background: 'var(--theme-primary)' }}>
+                      Start here
+                    </span>
+                  ) : task.due_date === today ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--theme-primary-light)', color: 'var(--theme-primary)' }}>
+                      Today
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => onTabChange('planner')}
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-xl border border-gray-100 bg-gray-50/60 active:scale-95 transition-transform"
+              style={{ color: 'var(--theme-primary)' }}
+            >
+              <ListChecks size={13} />
+              Plan my day
+            </button>
           </div>
         ) : (
-          <div className="space-y-2">
-            {todayTasks.map((task) => (
-              <button
-                key={task.id}
-                onClick={() => handleToggleTask(task.id, !task.completed)}
-                className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-50 active:scale-[0.99] transition-transform text-left"
-              >
-                {task.completed ? (
-                  <CheckCircle2 size={20} style={{ color: 'var(--theme-primary)' }} className="shrink-0" />
-                ) : (
-                  <Circle size={20} className="text-gray-300 shrink-0" />
-                )}
-                <span
-                  className={`text-sm font-medium ${
-                    task.completed ? 'line-through text-gray-300' : 'text-gray-700'
-                  }`}
-                >
-                  {task.title}
-                </span>
-              </button>
-            ))}
+          <div className="bg-white rounded-2xl px-4 py-6 text-center shadow-sm border border-gray-50 space-y-2">
+            <p className="text-sm text-gray-400">No tasks yet. What's one thing you'd like to do today?</p>
+            <button
+              onClick={() => onTabChange('planner')}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full text-white active:scale-95 transition-all"
+              style={{ backgroundColor: 'var(--theme-primary)' }}
+            >
+              <Plus size={12} />
+              Plan my day
+            </button>
           </div>
         )}
+      </section>
+
+      {/* Quick shortcuts to other modules */}
+      <section aria-label="Quick shortcuts">
+        <div className="grid grid-cols-2 gap-2">
+          {enabledModules.has('ai-assistant') && (
+            <button
+              onClick={() => onTabChange('chat')}
+              className="flex items-center gap-2 bg-white rounded-2xl px-3 py-3 shadow-sm border border-gray-50 active:scale-[0.98] transition-transform"
+              style={{ minHeight: 44 }}
+            >
+              <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--theme-primary-light)' }}>
+                <Sparkles size={15} style={{ color: 'var(--theme-primary)' }} />
+              </span>
+              <span className="text-xs font-semibold text-gray-700 text-left">Chat with Emma</span>
+            </button>
+          )}
+          {enabledModules.has('grocery') && (
+            <button
+              onClick={() => onTabChange('grocery')}
+              className="flex items-center gap-2 bg-white rounded-2xl px-3 py-3 shadow-sm border border-gray-50 active:scale-[0.98] transition-transform"
+              style={{ minHeight: 44 }}
+            >
+              <span className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                <ShoppingCart size={15} className="text-emerald-400" />
+              </span>
+              <span className="text-xs font-semibold text-gray-700 text-left">Grocery list</span>
+            </button>
+          )}
+        </div>
       </section>
 
       {/* LifeBestie Suggests */}

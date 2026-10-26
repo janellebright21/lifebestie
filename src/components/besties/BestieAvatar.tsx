@@ -1,11 +1,11 @@
+import EmmaAvatarSlot from './EmmaAvatarSlot';
 import { useMemo, useState, useEffect } from 'react';
 import { CHARACTERS } from '../../lib/supabase';
 import type { CharacterId, AvatarExpression, OutfitId } from '../../lib/supabase';
 import { resolveExpressionSrc, getDefaultSrc } from '../../lib/characterAssets';
 import { use3DMotion } from '../../hooks/use3DMotion';
-import EmmaModelViewer from './EmmaModelViewer';
 
-export type BestieMotionState = 'idle' | 'wave' | 'lean' | 'thinking' | 'celebrating' | 'calm';
+export type BestieMotionState = 'idle' | 'wave' | 'lean' | 'thinking' | 'celebrating' | 'calm' | 'playful' | 'listening';
 
 export interface BestieAvatarProps {
   characterId: CharacterId;
@@ -38,9 +38,14 @@ const MOTION_BY_EXPRESSION: Record<AvatarExpression, BestieMotionState> = {
   calm:        'calm',
   thinking:    'thinking',
   tired:       'calm',
+  listening:   'listening',
+  empathetic:  'lean',
+  focused:     'thinking',
+  excited:     'celebrating',
+  playful:     'playful',
 };
 
-const ONE_SHOT_MOTIONS = new Set<BestieMotionState>(['wave', 'celebrating']);
+const ONE_SHOT_MOTIONS = new Set<BestieMotionState>(['wave', 'celebrating', 'playful']);
 
 type FallbackState = 'expression' | 'default' | 'initials';
 
@@ -85,18 +90,30 @@ function FadingImage({
   const [current, setCurrent] = useState(src);
   const [next, setNext]       = useState<string | null>(null);
   const [fading, setFading]   = useState(false);
+  const [readySrc, setReadySrc] = useState<string | null>(null);
 
   useEffect(() => {
-    if (src === current) return;
+    if (src === current) {
+      setNext(null);
+      setFading(false);
+      setReadySrc(null);
+      return;
+    }
     setNext(src);
+    setReadySrc(null);
+    setFading(false);
+  }, [src, current]);
+
+  useEffect(() => {
+    if (readySrc !== src || !next) return;
     setFading(true);
     const t = setTimeout(() => {
       setCurrent(src);
       setNext(null);
       setFading(false);
-    }, 280);
+    }, 450);
     return () => clearTimeout(t);
-  }, [src, current]);
+  }, [src, readySrc, next]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -113,14 +130,18 @@ function FadingImage({
           position: 'absolute',
           inset: 0,
           opacity: fading ? 0 : 1,
-          transition: 'opacity 0.28s ease',
+          transform: fading ? 'scale(1.03)' : 'scale(1)',
+          transition: 'opacity 0.45s ease, transform 0.45s ease',
         }}
       />
       {next && (
         <img
           key={next}
           src={next}
-          alt={alt}
+          alt=""
+          aria-hidden="true"
+          onLoad={() => setReadySrc(next)}
+          onError={onError}
           loading="eager"
           decoding="async"
           draggable={false}
@@ -129,7 +150,8 @@ function FadingImage({
             position: 'absolute',
             inset: 0,
             opacity: fading ? 1 : 0,
-            transition: 'opacity 0.28s ease',
+            transform: fading ? 'scale(1)' : 'scale(0.97)',
+            transition: 'opacity 0.45s ease, transform 0.45s ease',
           }}
         />
       )}
@@ -137,7 +159,7 @@ function FadingImage({
   );
 }
 
-export default function BestieAvatar({
+function LegacyBestieAvatar({
   characterId,
   expression = 'happy',
   size       = 'md',
@@ -152,25 +174,17 @@ export default function BestieAvatar({
   const char = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0]!;
   const dim  = SIZES[size];
 
-  const [emma3dFailed, setEmma3dFailed] = useState(false);
-
   // 3D is on by default for lg and full, off for small avatars and portrait
   const isPortrait = size === 'portrait';
-  const useEmmaModel = characterId === 'emma' && size === 'full' && !emma3dFailed;
-  const want3D = !useEmmaModel && (enable3D ?? (size === 'lg' || size === 'full'));
+  const want3D = enable3D ?? (size === 'lg' || size === 'full');
 
   const [fallback, setFallback] = useState<FallbackState>('expression');
   const [src, setSrc]           = useState(() => resolveExpressionSrc(characterId, expression));
-  const [waveRequest, setWaveRequest] = useState(0);
 
   useEffect(() => {
     setFallback('expression');
     setSrc(resolveExpressionSrc(characterId, expression));
   }, [characterId, expression]);
-
-  useEffect(() => {
-    setEmma3dFailed(false);
-  }, [characterId]);
 
   const handleError = () => {
     if (fallback === 'expression') {
@@ -191,7 +205,7 @@ export default function BestieAvatar({
   const { tilt, ref: tiltRef } = use3DMotion(want3D);
 
   // Max rotation: ±12° for full, ±8° for lg
-  const maxRot = size === 'full' ? 12 : 8;
+  const maxRot = size === 'full' ? 5 : 3;
   // Portrait is a static illustrated area — no tilt, no parallax
   const portraitStatic = isPortrait;
   const rotX   = -tilt.y * maxRot;  // tilt up → positive rotX (face tips toward viewer)
@@ -210,12 +224,17 @@ export default function BestieAvatar({
   const shadowX = tilt.x * 6;
   const shadowY = tilt.y * 6 + 4;
 
-  const motion     = motionOverride ?? MOTION_BY_EXPRESSION[expression] ?? 'idle';
-  const stateClass = `ba-state-${motion}`;
-
+  const requestedMotion = motionOverride ?? MOTION_BY_EXPRESSION[expression] ?? 'idle';
+  const [completedMotion, setCompletedMotion] = useState<BestieMotionState | null>(null);
+  useEffect(() => { setCompletedMotion(null); }, [requestedMotion, characterId, expression]);
+  // The timer also completes a gesture when reduced motion disables animation events.
   useEffect(() => {
-    if (motion === 'wave') setWaveRequest((current) => current + 1);
-  }, [motion]);
+    if (!ONE_SHOT_MOTIONS.has(requestedMotion)) return;
+    const timer = setTimeout(() => setCompletedMotion(requestedMotion), 1250);
+    return () => clearTimeout(timer);
+  }, [requestedMotion, characterId, expression]);
+  const motion = completedMotion === requestedMotion ? 'idle' : requestedMotion;
+  const stateClass = `ba-state-${motion}`;
 
   const blinkStyle = useMemo<React.CSSProperties>(() => ({
     position:        'absolute',
@@ -233,14 +252,17 @@ export default function BestieAvatar({
 
   const handleAnimationEnd = (event: React.AnimationEvent<HTMLDivElement>) => {
     if (event.currentTarget !== event.target) return;
-    if (ONE_SHOT_MOTIONS.has(motion)) onMotionEnd?.();
+    if (ONE_SHOT_MOTIONS.has(motion)) {
+      setCompletedMotion(requestedMotion);
+      onMotionEnd?.();
+    }
   };
 
   const imgStyle: React.CSSProperties = {
     width:      '100%',
     height:     '100%',
-    objectFit:  isPortrait ? 'contain' : 'contain',
-    objectPosition: isPortrait ? 'bottom center' : undefined,
+    objectFit: 'contain',
+    objectPosition: isPortrait ? 'bottom center' : 'center',
     display:    'block',
     userSelect: 'none',
   };
@@ -251,10 +273,10 @@ export default function BestieAvatar({
       className={`${stateClass} relative${want3D ? ' ba-3d-scene' : ''}`}
       style={{
         flexShrink: 0,
-        width:    isPortrait ? '100%' : (useEmmaModel ? Math.round(dim * 0.9) : dim),
-        height:   isPortrait ? '100%' : (useEmmaModel ? Math.round(dim * 1.55) : undefined),
-        // Portrait and the 3-D model need an explicit height to render.
-        minHeight: isPortrait ? '100%' : (useEmmaModel ? Math.round(dim * 1.55) : undefined),
+        width:    isPortrait ? '100%' : dim,
+        height:   isPortrait ? '100%' : undefined,
+        // Portrait fills its parent — must have explicit height to render
+        minHeight: isPortrait ? '100%' : undefined,
         // 3-D perspective scene
         perspective: want3D ? dim * 5 : undefined,
         perspectiveOrigin: want3D ? '50% 50%' : undefined,
@@ -274,7 +296,7 @@ export default function BestieAvatar({
       <div
         style={{
           width: '100%',
-          height: isPortrait || useEmmaModel ? '100%' : undefined,
+          height: isPortrait ? '100%' : undefined,
           position: 'relative',
           zIndex: 1,
           transformStyle: want3D ? 'preserve-3d' : undefined,
@@ -289,18 +311,16 @@ export default function BestieAvatar({
           className="ba-body relative"
           onAnimationEnd={handleAnimationEnd}
           style={{
-            width:           isPortrait || useEmmaModel ? '100%' : dim,
-            height:          isPortrait || useEmmaModel ? '100%' : dim,
-            borderRadius:    portraitStatic || useEmmaModel ? '0' : '50%',
-            overflow:        portraitStatic || useEmmaModel ? 'visible' : 'hidden',
-            boxShadow: useEmmaModel
+            width:           isPortrait ? '100%' : dim,
+            height:          isPortrait ? '100%' : dim,
+            borderRadius:    portraitStatic ? '0' : '50%',
+            overflow:        portraitStatic ? 'visible' : 'hidden',
+            boxShadow: portraitStatic
               ? 'none'
-              : portraitStatic
-                ? 'none'
-                : want3D
-                  ? `${shadowX}px ${shadowY}px ${20 + Math.abs(shadowX) * 0.5}px ${char.primaryColor}33, 0 0 0 2px ${char.primaryColor}55`
-                  : `0 0 0 2px ${char.primaryColor}55, 0 4px 14px ${char.primaryColor}22`,
-            background:      portraitStatic || useEmmaModel ? 'transparent' : `${char.primaryColor}22`,
+              : want3D
+                ? `${shadowX}px ${shadowY}px ${20 + Math.abs(shadowX) * 0.5}px ${char.primaryColor}33, 0 0 0 2px ${char.primaryColor}55`
+                : `0 0 0 2px ${char.primaryColor}55, 0 4px 14px ${char.primaryColor}22`,
+            background:      portraitStatic ? 'transparent' : `${char.primaryColor}22`,
             transformOrigin: 'bottom center',
             position:        'relative',
             transition:      want3D ? 'box-shadow 0.1s linear' : undefined,
@@ -336,17 +356,7 @@ export default function BestieAvatar({
               zIndex: 1,
             }}
           >
-            {useEmmaModel ? (
-              <EmmaModelViewer
-                modelSrc="/characters/emma/Emma-Master.glb"
-                waveRequest={waveRequest}
-                expression={expression}
-                activity={motion === 'thinking' ? 'thinking' : 'idle'}
-                greetOnArrival
-                onReady={() => {}}
-                onFailure={() => setEmma3dFailed(true)}
-              />
-            ) : fallback === 'initials' ? (
+            {fallback === 'initials' ? (
               <div
                 style={{
                   width:          '100%',
@@ -374,7 +384,7 @@ export default function BestieAvatar({
           </div>
 
           {want3D && !portraitStatic && <div className="ba-shimmer" aria-hidden="true" />}
-          {!portraitStatic && !useEmmaModel && <div className="ba-blink" style={blinkStyle} />}
+          {characterId !== 'emma' && !portraitStatic && <div className="ba-blink" style={blinkStyle} aria-hidden="true" />}
         </div>
       </div>
 
@@ -392,4 +402,10 @@ export default function BestieAvatar({
       {message && <SpeechBubble message={message} primaryColor={char.primaryColor} />}
     </div>
   );
+}
+
+export default function BestieAvatar(props:BestieAvatarProps) {
+ if(props.characterId!=='emma')return <LegacyBestieAvatar {...props}/>;
+ const size=props.size??'md',dim=SIZES[size],full=size==='full';
+ return <div className={props.className} style={{display:'flex',alignItems:'center',gap:12,...props.style}}><div style={{width:dim,height:full?dim*1.85:dim,flexShrink:0,borderRadius:full?16:'50%',overflow:'hidden'}}><EmmaAvatarSlot expression={props.expression} framing={full?'full':'portrait'}/></div>{props.showSpeechBubble&&props.message&&<SpeechBubble message={props.message} primaryColor={CHARACTERS[0]!.primaryColor}/>}</div>;
 }

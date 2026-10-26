@@ -1,15 +1,15 @@
-import type { ComponentProps } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { useEffect, useState, type ComponentProps } from 'react';
+import BestieAvatar from '../components/besties/BestieAvatar';
+import EmmaFullBodyAvatar from '../components/besties/EmmaFullBodyAvatar';
+import { ArrowRight } from 'lucide-react';
 import CoreHomePage from './HomePageCore';
 import FirstUseGuideCard from '../components/FirstUseGuideCard';
 import { CHARACTERS } from '../lib/supabase';
 import type { TabName } from '../components/BottomNav';
-import { resolveExpressionSrc, getDefaultSrc } from '../lib/characterAssets';
 import { getHomeExpression } from '../lib/bestieExpression';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { useMovement } from '../hooks/useMovement';
 import { generateEmmaGreeting, getEmmaAction, type EmmaActionType } from '../lib/emmaGreeting';
-import BestieAvatar from '../components/besties/BestieAvatar';
 
 type HomePageProps = ComponentProps<typeof CoreHomePage>;
 
@@ -32,10 +32,14 @@ function localDateKey(date: Date): string {
 }
 
 export default function HomePage(props: HomePageProps) {
+  const [greetingMotion, setGreetingMotion] = useState<'wave' | undefined>('wave');
+  useEffect(() => {
+    const timer = setTimeout(() => setGreetingMotion(undefined), 1250);
+    return () => clearTimeout(timer);
+  }, []);
   const today = localDateKey(new Date());
   const pendingTasks = props.tasks.filter((task) => !task.completed);
   const hasOverdueTasks = pendingTasks.some((task) => task.due_date && task.due_date < today);
-  const homeExpression = getHomeExpression(pendingTasks.length, hasOverdueTasks, false);
   const { todayMovements } = useMovement(props.events);
 
   const characterId = props.character ?? 'emma';
@@ -64,6 +68,17 @@ export default function HomePage(props: HomePageProps) {
     firstVisitToday: showFirstUseGuide,
   });
 
+  const homeExpression = getHomeExpression({
+    pendingTaskCount: pendingTasks.length,
+    hasOverdueTasks,
+    proudFlash: false,
+    firstVisitToday: showFirstUseGuide,
+    localTimePeriod: bestieContext.localTimePeriod,
+    hasMoved: todayMovements.length > 0,
+    hasCompletedMovement: false,
+    completedTaskCount: props.tasks.filter((t) => t.completed).length,
+  });
+
   const greeting = generateEmmaGreeting(bestieContext);
   const action = getEmmaAction(bestieContext);
 
@@ -85,68 +100,39 @@ export default function HomePage(props: HomePageProps) {
   return (
     <div className="bestie-home-shell">
       <div className="px-4 sm:px-6 pt-6 pb-2 w-full max-w-2xl mx-auto">
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex flex-row-reverse items-center gap-3 sm:gap-5 rounded-3xl p-4 sm:p-5" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid var(--theme-primary-light)' }}>
           <div
             className="relative shrink-0"
             style={{
-              width: 'clamp(96px, 25vw, 160px)',
-              height: 'clamp(96px, 25vw, 160px)',
+              width: 'clamp(88px, 22vw, 140px)',
+              height: characterId === 'emma' ? 'clamp(180px, 38vw, 248px)' : 'clamp(112px, 28vw, 172px)',
             }}
           >
             <div
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                inset: '-12%',
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, var(--theme-primary-mid) 0%, var(--theme-primary-light) 48%, transparent 72%)',
-                filter: 'blur(12px)',
-                opacity: 0.7,
+                inset: '0',
+                borderRadius: '24px',
+                background: 'linear-gradient(160deg, var(--theme-primary-light), rgba(255,255,255,0.5))',
+                border: '1px solid rgba(255,255,255,0.8)',
+                opacity: 1,
                 zIndex: 0,
               }}
             />
-            <Sparkles
-              size={13}
-              aria-hidden="true"
-              className="hidden sm:block"
-              style={{
-                position: 'absolute',
-                top: '2%',
-                right: '0%',
-                color: 'var(--theme-primary)',
-                opacity: 0.55,
-                zIndex: 2,
-              }}
-            />
             {characterId === 'emma' ? (
-              <BestieAvatar
-                characterId={characterId}
-                expression={homeExpression}
-                size="full"
-                enable3D={false}
-                style={{ width: '100%', height: '100%' }}
-              />
+              <EmmaFullBodyAvatar expression={homeExpression} greetOnArrival />
             ) : (
-              <img
-                src={resolveExpressionSrc(characterId, homeExpression)}
-                alt={`${characterDef.name} ${homeExpression}`}
-                onError={(event) => {
-                  const target = event.currentTarget;
-                  const fallback = getDefaultSrc(characterId);
-                  if (!target.src.endsWith(fallback)) target.src = fallback;
-                }}
-                style={{
-                  position: 'relative',
-                  zIndex: 1,
-                  display: 'block',
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  objectPosition: 'center',
-                  userSelect: 'none',
-                  pointerEvents: 'none',
-                }}
-              />
+            <BestieAvatar
+              characterId={characterId}
+              expression={homeExpression}
+              size="portrait"
+              className="emma-home-avatar"
+              style={{ width: '100%', height: '100%' }}
+              motionOverride={greetingMotion}
+              onMotionEnd={() => setGreetingMotion(undefined)}
+              enable3D={false}
+            />
             )}
           </div>
 
@@ -157,7 +143,7 @@ export default function HomePage(props: HomePageProps) {
             >
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">
+            <h1 className="bl-page-title leading-tight" style={{ fontSize: '1.5rem' }}>
               {greeting}
             </h1>
             <p className="text-sm text-gray-400 mt-1 leading-relaxed">

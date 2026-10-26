@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1536" width="1024" height="1536">
+  <defs>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3.5"/>
+    </filter>
+  </defs>
+  <!-- Soft skin patch hides only the original mouth area. -->
+  <ellipse cx="486" cy="248" rx="34" ry="20" fill="#f2a873" opacity="0.92" filter="url(#soft)"/>
+  <ellipse cx="486" cy="248" rx="29" ry="15" fill="#f5ad79" opacity="0.92"/>
+  <!-- Warm, slightly wider smile for encouraging/celebrating states. -->
+  <path d="M463 245 C475 255 491 259 511 245 C501 264 475 268 463 245 Z" fill="#9a4735" opacity="0.96"/>
+  <path d="M467 246 C479 252 492 254 507 246 C497 255 478 257 467 246 Z" fill="#f7c7b8" opacity="0.92"/>
+  <path d="M466 244 C478 249 494 250 508 243" fill="none" stroke="#733428" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

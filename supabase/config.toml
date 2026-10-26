@@ -1,0 +1,38 @@
+[functions.budget-suggestions]
+verify_jwt = true
+
+[functions.chat]
+verify_jwt = true
+
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.daily-planner]
+verify_jwt = true
+
+[functions.emma-chat]
+verify_jwt = true
+
+[functions.grocery-suggestions]
+verify_jwt = true
+
+[functions.meal-ingredients]
+verify_jwt = true
+
+[functions.prepare-for-tomorrow]
+verify_jwt = true
+
+[functions.scan-receipt]
+verify_jwt = true
+
+[functions.stripe-checkout]
+verify_jwt = true
+
+[functions.stripe-portal]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.weekly-grocery-intro]
+verify_jwt = true

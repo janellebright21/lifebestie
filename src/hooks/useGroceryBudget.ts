@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, GroceryBudget } from '../lib/supabase';
 
+const MEMORY_ID_KEY = 'lifebestie_memory_id';
+
 export function useGroceryBudget() {
   const [budget, setBudget] = useState<GroceryBudget | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,10 +25,13 @@ export function useGroceryBudget() {
     if (data) {
       setBudget(data as GroceryBudget);
     } else {
+      const memoryId = localStorage.getItem(MEMORY_ID_KEY) || crypto.randomUUID();
+      localStorage.setItem(MEMORY_ID_KEY, memoryId);
       const { data: created } = await supabase
         .from('grocery_budget')
         .insert({
           user_id: user.id,
+          memory_id: memoryId,
           weekly_budget: 100,
           current_estimated_total: 0,
           last_updated: new Date().toISOString().split('T')[0],

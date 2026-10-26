@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +52,29 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    if (!token) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Access check
+    const AI_DAILY_LIMIT = parseInt(Deno.env.get("AI_DAILY_LIMIT") ?? "50", 10);
+    const { data: hasAccess } = await supabase.rpc("has_access", { p_user_id: user.id });
+    if (!hasAccess) return new Response(JSON.stringify({ error: "ACCESS_DENIED", message: "Your free trial has ended." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Atomic quota reservation — safe under concurrent requests
+    const { data: quotaReserved, error: quotaErr } = await supabase.rpc("reserve_ai_quota", { p_user_id: user.id, p_function: "meal-ingredients", p_provider: "anthropic", p_limit: AI_DAILY_LIMIT });
+    if (quotaErr) {
+      console.error("[meal-ingredients] reserve_ai_quota error:", quotaErr);
+      return new Response(JSON.stringify({ error: "INTERNAL_ERROR", message: "Could not verify usage limit." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!quotaReserved) return new Response(JSON.stringify({ error: "AI_LIMIT_REACHED", message: "Daily AI limit reached." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       return new Response(
@@ -83,6 +107,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!response.ok) {
+      try { await supabase.rpc("release_ai_quota", { p_user_id: user.id, p_function: "meal-ingredients" }); } catch {}
       return new Response(
         JSON.stringify({ ingredients: FALLBACK_MAP.default }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -107,6 +132,8 @@ Deno.serve(async (req: Request) => {
     } catch {
       parsed = { ingredients: FALLBACK_MAP.default };
     }
+
+    // Quota already reserved atomically before the API call
 
     return new Response(
       JSON.stringify(parsed),

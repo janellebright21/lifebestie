@@ -376,7 +376,9 @@ export const DEFAULT_ENABLED_MODULES = new Set<ModuleId>(
 export type ThemeId        = 'cozy-coffee' | 'lavender-calm' | 'coastal-breeze' | 'boss-babe' | 'fresh-start';
 export type BgSkinId       = 'solid' | 'watercolor' | 'floral' | 'planner-paper' | 'minimalist';
 export type AvatarThemeId  = 'classic' | 'cozy' | 'wellness' | 'professional';
-export type AvatarExpression = 'happy' | 'encouraging' | 'proud' | 'calm' | 'thinking' | 'tired';
+export type AvatarExpression =
+  | 'happy' | 'encouraging' | 'proud' | 'calm' | 'thinking' | 'tired'
+  | 'listening' | 'empathetic' | 'focused' | 'excited' | 'playful';
 export type CharacterId      = 'emma' | 'ava' | 'nora' | 'luna';
 export type CharacterVariant = 'portrait' | 'full-body';
 export type OutfitId         = 'classic' | 'cozy' | 'professional' | 'wellness';
@@ -432,10 +434,10 @@ export const THEMES: ThemeDef[] = [
     id: 'lavender-calm',
     label: 'Lavender Calm',
     description: 'Soft violet and lilac for a peaceful vibe.',
-    primary:      '#a78bfa', // violet-400
+    primary:      '#8b5cf6', // violet-500
     primaryLight: '#f5f3ff', // violet-50
     primaryMid:   '#ddd6fe', // violet-200
-    swatch:       ['#a78bfa', '#c4b5fd'],
+    swatch:       ['#8b5cf6', '#c4b5fd'],
   },
   {
     id: 'coastal-breeze',
@@ -472,9 +474,9 @@ export const BG_SKINS: BgSkinDef[] = [
     label: 'Solid',
     description: 'Clean and minimal.',
     emoji: '⬜',
-    solidColor: '#f9fafb',
+    solidColor: '#faf8f5',
     patternStyle: '',
-    bgClass: 'bg-gray-50',
+    bgClass: 'bg-[#faf8f5]',
   },
   {
     id: 'watercolor',
@@ -630,7 +632,7 @@ export const CHARACTERS: CharacterDef[] = [
 ];
 
 export const DEFAULT_PERSONALIZATION = {
-  theme: 'cozy-coffee' as ThemeId,
+  theme: 'lavender-calm' as ThemeId,
   bgSkin: 'solid' as BgSkinId,
   avatarTheme: 'classic' as AvatarThemeId,
   memoryEnabled: true,

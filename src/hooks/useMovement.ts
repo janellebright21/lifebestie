@@ -95,11 +95,16 @@ function getStreakMessage(streak: number): string {
   return 'Start your streak today';
 }
 
+/** Device-local date for movement logging and streak calculations. */
+export function localMovementDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Returns a YYYY-MM-DD string offset by `daysAgo` from today. */
 function dateOffset(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split('T')[0];
+  return localMovementDate(d);
 }
 
 /**
@@ -140,8 +145,68 @@ function computeStreak(events: Event[]): number {
   return streak;
 }
 
+export type TimeRange = 'short' | 'medium' | 'long';
+
+export const TIME_RANGES: { id: TimeRange; label: string; min: number; max: number }[] = [
+  { id: 'short',  label: '5–10 min',  min: 5,  max: 10 },
+  { id: 'medium', label: '15–20 min', min: 15, max: 20 },
+  { id: 'long',   label: '30+ min',   min: 30, max: Infinity },
+];
+
+export function parseDurationMinutes(duration: string): number {
+  const m = duration.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+export function activitiesForTimeRange(range: TimeRange): MovementActivity[] {
+  const r = TIME_RANGES.find((t) => t.id === range);
+  if (!r) return [];
+  return (Object.values(MOVEMENT_OPTIONS) as typeof MOVEMENT_OPTIONS[EnergyLevel][])
+    .flatMap((opts) => opts.activities)
+    .filter((a) => {
+      const mins = parseDurationMinutes(a.duration);
+      return mins >= r.min && mins <= r.max;
+    });
+}
+
+export interface WeeklyMovementInfo {
+  count: number;
+  next: { title: string; date: string; time: string | null } | null;
+}
+
+export function getWeeklyMovements(events: Event[], today: string): WeeklyMovementInfo {
+  const now = new Date(today + 'T00:00:00');
+  const dayOfWeek = now.getDay();
+  const start = new Date(now);
+  start.setDate(now.getDate() - dayOfWeek);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const startDate = localMovementDate(start);
+  const endDate = localMovementDate(end);
+
+  const weekMovements = events.filter(
+    (e) => e.category === 'Movement' && e.event_date >= startDate && e.event_date <= endDate
+  );
+
+  const upcoming = weekMovements
+    .filter((e) => e.event_date >= today)
+    .sort((a, b) => {
+      const dateCmp = a.event_date.localeCompare(b.event_date);
+      if (dateCmp !== 0) return dateCmp;
+      return (a.event_time ?? '').localeCompare(b.event_time ?? '');
+    });
+
+  const next = upcoming[0] ?? null;
+
+  return {
+    count: weekMovements.length,
+    next: next ? { title: next.title, date: next.event_date, time: next.event_time ?? null } : null,
+  };
+}
+
 export function useMovement(events: Event[]) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localMovementDate(new Date());
 
   const todayMovements = useMemo((): TodayMovement[] => {
     return events

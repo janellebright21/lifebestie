@@ -1,12 +1,24 @@
 import { useState, useRef, useEffect, Component } from 'react';
 import type { ReactNode } from 'react';
 import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
-import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal } from '../lib/supabase';
+import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal, AvatarExpression } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
+import EmmaFullBodyAvatar from '../components/besties/EmmaFullBodyAvatar';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { buildEmmaContextSummary, type EmmaContextSummary } from '../lib/emmaGreeting';
 
 const CHAT_MESSAGES_KEY = 'lifebestie_chat_messages';
+
+const EMOTION_ALLOWLIST = new Set<AvatarExpression>([
+  'happy', 'thinking', 'encouraging', 'proud', 'calm',
+  'listening', 'empathetic', 'focused', 'excited', 'playful',
+]);
+
+function sanitizeEmotion(raw: unknown): AvatarExpression {
+  if (typeof raw !== 'string') return 'happy';
+  const cleaned = raw.trim().toLowerCase();
+  return EMOTION_ALLOWLIST.has(cleaned as AvatarExpression) ? cleaned as AvatarExpression : 'happy';
+}
 
 interface Message {
   id: string;
@@ -27,6 +39,12 @@ interface MemorySuggestion {
   category: MemoryCategory;
   title: string;
   value: string;
+}
+
+interface EmmaAction {
+  type: string;
+  name: string;
+  category?: string;
 }
 
 interface ChatPageProps {
@@ -118,7 +136,7 @@ async function callEmmaChatFunction(
   messages: Message[],
   relevantMemories: LifeBestieMemory[],
   contextSummary?: EmmaContextSummary,
-): Promise<{ text: string; memory_suggestion?: MemorySuggestion }> {
+): Promise<{ text: string; emotion: AvatarExpression; memory_suggestion?: MemorySuggestion; action?: EmmaAction }> {
   // Build conversation history from existing messages (exclude the init greeting,
   // exclude the message we are about to send, cap at 10 turns).
   const conversation = messages
@@ -126,7 +144,7 @@ async function callEmmaChatFunction(
     .slice(-10)
     .map((m) => ({ role: m.role, content: m.text }));
 
-  const memories = relevantMemories.map((m) => ({ category: m.category, title: m.title }));
+  const memories = relevantMemories.map((m) => ({ category: m.category, title: m.title, value: m.value }));
 
   const { data, error } = await supabase.functions.invoke('emma-chat', {
     body: { message: currentMessage, conversation, memories, context: contextSummary },
@@ -151,6 +169,7 @@ async function callEmmaChatFunction(
   const text = typeof payload.text === 'string' && payload.text.trim()
     ? payload.text
     : "I'm here for you 💛 Could you say that again?";
+  const emotion = sanitizeEmotion(payload.emotion);
 
   let memory_suggestion: MemorySuggestion | undefined;
   try {
@@ -173,7 +192,27 @@ async function callEmmaChatFunction(
     // memory_suggestion parse failed — continue without it
   }
 
-  return { text, memory_suggestion };
+  let action: EmmaAction | undefined;
+  try {
+    const act = payload.action;
+    if (
+      act &&
+      typeof act === 'object' &&
+      typeof (act as Record<string, unknown>).type === 'string' &&
+      typeof (act as Record<string, unknown>).name === 'string'
+    ) {
+      const a = act as Record<string, unknown>;
+      action = {
+        type: a.type as string,
+        name: (a.name as string).trim(),
+        ...(typeof a.category === 'string' ? { category: a.category as string } : {}),
+      };
+    }
+  } catch {
+    // action parse failed — continue without it
+  }
+
+  return { text, emotion, memory_suggestion, action };
 }
 
 // ── Memory confirmation banner ─────────────────────────────────────────────────
@@ -286,16 +325,22 @@ class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
   }
 }
 
+// ── Grocery category validation ───────────────────────────────────────────────
+const VALID_GROCERY_CATEGORIES = new Set([
+  'Produce', 'Dairy', 'Meat', 'Seafood', 'Bakery', 'Frozen',
+  'Beverages', 'Pantry', 'Snacks', 'Personal Care', 'Household', 'Baby', 'Pet',
+]);
+
 // ── Main chat component ────────────────────────────────────────────────────────
 
 function ChatPageInner({
   tasks: _tasks,
   events: _events,
   groceryItems: _groceryItems,
-  memory,
+  memory: _memory,
   onAddTask,
   onAddGrocery,
-  onUpdateMemory,
+  onUpdateMemory: _onUpdateMemory,
   getProactiveSuggestions: _getProactiveSuggestions,
   preferredName,
   avatarTheme: _avatarTheme,
@@ -333,10 +378,14 @@ function ChatPageInner({
     return saved ?? [buildInitMessage()];
   });
   const [input, setInput]                         = useState('');
+  const [inputFocused,setInputFocused] = useState(false);
   const [isTyping, setIsTyping]                   = useState(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
   const [savingMemory, setSavingMemory]           = useState(false);
   const [lastUserText, setLastUserText]           = useState('');
+  const [emmaEmotion, setEmmaEmotion]             = useState<AvatarExpression>('happy');
+  const [greetingMotion, setGreetingMotion]       = useState<'wave' | null>('wave');
+  const [celebrationMotion, setCelebrationMotion] = useState<'celebrating' | 'playful' | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -348,6 +397,20 @@ function ChatPageInner({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, pendingSuggestion]);
+
+  // Play one subtle greeting motion when Chat first opens
+  useEffect(() => {
+    if (!greetingMotion) return;
+    const t = setTimeout(() => setGreetingMotion(null), 1200);
+    return () => clearTimeout(t);
+  }, [greetingMotion]);
+
+  // Play a one-shot celebration or playful motion after an accomplishment
+  useEffect(() => {
+    if (!celebrationMotion) return;
+    const t = setTimeout(() => setCelebrationMotion(null), 1800);
+    return () => clearTimeout(t);
+  }, [celebrationMotion]);
 
   async function sendMessage(text: string) {
     if (!text.trim() || isTyping) return;
@@ -382,36 +445,44 @@ function ChatPageInner({
       );
 
       const replyText = result.text;
-      const lowerInput = trimmedText.toLowerCase();
-      const lowerReply = replyText.toLowerCase();
+      setEmmaEmotion(result.emotion);
 
-      // Side-effect: auto-add grocery / task from conversation — errors must not crash chat
-      try {
-        if (
-          (lowerReply.includes('grocery list') || lowerReply.includes("i'll add")) &&
-          lowerReply.includes('add')
-        ) {
-          const match = lowerInput.match(/(?:add|buy|get|need|pick up)\s+(.+)/i);
-          if (match) await onAddGrocery(match[1].trim(), 'Pantry');
-        } else if (
-          lowerReply.includes('task list') ||
-          (lowerReply.includes('added') && lowerReply.includes('task'))
-        ) {
-          const match = lowerInput.match(/(?:add|remind me to|i need to)\s+(.+)/i);
-          if (match) await onAddTask(match[1].trim());
+      // ── Perform structured action before displaying Emma's reply ──────────
+      let finalReplyText = replyText;
+      const action = result.action;
+      let actionSucceeded = false;
+      if (action) {
+        if (action.type === 'add_grocery' && action.name) {
+          const category = action.category && VALID_GROCERY_CATEGORIES.has(action.category)
+            ? action.category as GroceryCategory
+            : 'Pantry';
+          try {
+            await onAddGrocery(action.name, category);
+            actionSucceeded = true;
+            finalReplyText = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} ${action.name.toLowerCase().endsWith('s') ? 'are' : 'is'} on the list 🍌 One less thing to remember.`;
+          } catch (groceryErr) {
+            console.error('[Chat] Grocery add failed:', groceryErr);
+            finalReplyText = "I couldn't add that to your grocery list just now. Please try again in a moment 💛";
+          }
+        } else if (action.type === 'add_task' && action.name) {
+          try {
+            await onAddTask(action.name);
+            actionSucceeded = true;
+            finalReplyText = `${action.name.charAt(0).toUpperCase() + action.name.slice(1)} is on your task list.`;
+          } catch (taskErr) {
+            console.error('[Chat] Task add failed:', taskErr);
+            finalReplyText = "I couldn't add that task just now. Please try again in a moment 💛";
+          }
         }
-      } catch (sideErr) {
-        console.error('[Chat] Auto-add side effect failed:', sideErr);
       }
 
-      // Side-effect: save wake time — errors must not crash chat
-      try {
-        const wakeMatch = lowerInput.match(/(?:wake up|get up|start my day) (?:at )?([\d:]+\s*(?:am|pm)?)/i);
-        if (wakeMatch && memory) {
-          await onUpdateMemory({ ...memory.preferences, preferredWakeTime: wakeMatch[1] });
-        }
-      } catch (wakeErr) {
-        console.error('[Chat] Wake time save failed:', wakeErr);
+      // ── Trigger one-shot celebration motion for accomplishments ───────────
+      if (actionSucceeded) {
+        setCelebrationMotion(result.emotion === 'playful' ? 'playful' : 'celebrating');
+      } else if (result.emotion === 'proud' || result.emotion === 'excited') {
+        setCelebrationMotion('celebrating');
+      } else if (result.emotion === 'playful') {
+        setCelebrationMotion('playful');
       }
 
       setMessages((prev) => [
@@ -419,7 +490,7 @@ function ChatPageInner({
         {
           id:        (Date.now() + 1).toString(),
           role:      'assistant',
-          text:      replyText,
+          text:      finalReplyText,
           timestamp: new Date(),
         },
       ]);
@@ -440,6 +511,12 @@ function ChatPageInner({
       console.error('[Chat] sendMessage failed:', errMsg);
 
       const FRIENDLY: Record<string, string> = {
+        ACCESS_CHECK_FAILED:  "Emma could not verify chat access. Please try again shortly.",
+        ACCESS_DENIED:        "Chat access is unavailable for this account. Please check your trial or subscription in Settings.",
+        AI_LIMIT_REACHED:     "You've reached today's AI message limit. You can chat again tomorrow.",
+        BAD_REQUEST:          "Emma couldn't read this message. Please shorten it and send it again.",
+        GROQ_503:             "Emma's AI service is temporarily unavailable. Please try again shortly.",
+        GROQ_500:             "Emma's AI service is temporarily unavailable. Please try again shortly.",
         AI_NOT_CONFIGURED:    "Emma's AI isn't connected yet. An admin needs to add GROQ_API_KEY in Supabase Edge Function secrets.",
         GROQ_401:             "Emma's Groq API key is invalid. An admin needs to update GROQ_API_KEY in Supabase.",
         GROQ_400:             "Emma received a bad request error from Groq. Please try again.",
@@ -451,7 +528,8 @@ function ChatPageInner({
         UNAUTHORIZED:         "Your session has expired. Please sign out and sign back in.",
         INTERNAL_ERROR:       "Emma ran into an unexpected issue. Please try again.",
       };
-      const friendlyText = FRIENDLY[errMsg] ?? "I'm sorry—I had trouble responding. Please try again.";
+      const errorReference = /^[A-Z][A-Z0-9_]{0,48}$/.test(errMsg) ? errMsg : 'CHAT_ERROR';
+      const friendlyText = FRIENDLY[errMsg] ?? `Emma couldn't respond right now. Error reference: ${errorReference}.`;
 
       setMessages((prev) => [
         ...prev,
@@ -485,9 +563,13 @@ function ChatPageInner({
     if (!pendingSuggestion || !onSaveMemory) return;
     setSavingMemory(true);
     try {
-      await onSaveMemory(pendingSuggestion.category, pendingSuggestion.title, pendingSuggestion.value);
+      const saved = await onSaveMemory(pendingSuggestion.category, pendingSuggestion.title, pendingSuggestion.value);
+      if (!saved) throw new Error('Memory was not saved');
     } catch (err) {
       console.error('[Chat] Memory save failed:', err);
+      setSavingMemory(false);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: "I couldn't save that memory yet. You can try again.", timestamp: new Date(), isError: true }]);
+      return;
     }
     setSavingMemory(false);
     setPendingSuggestion(null);
@@ -514,14 +596,22 @@ function ChatPageInner({
   return (
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 bg-white border-b border-gray-50">
-        <BestieAvatar
-          characterId={character ?? 'emma'}
-          expression={isTyping ? 'thinking' : 'happy'}
-          size="md"
-        />
+      <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="relative shrink-0 overflow-hidden rounded-full" style={{ width: 72, height: 72, minWidth: 64 }}>
+          {character === 'emma' || character === undefined ? (
+            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : inputFocused && input.trim() ? 'listening' : 'idle'} framing="portrait" />
+          ) : (
+            <BestieAvatar
+              characterId={character}
+              expression={isTyping ? 'thinking' : emmaEmotion}
+              size="md"
+              motionOverride={celebrationMotion ?? greetingMotion ?? undefined}
+              onMotionEnd={() => { setGreetingMotion(null); setCelebrationMotion(null); }}
+            />
+          )}
+        </div>
         <div>
-          <h1 className="text-sm font-bold text-gray-800">Emma</h1>
+          <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Emma</h1>
           <p className="text-xs font-medium" style={{ color: 'var(--theme-primary)' }}>Always here for you</p>
         </div>
         {memoryEnabled && savedMemories.length > 0 && (
@@ -548,14 +638,6 @@ function ChatPageInner({
             key={msg.id}
             className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
-            {msg.role === 'assistant' && (
-              <BestieAvatar
-                characterId={character ?? 'emma'}
-                expression="happy"
-                size="sm"
-                className="shrink-0"
-              />
-            )}
             <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
               <div
                 className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
@@ -586,12 +668,6 @@ function ChatPageInner({
 
         {isTyping && (
           <div className="flex items-start gap-2">
-            <BestieAvatar
-              characterId={character ?? 'emma'}
-              expression="thinking"
-              size="sm"
-              className="shrink-0"
-            />
             <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-50">
               <div className="flex gap-1 items-center h-4">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -633,13 +709,15 @@ function ChatPageInner({
       )}
 
       {/* Input */}
-      <div className="shrink-0 px-4 pb-24 pt-2 bg-white border-t border-gray-50">
-        <div className="flex gap-2 items-center bg-gray-50 rounded-2xl px-3 py-2">
+      <div className="shrink-0 px-4 pb-24 pt-2 border-t" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
+        <div className="flex gap-2 items-center rounded-2xl px-3 py-2" style={{ backgroundColor: 'var(--bg-warm)' }}>
           <input
             ref={inputRef}
             type="text"
             placeholder="Ask me anything or plan your day…"
             value={input}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400 py-1"

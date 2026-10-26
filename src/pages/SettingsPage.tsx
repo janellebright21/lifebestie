@@ -6,6 +6,8 @@ import {
   ThemeId, BgSkinId, AvatarThemeId,
 } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
+import MembershipSection from '../components/MembershipSection';
+import { useSubscription } from '../hooks/useSubscription';
 
 interface SettingsPageProps {
   isEnabled: (id: ModuleId) => boolean;
@@ -217,6 +219,8 @@ export default function SettingsPage({
   onSetTheme, onSetBgSkin, onSetAvatarTheme,
   memoryEnabled, onSetMemoryEnabled,
 }: SettingsPageProps) {
+  const subscription = useSubscription();
+
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
@@ -227,13 +231,13 @@ export default function SettingsPage({
   return (
     <div className="min-h-[100dvh] theme-app-bg pb-24">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 pt-12 pb-4 sticky top-0 z-10">
+      <div className="border-b px-4 pt-12 pb-4 sticky top-0 z-10" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="max-w-md mx-auto flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
             <Settings size={18} className="text-gray-500" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-800 leading-none">Settings</h1>
+            <h1 className="bl-page-title leading-none">Settings</h1>
             <p className="text-xs text-gray-400 mt-0.5">Customize your experience</p>
           </div>
         </div>
@@ -259,6 +263,12 @@ export default function SettingsPage({
           memoryEnabled={memoryEnabled}
           onSetMemoryEnabled={onSetMemoryEnabled}
         />
+
+        {/* Divider */}
+        <div className="border-t border-gray-100" />
+
+        {/* Membership */}
+        <MembershipSection subscription={subscription} />
 
         {/* Divider */}
         <div className="border-t border-gray-100" />

@@ -19,9 +19,10 @@ import { useBestiePersonalization } from './hooks/useBestiePersonalization';
 import { useBestieRelationship } from './hooks/useBestieRelationship';
 import { getBestieExpression } from './lib/bestieExpression';
 import type { BestieContext } from './lib/bestieExpression';
-import BottomNav, { TabName } from './components/BottomNav';
+import BottomNav, { TabName, NAV_HEIGHT } from './components/BottomNav';
 import RoutineConfirmSheet from './components/RoutineConfirmSheet';
 import QuickAddSheet from './components/QuickAddSheet';
+import BrainDumpSheet from './components/BrainDumpSheet';
 import FloatingBestie from './components/FloatingBestie';
 import HomePage from './pages/HomePage';
 import PlannerPage from './pages/PlannerPage';
@@ -60,6 +61,8 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   // True once the initial getSession() call resolves — prevents a flash of
   // the wrong screen while we confirm whether the user is signed in.
@@ -68,8 +71,10 @@ export default function App() {
   // background profile refresh from triggering the full-screen loading guard.
   const hasLoadedRef = useRef(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
   const [appProudFlash, setAppProudFlash] = useState(false);
   const appProudTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   // Persists the tab to sessionStorage and updates state.
   function setActiveTab(tab: TabName) {
@@ -128,6 +133,12 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // PASSWORD_RECOVERY: Supabase creates a session from the recovery link.
+      // We must show the password reset screen instead of the normal app.
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        return;
+      }
       // TOKEN_REFRESHED, INITIAL_SESSION, and USER_UPDATED are not sign-outs.
       // Only clear user data on an explicit SIGNED_OUT event to avoid wiping state
       // during background token refresh, which would navigate back to Home.
@@ -136,6 +147,10 @@ export default function App() {
         setTasks([]);
         setEvents([]);
         setGroceryItems([]);
+        setTasksLoading(false);
+        setTasksError(null);
+        setIsPasswordRecovery(false);
+        setBrainDumpOpen(false);
         // Reset tab on real sign-out so next user starts at Home
         setActiveTabState('home');
         try { sessionStorage.removeItem(ACTIVE_TAB_KEY); } catch { /* ignore */ }
@@ -152,9 +167,11 @@ export default function App() {
   const fetchAll = useCallback(async () => {
     if (!session) return;
     const uid = session.user.id;
+    setTasksLoading(true);
+    setTasksError(null);
 
     const [
-      { data: t },
+      taskRes,
       { data: e },
       { data: g }
     ] = await Promise.all([
@@ -178,9 +195,11 @@ export default function App() {
         .order('created_at', { ascending: true }),
     ]);
 
-    if (t) setTasks(t);
+    if (taskRes.error) setTasksError(taskRes.error.message);
+    if (taskRes.data) setTasks(taskRes.data);
     if (e) setEvents(e);
     if (g) setGroceryItems(g);
+    setTasksLoading(false);
   }, [session]);
 
   useEffect(() => {
@@ -234,6 +253,13 @@ export default function App() {
     return <AuthPage />;
   }
 
+  // ── Guard: password recovery takes priority over normal app rendering ──────
+  // Supabase creates a session from the recovery link, so session is non-null,
+  // but we must show the reset screen instead of the normal app.
+  if (isPasswordRecovery) {
+    return <AuthPage initialMode="reset" onResetComplete={() => setIsPasswordRecovery(false)} />;
+  }
+
   // ── Guard: show onboarding only when profile is confirmed incomplete ────────
   if (userProfile.needsOnboarding) {
     return <OnboardingPage onComplete={userProfile.completeOnboarding} />;
@@ -262,7 +288,7 @@ export default function App() {
     : getBestieExpression(TAB_CONTEXT[activeTab] ?? 'default');
 
   // ── Action handlers ────────────────────────────────────────────────────────
-  async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority) {
+  async function addTask(title: string, dueDate?: string, linkedGoalId?: string, duration?: number, category?: TaskCategory, priority?: TaskPriority): Promise<Task> {
     const { data, error } = await supabase
       .from('tasks')
       .insert({
@@ -278,37 +304,38 @@ export default function App() {
       .select()
       .single();
     dbError('tasks (insert)', error);
-    if (data) {
-      const task = data as Task;
-      setTasks((prev) => [task, ...prev]);
-      await userMemory.addHistoryAction(`Added task: ${title}`);
-      await bestieRelationship.awardPoints('add_task', task.id, 5, 'Added a task');
-      if (linkedGoalId) {
-        await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
-      }
-      return task;
+    if (error) throw error;
+    if (!data) throw new Error('The task could not be created.');
+    const task = data as Task;
+    setTasks((prev) => [task, ...prev]);
+    await userMemory.addHistoryAction(`Added task: ${title}`);
+    await bestieRelationship.awardPoints('add_task', task.id, 5, 'Added a task');
+    if (linkedGoalId) {
+      await goalsHook.linkTaskToGoal(task.id, linkedGoalId);
     }
-    return null;
+    return task;
   }
 
   async function toggleTask(id: string, completed: boolean) {
-    const updatedTasks = tasks.map((t) => (t.id === id ? { ...t, completed } : t));
-    setTasks(updatedTasks);
-    await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', userId);
+    const priorTasks = tasks;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
+    const { error } = await supabase.from('tasks').update({ completed }).eq('id', id).eq('user_id', userId);
+    if (error) {
+      setTasks(priorTasks);
+      throw new Error(error.message);
+    }
 
-    const task = tasks.find((t) => t.id === id);
+    const task = priorTasks.find((t) => t.id === id);
     if (task) {
       if (completed) {
         await userMemory.addHistoryAction(`Completed task: ${task.title}`);
-        // Award points once per task — DB unique constraint prevents duplicates
         await bestieRelationship.awardTaskCompletion(id);
-        // Signal the floating bestie to celebrate
         setAppProudFlash(true);
         if (appProudTimer.current) clearTimeout(appProudTimer.current);
         appProudTimer.current = setTimeout(() => setAppProudFlash(false), 2200);
       }
       if (task.linked_goal_id) {
-        await goalsHook.recalculateGoalProgress(task.linked_goal_id, updatedTasks);
+        await goalsHook.recalculateGoalProgress(task.linked_goal_id, tasks.map((t) => (t.id === id ? { ...t, completed } : t)));
       }
     }
   }
@@ -401,13 +428,17 @@ export default function App() {
       .insert({ name, category, memory_id: memoryId, user_id: userId })
       .select()
       .single();
-    dbError('grocery_items (insert)', error);
-    if (data) {
-      setGroceryItems((prev) => [...prev, data]);
-      await userMemory.addHistoryAction(`Added grocery: ${name}`);
-      await userMemory.upsertGroceryHabit(name, category);
-      await bestieRelationship.awardPoints('add_grocery', data.id, 5, `Added grocery: ${name}`);
+    if (error) {
+      dbError('grocery_items (insert)', error);
+      throw new Error(`Failed to add grocery item: ${error.message}`);
     }
+    if (!data) {
+      throw new Error('Failed to add grocery item: no data returned from database');
+    }
+    setGroceryItems((prev) => [...prev, data]);
+    await userMemory.addHistoryAction(`Added grocery: ${name}`);
+    await userMemory.upsertGroceryHabit(name, category);
+    await bestieRelationship.awardPoints('add_grocery', data.id, 5, `Added grocery: ${name}`);
   }
 
   async function toggleGrocery(id: string, checked: boolean) {
@@ -534,10 +565,13 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-[100dvh] theme-app-bg font-sans">
+    <div className="min-h-[100dvh] theme-app-bg font-sans" style={{ paddingBottom: `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 8px)` }}>
       {activeTab === 'home' && (
         <HomePage
           tasks={tasks}
+          tasksLoading={tasksLoading}
+          tasksError={tasksError}
+          onRefreshTasks={fetchAll}
           events={events}
           meals={mealPlanner.meals}
           memory={userMemory.memory}
@@ -588,6 +622,7 @@ export default function App() {
           memoriesCount={lifeBestieMemory.memories.length}
           relationshipScore={bestieRelationship.score}
           groceryItems={groceryItems}
+          onOpenBrainDump={() => setBrainDumpOpen(true)}
         />
       )}
       {activeTab === 'planner' && (
@@ -598,8 +633,6 @@ export default function App() {
           goals={goalsHook.goals}
           meals={mealPlanner.meals}
           character={selectedCharacter}
-          userId={userId}
-          memoryId={memoryId}
           onAddEvent={addEvent}
           onAddTask={addTask}
           onToggleTask={toggleTask}
@@ -618,6 +651,9 @@ export default function App() {
           tomorrowRemindersError={prepareForTomorrow.fetchError}
           onDismissTomorrowReminder={prepareForTomorrow.dismissReminder}
           onRefreshTomorrowReminders={prepareForTomorrow.refresh}
+          loadPlanItems={dailyPlanner.loadPlanItems}
+          savePlanItems={dailyPlanner.savePlanItems}
+          dailyPlan={dailyPlanner.plan}
         />
       )}
 
@@ -681,7 +717,9 @@ export default function App() {
           goals={goalsHook.goals}
           groceryItems={groceryItems}
           weeklyList={weeklyGrocery.weeklyList}
-          onAddTask={async (title) => { await addTask(title); }}
+          onAddTask={async (title) => {
+            await addTask(title);
+          }}
           onAddEvent={addEvent}
           onAddGrocery={addGrocery}
           onAddWeeklyItem={addWeeklyItem}
@@ -769,9 +807,22 @@ export default function App() {
       <QuickAddSheet
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
-        onAddTask={async (title, dueDate) => { await addTask(title, dueDate); }}
+        onAddTask={async (title, dueDate) => {
+          await addTask(title, dueDate);
+        }}
         onAddEvent={addEvent}
         onAddGrocery={addGrocery}
+      />
+
+      <BrainDumpSheet
+        key={userId}
+        userId={userId}
+        open={brainDumpOpen}
+        onClose={() => setBrainDumpOpen(false)}
+        enabledModules={enabledModules}
+        onAddTask={addTask}
+        onAddGrocery={addGrocery}
+        onNavigate={(tab) => setActiveTab(tab)}
       />
 
       {userMemory.confirmingCandidate && (

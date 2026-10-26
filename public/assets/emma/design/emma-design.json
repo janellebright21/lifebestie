@@ -1,0 +1,11 @@
+{
+  "character": "emma",
+  "approvedReference": "/assets/emma/design/emma-full-body-approved.png",
+  "scope": "All future full-body poses, expressions, animations and portrait crops",
+  "identity": ["chestnut curly updo", "warm tan skin", "brown eyes", "small gold hoops", "gold pendant"],
+  "outfit": ["lavender sweatshirt", "muted blue straight-leg jeans", "off-white sneakers"],
+  "proportions": "Natural adult proportions matching the approved full-body reference",
+  "poses": ["relaxed hands down", "brief greeting wave", "thinking", "listening", "encouraging", "calm", "proud", "playful"],
+  "motion": "Grounded feet, quiet idle, natural blink; greeting on entering Home then hands down",
+  "implementationStatus": "Design approved; rigged 3D model pending. Existing app animation retained until ready."
+}

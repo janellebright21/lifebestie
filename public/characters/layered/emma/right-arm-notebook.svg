@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1536" width="1024" height="1536">
+  <defs>
+    <clipPath id="notebookArmClip">
+      <path d="M470 390 H650 V610 H470 Z"/>
+      <path d="M500 365 C548 365 605 370 632 395 C652 414 661 449 657 486 C654 530 637 568 607 596 C580 619 548 626 522 610 C494 592 477 557 469 518 C461 478 464 430 475 399 Z"/>
+    </clipPath>
+  </defs>
+  <!-- Uses Emma's existing approved body artwork and exposes only the notebook/right-arm region. -->
+  <image href="body.webp" width="1024" height="1536" preserveAspectRatio="xMidYMid meet" clip-path="url(#notebookArmClip)"/>
+</svg>
