@@ -10,6 +10,11 @@ export function emotionClip(expression: string): EmmaClip {
 }
 const WAVE_FINGER_JOINT_CURL = [0.1, 0.13, 0.09];
 const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}L`));
+const WAVE_WRIST_BONE = 'DEF-HandL';
+const WAVE_WRIST_RAD = 16 * Math.PI / 180;
+const WAVE_SWAY_START = 0.9;
+const WAVE_SWAY_RAMP = 0.4;
+const WAVE_SWAY_HZ = 1.1;
 
 /** Plays complete authored performances. Never stack the old v1 pose overlays. */
 export class EmmaMasterController {
@@ -31,8 +36,10 @@ export class EmmaMasterController {
   private waveFingers: THREE.Object3D[][];
   private waveBlend = 0;
   private fingerClock = 0;
+  private waveWrist: THREE.Object3D | undefined;
   constructor(readonly root: THREE.Object3D, clips: THREE.AnimationClip[], private options: {allowStance?:boolean;idleTime?:number} = {}) {
     this.waveFingers = WAVE_FINGER_CHAINS.map(chain => chain.map(name => root.getObjectByName(name)).filter((bone): bone is THREE.Object3D => !!bone));
+    this.waveWrist = root.getObjectByName(WAVE_WRIST_BONE);
     this.mixer = new THREE.AnimationMixer(root);
     for (const name of EMMA_CLIPS) {
       const clip = clips.find(c => c.name === name);
@@ -128,6 +135,12 @@ export class EmmaMasterController {
         bone.quaternion.multiply(curl);
       });
     });
+    if (this.waveWrist) {
+      const ramp = THREE.MathUtils.clamp((this.waveWait - WAVE_SWAY_START) / WAVE_SWAY_RAMP, 0, 1);
+      const phase = Math.max(0, this.waveWait - WAVE_SWAY_START) * WAVE_SWAY_HZ * Math.PI * 2;
+      const sway = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.sin(phase) * WAVE_WRIST_RAD * ramp * this.waveBlend);
+      this.waveWrist.quaternion.multiply(sway);
+    }
   }
   dispose() {
     this.disposed = true; this.mixer.removeEventListener('finished', this.finished);
