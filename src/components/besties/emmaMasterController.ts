@@ -11,10 +11,11 @@ export function emotionClip(expression: string): EmmaClip {
 const WAVE_FINGER_JOINT_CURL = [0.1, 0.13, 0.09];
 const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}L`));
 const WAVE_WRIST_BONE = 'DEF-HandL';
-const WAVE_WRIST_RAD = 16 * Math.PI / 180;
-const WAVE_SWAY_START = 0.9;
-const WAVE_SWAY_RAMP = 0.4;
-const WAVE_SWAY_HZ = 1.1;
+const WAVE_WRIST_RAD = 18 * Math.PI / 180;
+const WAVE_SWAY_START = 1.5;
+const WAVE_SWAY_DURATION = 2;
+const WAVE_HOLD_END = 3.6;
+const WAVE_EXIT_FADE = 1.1;
 
 /** Plays complete authored performances. Never stack the old v1 pose overlays. */
 export class EmmaMasterController {
@@ -55,9 +56,12 @@ export class EmmaMasterController {
   get idleTime(): number { return this.idlePhase; }
   private finished = (event: {action: THREE.AnimationAction}) => {
     if (this.disposed || event.action !== this.actions.get(this.current) || this.current === 'Idle') return;
+    this.endPerformance();
+  };
+  private endPerformance() {
     const next = this.pending ?? 'Idle'; this.pending = undefined;
     this.play(next); this.speakingWait = 4; this.attentionWait = 7;
-  };
+  }
   private play(name: EmmaClip) {
     if (this.disposed) return;
     const next = this.actions.get(name)!;
@@ -70,7 +74,7 @@ export class EmmaMasterController {
     next.setLoop(name === 'Idle' ? THREE.LoopRepeat : THREE.LoopOnce, name === 'Idle' ? Infinity : 1);
     next.clampWhenFinished = name !== 'Idle'; next.play();
     if (old && old !== next && old.isScheduled()) {
-      const fade = name === 'Wave' || old.getClip().name === 'Stance-Change' ? .35 : .55;
+      const fade = name === 'Wave' ? .5 : old.getClip().name === 'Wave' ? WAVE_EXIT_FADE : old.getClip().name === 'Stance-Change' ? .35 : .55;
       old.fadeOut(fade); next.fadeIn(fade); this.retiring.set(old, fade + .01);
     }
   }
@@ -106,6 +110,7 @@ export class EmmaMasterController {
   update(delta: number) {
     if (this.disposed || this.reduced || !Number.isFinite(delta) || delta <= 0) return;
     const dt = Math.min(delta, .05); this.waveWait += dt; this.mixer.update(dt); if(this.current === 'Idle') this.idlePhase = this.actions.get('Idle')!.time;
+    if (this.current === 'Wave' && this.actions.get('Wave')!.time >= WAVE_HOLD_END) this.endPerformance();
     this.applyWaveFingers(dt);
     for (const [action, time] of this.retiring) {
       if (time <= dt) { action.stop(); this.retiring.delete(action); }
@@ -124,7 +129,7 @@ export class EmmaMasterController {
   }
   /** Additive finger curl layered after the mixer so the authored clip values are untouched. */
   private applyWaveFingers(dt: number) {
-    this.waveBlend += ((this.current === 'Wave' ? 1 : 0) - this.waveBlend) * Math.min(1, dt * 4);
+    this.waveBlend += ((this.current === 'Wave' ? 1 : 0) - this.waveBlend) * Math.min(1, dt * (this.current === 'Wave' ? 4 : 1.8));
     this.fingerClock += dt;
     if (this.waveBlend < .002) return;
     const axis = new THREE.Vector3(1, 0, 0), curl = new THREE.Quaternion();
@@ -136,9 +141,9 @@ export class EmmaMasterController {
       });
     });
     if (this.waveWrist) {
-      const ramp = THREE.MathUtils.clamp((this.waveWait - WAVE_SWAY_START) / WAVE_SWAY_RAMP, 0, 1);
-      const phase = Math.max(0, this.waveWait - WAVE_SWAY_START) * WAVE_SWAY_HZ * Math.PI * 2;
-      const sway = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.sin(phase) * WAVE_WRIST_RAD * ramp * this.waveBlend);
+      const u = THREE.MathUtils.clamp((this.waveWait - WAVE_SWAY_START) / WAVE_SWAY_DURATION, 0, 1);
+      const angle = Math.sin(Math.PI * u) * Math.sin(4 * Math.PI * u) * WAVE_WRIST_RAD * this.waveBlend;
+      const sway = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), angle);
       this.waveWrist.quaternion.multiply(sway);
     }
   }
