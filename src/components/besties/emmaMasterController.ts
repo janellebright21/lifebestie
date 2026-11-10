@@ -9,7 +9,7 @@ export function emotionClip(expression: string): EmmaClip {
   return 'Idle';
 }
 const WAVE_FINGER_JOINT_CURL = [0.1, 0.13, 0.09];
-const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}.R`));
+const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}L`));
 
 /** Plays complete authored performances. Never stack the old v1 pose overlays. */
 export class EmmaMasterController {
