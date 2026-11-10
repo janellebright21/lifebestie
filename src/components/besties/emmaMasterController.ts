@@ -8,7 +8,7 @@ export function emotionClip(expression: string): EmmaClip {
   if (['thinking','listening','focused'].includes(expression)) return 'Listening';
   return 'Idle';
 }
-const WAVE_FINGER_JOINT_CURL = [0.05, 0.06, 0.04];
+const WAVE_FINGER_JOINT_CURL = [0.02, 0.02, 0.01];
 const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}L`));
 const WAVE_WRIST_BONE = 'DEF-HandL';
 const WAVE_WRIST_RAD = 18 * Math.PI / 180;
@@ -16,8 +16,8 @@ const WAVE_SWAY_START = 1.5;
 const WAVE_SWAY_DURATION = 2;
 const WAVE_HOLD_END = 3.6;
 const WAVE_EXIT_FADE = 1.1;
-const WAVE_UPPER_ARM_DIR = new THREE.Vector3(0.1, -0.6, 0.8).normalize();
-const WAVE_FOREARM_DIR = new THREE.Vector3(0, 0.9, 0.44).normalize();
+const WAVE_UPPER_ARM_DIR = new THREE.Vector3(0.1, -0.3, 0.95).normalize();
+const WAVE_FOREARM_DIR = new THREE.Vector3(0, 0.94, 0.33).normalize();
 const WAVE_PALM_FORWARD = new THREE.Vector3(0, 0, 1);
 
 /** Plays complete authored performances. Never stack the old v1 pose overlays. */
