@@ -67,10 +67,10 @@ export class EmmaMasterController {
       old.fadeOut(fade); next.fadeIn(fade); this.retiring.set(old, fade + .01);
     }
   }
-  request(name: EmmaClip): boolean {
+  request(name: EmmaClip, userTap = false): boolean {
     if (this.disposed || this.reduced) return false;
     if (name === this.current) return false;
-    if (name === 'Wave' && this.waveWait < 8) return false;
+    if (name === 'Wave' && !userTap && this.waveWait < 8) return false;
     // Let the lifted foot plant before switching away from the stance change.
     // Finish a greeting before another emotional performance takes ownership.
     if (this.current === 'Stance-Change' || (this.current === 'Wave' && name !== 'Wave')) {

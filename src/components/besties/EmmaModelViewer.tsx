@@ -34,7 +34,7 @@ export default function EmmaModelViewer(props: Props) {
   useEffect(() => {control.current?.setExpression(props.expression); refresh.current();}, [props.expression]);
   useEffect(() => {const timer=window.setTimeout(()=>{control.current?.setActivity(latest.current.activity ?? 'idle');refresh.current();},180);return()=>window.clearTimeout(timer);}, [props.activity]);
   useEffect(() => {
-    if (props.waveRequest !== previousWave.current) {previousWave.current = props.waveRequest; control.current?.request('Wave'); refresh.current();}
+    if (props.waveRequest !== previousWave.current) {previousWave.current = props.waveRequest; control.current?.request('Wave', true); refresh.current();}
   }, [props.waveRequest]);
   useEffect(() => {
     const container = host.current; if (!container) return;
