@@ -37,6 +37,7 @@ export class EmmaMasterController {
     this.idlePhase = options.idleTime ?? 0; this.actions.get('Idle')!.time = this.idlePhase;
   }
   get state(): EmmaClip { return this.current; }
+  get waving(): boolean { return this.current === 'Wave'; }
   get idleTime(): number { return this.idlePhase; }
   private finished = (event: {action: THREE.AnimationAction}) => {
     if (this.disposed || event.action !== this.actions.get(this.current) || this.current === 'Idle') return;

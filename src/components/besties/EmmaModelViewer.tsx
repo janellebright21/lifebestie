@@ -34,7 +34,6 @@ export default function EmmaModelViewer(props: Props) {
   useEffect(() => {control.current?.setExpression(props.expression); refresh.current();}, [props.expression]);
   useEffect(() => {const timer=window.setTimeout(()=>{control.current?.setActivity(latest.current.activity ?? 'idle');refresh.current();},180);return()=>window.clearTimeout(timer);}, [props.activity]);
   useEffect(() => {
-    if (latest.current.framing === 'portrait') return;
     if (props.waveRequest !== previousWave.current) {previousWave.current = props.waveRequest; control.current?.request('Wave'); refresh.current();}
   }, [props.waveRequest]);
   useEffect(() => {
@@ -45,6 +44,8 @@ export default function EmmaModelViewer(props: Props) {
     let disposed = false, failed = false, raf = 0, previous = 0, onscreen = true;
     let root: THREE.Object3D | undefined, controller: EmmaMasterController | undefined;
     let envelope: THREE.Box3 | undefined;
+    // 0 = resting portrait crop, 1 = widened to show the raised hand; eased while waving.
+    let widen = 0;
     const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1,1,1,-1,.01,100);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,1.5)); renderer.setClearColor(0,0);
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
@@ -53,25 +54,36 @@ export default function EmmaModelViewer(props: Props) {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const stop = () => {if (raf) cancelAnimationFrame(raf); raf = 0; previous = 0;};
     const fail = (message: string) => {if (disposed || failed) return; failed = true; stop(); latest.current.onFailure(message);};
-    const fit = () => {
-      const w = container.clientWidth, h = container.clientHeight; if (!w || !h) return;
-      renderer.setSize(w,h,false); if (!envelope) return;
+    const frameCamera = () => {
+      const w = container.clientWidth, h = container.clientHeight; if (!w || !h || !envelope) return;
       const size = envelope.getSize(new THREE.Vector3()), center = envelope.getCenter(new THREE.Vector3()), aspect = w/h;
-      // Portrait framing is a fixed head-and-shoulders shot derived from the
-      // static animated envelope: top margin above the bun, bottom at upper
-      // chest, wide enough for both shoulders. It never tracks the clips.
+      // Portrait framing is a head-and-shoulders shot derived from the static
+      // animated envelope: top margin above the bun. It widens only while the
+      // wave plays, so the raised forearm fits beside the face; it never tracks clips.
       const portrait = latest.current.framing === 'portrait';
-      const span = portrait ? size.y * .32 : size.y * 1.12;
+      const span = portrait ? size.y * (.32 + .10 * widen) : size.y * 1.12;
       const focusY = portrait ? envelope.max.y - size.y * .015 - span / 2 : center.y;
-      const halfHeight = Math.max(span * .5, portrait ? size.x * .30 / aspect : size.x * .56 / aspect);
+      const halfHeight = Math.max(span * .5, portrait ? size.x * (.30 + .14 * widen) / aspect : size.x * .56 / aspect);
       const halfWidth = halfHeight * aspect;
       camera.left = -halfWidth; camera.right = halfWidth; camera.top = halfHeight; camera.bottom = -halfHeight;
       camera.position.set(center.x, focusY, center.z + Math.max(3, size.z + 1)); camera.lookAt(center.x, focusY, center.z); camera.updateProjectionMatrix();
     };
+    const fit = () => {
+      const w = container.clientWidth, h = container.clientHeight; if (!w || !h) return;
+      renderer.setSize(w,h,false); frameCamera();
+    };
     const draw = (time: number) => {
       raf = 0; if (disposed || failed || document.hidden || !onscreen || !root) return;
       const dt = previous ? Math.min((time-previous)/1000,.05) : 0; previous = time;
-      try {controller?.update(dt); renderer.render(scene,camera);} catch (error) {fail(error instanceof Error ? error.message : 'Emma render failed'); return;}
+      try {
+        controller?.update(dt);
+        if (controller && latest.current.framing === 'portrait') {
+          const target = controller.waving ? 1 : 0;
+          const next = Math.abs(target - widen) < .002 ? target : widen + (target - widen) * Math.min(1, dt * 3);
+          if (next !== widen) {widen = next; frameCamera();}
+        }
+        renderer.render(scene,camera);
+      } catch (error) {fail(error instanceof Error ? error.message : 'Emma render failed'); return;}
       if (!media.matches) raf = requestAnimationFrame(draw);
     };
     const start = () => {stop(); if (!disposed && !failed && !document.hidden && onscreen && root) raf = requestAnimationFrame(draw);};

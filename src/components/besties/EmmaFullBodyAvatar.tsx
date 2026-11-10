@@ -36,6 +36,6 @@ export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'i
       : <div role="status" aria-label="Loading Emma" style={{position:"absolute",inset:0,borderRadius:"inherit",background:"var(--theme-primary-light,#f5f0fa)"}}/>)
     }
     {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><div className={ready?"emma-model-layer is-ready":"emma-model-layer"}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} greetOnArrival={greetOnArrival} framing={framing} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); if (DEV) console.warn('[EmmaFullBodyAvatar] 3D model failed:', message); }} /></div></Suspense>}
-    {ready && framing === 'full' && <button className="emma-full-body__interaction" type="button" aria-label="Say hi to Emma" title="Tap Emma for a wave" onClick={() => setWave(n => n + 1)} />}
+    {ready && <button className="emma-full-body__interaction" type="button" aria-label={framing === 'portrait' ? 'Wave hello to Emma' : 'Say hi to Emma'} title={framing === 'portrait' ? 'Wave hello' : 'Tap Emma for a wave'} onClick={() => setWave(n => n + 1)} />}
   </div>;
 }
