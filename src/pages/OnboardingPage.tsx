@@ -191,7 +191,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
         chronotype: newAnswers.chronotype as Chronotype,
         main_goals: newAnswers.goals as MainGoal[],
         biggest_challenge: newAnswers.challenge as string,
-        character_id: newAnswers.bestie as CharacterId,
+        character_id: 'emma',
       });
     }
   }
@@ -269,7 +269,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
               </div>
             )}
 
-            {step.type === 'choice' && step.id !== 'bestie' && (
+            {step.type === 'choice' && (
               <div className="grid grid-cols-2 gap-2">
                 {step.options.map((opt) => (
                   <button
@@ -281,108 +281,6 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                     <span className="text-xs font-semibold text-gray-700 leading-tight">{opt.label}</span>
                   </button>
                 ))}
-              </div>
-            )}
-
-            {step.id === 'bestie' && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  {CHARACTERS.map((character) => {
-                    const selected = bestieSelected === character.id;
-                    return (
-                      <button
-                        key={character.id}
-                        type="button"
-                        onClick={() => setBestieSelected(character.id)}
-                        aria-pressed={selected}
-                        className={`relative overflow-hidden rounded-3xl border-2 p-3 text-left transition-all active:scale-[0.98] ${
-                          selected
-                            ? 'shadow-md -translate-y-0.5'
-                            : 'border-gray-100 bg-gray-50 hover:border-gray-200'
-                        }`}
-                        style={selected ? {
-                          borderColor: character.primaryColor,
-                          backgroundColor: `${character.primaryColor}0D`,
-                        } : undefined}
-                      >
-                        {selected && (
-                          <div
-                            className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white shadow-sm"
-                            style={{ backgroundColor: character.primaryColor }}
-                          >
-                            <Check size={13} strokeWidth={3} />
-                          </div>
-                        )}
-
-                        <div className="flex justify-center h-24 mb-2 overflow-hidden">
-                          <BestieAvatar
-                            characterId={character.id}
-                            expression={selected ? 'proud' : 'calm'}
-                            motionOverride={selected ? 'celebrating' : 'calm'}
-                            size="lg"
-                            enable3D={false}
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="text-sm font-bold text-gray-800">{character.name}</h3>
-                            <span className="text-xs">{character.emoji}</span>
-                          </div>
-                          <p
-                            className="text-[10px] font-bold uppercase tracking-wide"
-                            style={{ color: character.primaryColor }}
-                          >
-                            {character.role}
-                          </p>
-                          <p className="text-[11px] font-semibold text-gray-600 leading-snug">
-                            {character.tagline}
-                          </p>
-                          <p className="text-[10px] text-gray-400 leading-snug pt-0.5">
-                            {character.superpower}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {bestieSelected && (() => {
-                  const character = CHARACTERS.find((c) => c.id === bestieSelected)!;
-                  return (
-                    <div
-                      className="rounded-2xl px-4 py-3 border flex gap-3 items-start"
-                      style={{
-                        backgroundColor: `${character.primaryColor}0D`,
-                        borderColor: `${character.primaryColor}33`,
-                      }}
-                    >
-                      <Sparkles size={15} className="shrink-0 mt-0.5" style={{ color: character.primaryColor }} />
-                      <div>
-                        <p className="text-xs font-bold text-gray-700">
-                          {character.name} will be your Bestie throughout LifeBestie.
-                        </p>
-                        <p className="text-[11px] italic mt-1" style={{ color: character.primaryColor }}>
-                          “{character.catchphrase}”
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <button
-                  type="button"
-                  onClick={submitBestie}
-                  disabled={!bestieSelected}
-                  className="w-full py-3.5 rounded-2xl text-white text-sm font-bold disabled:opacity-40 active:scale-[0.99] transition-all shadow-sm"
-                  style={{ backgroundColor: bestieSelected
-                    ? CHARACTERS.find((c) => c.id === bestieSelected)?.primaryColor
-                    : '#f43f5e' }}
-                >
-                  {bestieSelected
-                    ? `Choose ${CHARACTERS.find((c) => c.id === bestieSelected)?.name}`
-                    : 'Choose your Bestie'}
-                </button>
               </div>
             )}
 
