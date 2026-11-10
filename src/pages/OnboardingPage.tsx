@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Check, Sparkles } from 'lucide-react';
-import { HouseholdType, WorkSchedule, Chronotype, MainGoal, CharacterId, CHARACTERS } from '../lib/supabase';
+import { ChevronRight, Check } from 'lucide-react';
+import { HouseholdType, WorkSchedule, Chronotype, MainGoal, CharacterId } from '../lib/supabase';
 import LifeBestieAvatar from '../components/LifeBestieAvatar';
-import BestieAvatar from '../components/besties/BestieAvatar';
 
 interface OnboardingPageProps {
   onComplete: (data: {
@@ -18,7 +17,7 @@ interface OnboardingPageProps {
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
-type StepId = 'name' | 'household' | 'work' | 'chronotype' | 'goals' | 'challenge' | 'bestie';
+type StepId = 'name' | 'household' | 'work' | 'chronotype' | 'goals' | 'challenge';
 
 interface StepBase {
   id: StepId;
@@ -95,16 +94,6 @@ const STEPS: Step[] = [
     question: () => "Almost there! What's your biggest day-to-day challenge? (In your own words)",
     placeholder: 'e.g. Keeping up with everything, never having time for myself…',
   },
-  {
-    id: 'bestie',
-    type: 'choice',
-    question: (name) => `Last thing, ${name} — choose the Bestie you want by your side.`,
-    options: CHARACTERS.map((character) => ({
-      value: character.id,
-      label: `${character.name} — ${character.role.replace('The ', '')}`,
-      emoji: character.emoji,
-    })),
-  },
 ];
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
@@ -136,11 +125,10 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [stepIdx, setStepIdx] = useState(0);
   const [bubbleVisible, setBubbleVisible] = useState(false);
   const [answers, setAnswers] = useState<Record<StepId, string | string[]>>({
-    name: '', household: '', work: '', chronotype: '', goals: [], challenge: '', bestie: '',
+    name: '', household: '', work: '', chronotype: '', goals: [], challenge: '',
   });
   const [textInput, setTextInput] = useState('');
   const [multiSelected, setMultiSelected] = useState<string[]>([]);
-  const [bestieSelected, setBestieSelected] = useState<CharacterId | null>(null);
   const [history, setHistory] = useState<{ bot: string; user?: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -166,13 +154,6 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
 
   function submitChoice(value: string, label: string) {
     advance(value, label);
-  }
-
-  function submitBestie() {
-    if (!bestieSelected) return;
-    const character = CHARACTERS.find((c) => c.id === bestieSelected);
-    if (!character) return;
-    advance(bestieSelected, `${character.emoji} ${character.name}`);
   }
 
   function toggleMulti(value: string) {

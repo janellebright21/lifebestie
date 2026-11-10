@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { supabase, dbError, Task, Event, GroceryItem, GroceryCategory, MealIngredient, TaskCategory, TaskPriority, EventCategory } from './lib/supabase';
+import { supabase, dbError, Task, Event, GroceryItem, GroceryCategory, MealIngredient, TaskCategory, TaskPriority, EventCategory, CharacterId } from './lib/supabase';
 import { useUserMemory } from './hooks/useUserMemory';
 import { useWeeklyGroceryList } from './hooks/useWeeklyGroceryList';
 import { useMealPlanner } from './hooks/useMealPlanner';
@@ -271,7 +271,7 @@ export default function App() {
 
   const userId = session.user.id;
   const preferredName = userProfile.profile?.preferred_name || undefined;
-  const selectedCharacter = (userProfile.profile?.character_id ?? 'emma') as import('./lib/supabase').CharacterId;
+  const selectedCharacter: CharacterId = 'emma';
 
   // Derive a context-aware expression for the floating Bestie
   const TAB_CONTEXT: Partial<Record<TabName, BestieContext>> = {
@@ -762,7 +762,6 @@ export default function App() {
           currentBgSkin={personalization.bgSkin}
           currentAvatarTheme={personalization.avatarTheme}
           character={selectedCharacter}
-          onSetCharacter={(id) => userProfile.saveProfile({ character_id: id })}
           isEnabled={moduleSettings.isEnabled}
           memories={lifeBestieMemory.memories}
           memoriesLoading={lifeBestieMemory.loading}
