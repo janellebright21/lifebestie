@@ -8,7 +8,7 @@ export function emotionClip(expression: string): EmmaClip {
   if (['thinking','listening','focused'].includes(expression)) return 'Listening';
   return 'Idle';
 }
-const WAVE_FINGER_JOINT_CURL = [0.1, 0.13, 0.09];
+const WAVE_FINGER_JOINT_CURL = [0.05, 0.06, 0.04];
 const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}L`));
 const WAVE_WRIST_BONE = 'DEF-HandL';
 const WAVE_WRIST_RAD = 18 * Math.PI / 180;
@@ -16,8 +16,9 @@ const WAVE_SWAY_START = 1.5;
 const WAVE_SWAY_DURATION = 2;
 const WAVE_HOLD_END = 3.6;
 const WAVE_EXIT_FADE = 1.1;
-const WAVE_UPPER_ARM_DIR = new THREE.Vector3(0.1, -0.95, 0.3).normalize();
-const WAVE_FOREARM_DIR = new THREE.Vector3(0, 0.45, 0.9).normalize();
+const WAVE_UPPER_ARM_DIR = new THREE.Vector3(0.1, -0.6, 0.8).normalize();
+const WAVE_FOREARM_DIR = new THREE.Vector3(0, 0.9, 0.44).normalize();
+const WAVE_PALM_FORWARD = new THREE.Vector3(0, 0, 1);
 
 /** Plays complete authored performances. Never stack the old v1 pose overlays. */
 export class EmmaMasterController {
@@ -39,11 +40,11 @@ export class EmmaMasterController {
   private waveFingers: THREE.Object3D[][];
   private waveBlend = 0;
   private fingerClock = 0;
-  private waveArm: { upper: THREE.Object3D; forearm: THREE.Object3D; hand: THREE.Object3D; foreLength: number } | undefined;
+  private waveArm: { upper: THREE.Object3D; forearm: THREE.Object3D; hand: THREE.Object3D; fingerBase: THREE.Object3D; fingerTip: THREE.Object3D; foreLength: number } | undefined;
   constructor(readonly root: THREE.Object3D, clips: THREE.AnimationClip[], private options: {allowStance?:boolean;idleTime?:number} = {}) {
     this.waveFingers = WAVE_FINGER_CHAINS.map(chain => chain.map(name => root.getObjectByName(name)).filter((bone): bone is THREE.Object3D => !!bone));
-    const [upper, forearm, hand] = ['DEF-Upperarm1L', 'DEF-Forearm1L', WAVE_WRIST_BONE].map(name => root.getObjectByName(name));
-    this.waveArm = upper && forearm && hand ? { upper, forearm, hand, foreLength: forearm.getWorldPosition(new THREE.Vector3()).distanceTo(hand.getWorldPosition(new THREE.Vector3())) } : undefined;
+    const [upper, forearm, hand, fingerBase, fingerTip] = ['DEF-Upperarm1L', 'DEF-Forearm1L', WAVE_WRIST_BONE, 'DEF-Middle1L', 'DEF-Middle3L'].map(name => root.getObjectByName(name));
+    this.waveArm = upper && forearm && hand && fingerBase && fingerTip ? { upper, forearm, hand, fingerBase, fingerTip, foreLength: forearm.getWorldPosition(new THREE.Vector3()).distanceTo(hand.getWorldPosition(new THREE.Vector3())) } : undefined;
     this.mixer = new THREE.AnimationMixer(root);
     for (const name of EMMA_CLIPS) {
       const clip = clips.find(c => c.name === name);
@@ -157,7 +158,7 @@ export class EmmaMasterController {
   /** Rigidly rotates the upper arm about the shoulder and the forearm and hand about the elbow so the chain never separates. */
   private applyWaveArm(weight: number) {
     if (!this.waveArm || weight < .001) return;
-    const { upper, forearm, hand, foreLength } = this.waveArm;
+    const { upper, forearm, hand, fingerBase, fingerTip, foreLength } = this.waveArm;
     this.root.updateMatrixWorld(true);
     const shoulder = upper.getWorldPosition(new THREE.Vector3());
     const elbow = forearm.getWorldPosition(new THREE.Vector3());
@@ -169,9 +170,13 @@ export class EmmaMasterController {
     const elbowTurn = new THREE.Quaternion().slerpQuaternions(identity, new THREE.Quaternion().setFromUnitVectors(wristTurned.clone().sub(elbowTurned).normalize(), WAVE_FOREARM_DIR), weight);
     const wristFinal = wristTurned.clone().sub(elbowTurned).normalize().multiplyScalar(foreLength).applyQuaternion(elbowTurn).add(elbowTurned);
     const forearmTurn = elbowTurn.clone().multiply(shoulderTurn);
+    const handQuat = hand.getWorldQuaternion(new THREE.Quaternion());
+    const fingerDirection = fingerTip.getWorldPosition(new THREE.Vector3()).sub(fingerBase.getWorldPosition(new THREE.Vector3()));
+    const palmNormal = new THREE.Vector3(1, 0, 0).applyQuaternion(handQuat).cross(fingerDirection).normalize().applyQuaternion(forearmTurn);
+    const palmTurn = new THREE.Quaternion().slerpQuaternions(identity, new THREE.Quaternion().setFromUnitVectors(palmNormal, WAVE_PALM_FORWARD), weight);
     setWorldPose(upper, shoulder, shoulderTurn.clone().multiply(upper.getWorldQuaternion(new THREE.Quaternion())));
     setWorldPose(forearm, elbowTurned, forearmTurn.clone().multiply(forearm.getWorldQuaternion(new THREE.Quaternion())));
-    setWorldPose(hand, wristFinal, forearmTurn.clone().multiply(hand.getWorldQuaternion(new THREE.Quaternion())));
+    setWorldPose(hand, wristFinal, palmTurn.multiply(forearmTurn).multiply(handQuat));
   }
   dispose() {
     this.disposed = true; this.mixer.removeEventListener('finished', this.finished);
