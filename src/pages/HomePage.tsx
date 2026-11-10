@@ -38,6 +38,7 @@ export default function HomePage(props: HomePageProps) {
     return () => clearTimeout(timer);
   }, []);
   const today = localDateKey(new Date());
+  const [waveRequest, setWaveRequest] = useState(0);
   const pendingTasks = props.tasks.filter((task) => !task.completed);
   const hasOverdueTasks = pendingTasks.some((task) => task.due_date && task.due_date < today);
   const { todayMovements } = useMovement(props.events);
@@ -121,7 +122,7 @@ export default function HomePage(props: HomePageProps) {
               }}
             />
             {characterId === 'emma' ? (
-              <EmmaFullBodyAvatar expression={homeExpression} greetOnArrival waveControl />
+              <EmmaFullBodyAvatar expression={homeExpression} greetOnArrival waveRequest={waveRequest} onWave={() => setWaveRequest(n => n + 1)} />
             ) : (
             <BestieAvatar
               characterId={characterId}
@@ -149,15 +150,25 @@ export default function HomePage(props: HomePageProps) {
             <p className="text-sm text-gray-400 mt-1 leading-relaxed">
               {subtitle}
             </p>
-            <button
-              type="button"
-              onClick={() => props.onTabChange(actionTab(action.type))}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full text-white active:scale-95 transition-all"
-              style={{ backgroundColor: 'var(--theme-primary)' }}
-            >
-              {action.label}
-              <ArrowRight size={11} />
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => props.onTabChange(actionTab(action.type))}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full text-white active:scale-95 transition-all"
+                style={{ backgroundColor: 'var(--theme-primary)' }}
+              >
+                {action.label}
+                <ArrowRight size={11} />
+              </button>
+              <button
+                type="button"
+                aria-label="Wave hello to Emma"
+                onClick={() => setWaveRequest(n => n + 1)}
+                className="inline-flex min-h-[44px] items-center rounded-full border border-gray-200 bg-white px-4 text-xs font-semibold text-gray-800 shadow-sm transition-all hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--theme-primary)]"
+              >
+                Wave hello
+              </button>
+            </div>
           </div>
         </div>
 
