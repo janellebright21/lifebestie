@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Send, Brain, Check, X, RefreshCw } from 'lucide-react';
 import { supabase, Task, Event, GroceryItem, UserMemory, Preferences, Goal, WeeklyGroceryList, GroceryCategory, LifeBestieMemory, MemoryCategory, MEMORY_CATEGORY_META, Meal, AvatarExpression } from '../lib/supabase';
 import BestieAvatar from '../components/besties/BestieAvatar';
-import EmmaFullBodyAvatar from '../components/besties/EmmaFullBodyAvatar';
+import { resolveExpressionSrc } from '../lib/characterAssets';
 import { useEmmaContext } from '../hooks/useEmmaContext';
 import { buildEmmaContextSummary, type EmmaContextSummary } from '../lib/emmaGreeting';
 
@@ -378,7 +378,6 @@ function ChatPageInner({
     return saved ?? [buildInitMessage()];
   });
   const [input, setInput]                         = useState('');
-  const [inputFocused,setInputFocused] = useState(false);
   const [isTyping, setIsTyping]                   = useState(false);
   const [pendingSuggestion, setPendingSuggestion] = useState<MemorySuggestion | null>(null);
   const [savingMemory, setSavingMemory]           = useState(false);
@@ -599,7 +598,12 @@ function ChatPageInner({
       <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-4 border-b" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
         <div className="relative shrink-0 overflow-hidden rounded-full" style={{ width: 72, height: 72, minWidth: 64 }}>
           {character === 'emma' || character === undefined ? (
-            <EmmaFullBodyAvatar expression={isTyping ? 'thinking' : emmaEmotion} activity={isTyping ? 'thinking' : inputFocused && input.trim() ? 'listening' : 'idle'} framing="portrait" />
+            <img
+              src={resolveExpressionSrc('emma', isTyping ? 'thinking' : emmaEmotion)}
+              alt="Emma"
+              draggable={false}
+              style={{ position: 'absolute', width: '167.5%', height: '167.5%', left: '-35.9%', top: '-31.3%', maxWidth: 'none', objectFit: 'cover' }}
+            />
           ) : (
             <BestieAvatar
               characterId={character}
@@ -716,8 +720,6 @@ function ChatPageInner({
             type="text"
             placeholder="Ask me anything or plan your day…"
             value={input}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400 py-1"
