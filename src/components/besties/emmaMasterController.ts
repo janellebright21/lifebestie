@@ -8,6 +8,9 @@ export function emotionClip(expression: string): EmmaClip {
   if (['thinking','listening','focused'].includes(expression)) return 'Listening';
   return 'Idle';
 }
+const WAVE_FINGER_JOINT_CURL = [0.1, 0.13, 0.09];
+const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}.R`));
+
 /** Plays complete authored performances. Never stack the old v1 pose overlays. */
 export class EmmaMasterController {
   readonly mixer: THREE.AnimationMixer;
@@ -25,7 +28,11 @@ export class EmmaMasterController {
   private attentionWait = 7;
   private waveWait = 8;
   private performedExpression = '';
+  private waveFingers: THREE.Object3D[][];
+  private waveBlend = 0;
+  private fingerClock = 0;
   constructor(readonly root: THREE.Object3D, clips: THREE.AnimationClip[], private options: {allowStance?:boolean;idleTime?:number} = {}) {
+    this.waveFingers = WAVE_FINGER_CHAINS.map(chain => chain.map(name => root.getObjectByName(name)).filter((bone): bone is THREE.Object3D => !!bone));
     this.mixer = new THREE.AnimationMixer(root);
     for (const name of EMMA_CLIPS) {
       const clip = clips.find(c => c.name === name);
@@ -92,6 +99,7 @@ export class EmmaMasterController {
   update(delta: number) {
     if (this.disposed || this.reduced || !Number.isFinite(delta) || delta <= 0) return;
     const dt = Math.min(delta, .05); this.waveWait += dt; this.mixer.update(dt); if(this.current === 'Idle') this.idlePhase = this.actions.get('Idle')!.time;
+    this.applyWaveFingers(dt);
     for (const [action, time] of this.retiring) {
       if (time <= dt) { action.stop(); this.retiring.delete(action); }
       else this.retiring.set(action, time - dt);
@@ -106,6 +114,20 @@ export class EmmaMasterController {
       this.speakingWait -= dt;
       if (this.speakingWait <= 0) this.request('Conversational');
     }
+  }
+  /** Additive finger curl layered after the mixer so the authored clip values are untouched. */
+  private applyWaveFingers(dt: number) {
+    this.waveBlend += ((this.current === 'Wave' ? 1 : 0) - this.waveBlend) * Math.min(1, dt * 4);
+    this.fingerClock += dt;
+    if (this.waveBlend < .002) return;
+    const axis = new THREE.Vector3(1, 0, 0), curl = new THREE.Quaternion();
+    this.waveFingers.forEach((joints, finger) => {
+      const pulse = .75 + .25 * Math.sin(this.fingerClock * 2.2 - finger * .8);
+      joints.forEach((bone, joint) => {
+        curl.setFromAxisAngle(axis, WAVE_FINGER_JOINT_CURL[joint] * this.waveBlend * pulse);
+        bone.quaternion.multiply(curl);
+      });
+    });
   }
   dispose() {
     this.disposed = true; this.mixer.removeEventListener('finished', this.finished);
