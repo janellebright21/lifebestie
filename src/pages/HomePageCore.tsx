@@ -739,7 +739,7 @@ export default function HomePage({
             }}
           />
           {/* Emma's portrait — uses existing asset resolver, contains the full image */}
-          {!character || character === 'emma' ? <EmmaAvatarSlot expression={homeExpression} waveControl/> : (<img
+          {!character || character === 'emma' ? <EmmaAvatarSlot expression={homeExpression}/> : (<img
             key={homeExpression}
             src={resolveExpressionSrc(character ?? 'emma', homeExpression)}
             alt={`${character ?? 'emma'} ${homeExpression}`}
