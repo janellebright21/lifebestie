@@ -10,7 +10,7 @@ const ModelViewer = lazy(() => import('./EmmaModelViewer'));
 
 // The 3D model replaces the 2D portrait once it probes and loads; the portrait stays as the fallback.
 const DEV = import.meta.env.DEV;
-export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'idle', greetOnArrival = false, framing = 'full' }: { expression?: AvatarExpression; activity?: EmmaActivity; greetOnArrival?: boolean; framing?: 'full' | 'portrait' }) {
+export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'idle', greetOnArrival = false, framing = 'full', waveControl = false }: { expression?: AvatarExpression; activity?: EmmaActivity; greetOnArrival?: boolean; framing?: 'full' | 'portrait'; waveControl?: boolean }) {
   const poster=useSyncExternalStore(subscribeEmmaPortrait,getEmmaPortrait,getEmmaPortrait);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -36,6 +36,7 @@ export default function EmmaFullBodyAvatar({ expression = 'happy', activity = 'i
       : <div role="status" aria-label="Loading Emma" style={{position:"absolute",inset:0,borderRadius:"inherit",background:"var(--theme-primary-light,#f5f0fa)"}}/>)
     }
     {probeResult.state === 'ready' && !failed && <Suspense fallback={null}><div className={ready?"emma-model-layer is-ready":"emma-model-layer"}><ModelViewer modelSrc={probeResult.url} waveRequest={wave} expression={expression} activity={activity} greetOnArrival={greetOnArrival} framing={framing} onReady={() => setReady(true)} onFailure={message => { setReady(false); setFailed(true); if (DEV) console.warn('[EmmaFullBodyAvatar] 3D model failed:', message); }} /></div></Suspense>}
-    {ready && <button className="emma-full-body__interaction" type="button" aria-label={framing === 'portrait' ? 'Wave hello to Emma' : 'Say hi to Emma'} title={framing === 'portrait' ? 'Wave hello' : 'Tap Emma for a wave'} onClick={() => setWave(n => n + 1)} />}
+    {ready && waveControl && <button className="emma-full-body__wave" type="button" aria-label="Wave hello to Emma" onClick={() => setWave(n => n + 1)}>Wave hello</button>}
+    {ready && !waveControl && <button className="emma-full-body__interaction" type="button" aria-label={framing === 'portrait' ? 'Wave hello to Emma' : 'Say hi to Emma'} title={framing === 'portrait' ? 'Wave hello' : 'Tap Emma for a wave'} onClick={() => setWave(n => n + 1)} />}
   </div>;
 }
