@@ -12,7 +12,7 @@ export function emotionClip(expression: string): EmmaClip {
 const WAVE_FINGER_JOINT_CURL = [0.02, 0.02, 0.01];
 const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}L`));
 const WAVE_WRIST_BONE = 'DEF-HandL';
-const WAVE_WRIST_RAD = 18 * Math.PI / 180;
+const WAVE_WRIST_RAD = 30 * Math.PI / 180;
 const WAVE_SWAY_START = 1.5;
 const WAVE_SWAY_DURATION = 2;
 const WAVE_HOLD_END = 3.6;
@@ -116,7 +116,7 @@ export class EmmaMasterController {
   }
   setReducedMotion(reduced: boolean) {
     if (this.disposed || this.reduced === reduced) return;
-    this.reduced = reduced; this.pending = undefined; this.retiring.clear(); this.restoreWaveOverlays(); this.mixer.stopAllAction();
+    this.reduced = reduced; this.pending = undefined; this.retiring.clear(); this.restoreWaveOverlays(); this.waveBlend = 0; this.mixer.stopAllAction();
     this.play('Idle');
     const idle = this.actions.get('Idle')!; idle.paused = reduced; this.mixer.update(0);
   }
