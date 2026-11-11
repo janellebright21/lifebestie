@@ -2,6 +2,7 @@ import * as THREE from 'three';
 export const EMMA_CLIPS = ['Idle','Wave','Listening','Empathetic','Proud','Conversational','Stance-Change'] as const;
 export type EmmaClip = typeof EMMA_CLIPS[number];
 export type EmmaActivity = 'idle' | 'listening' | 'thinking' | 'speaking';
+const IDLE_GESTURES: readonly EmmaClip[] = ['Listening', 'Stance-Change', 'Conversational'];
 export function emotionClip(expression: string): EmmaClip {
   if (['empathetic','encouraging'].includes(expression)) return 'Empathetic';
   if (['proud','excited','playful'].includes(expression)) return 'Proud';
@@ -34,7 +35,7 @@ export class EmmaMasterController {
   private disposed = false;
   private idlePhase = 0;
   private idleWait = 0;
-  private nextIdleGestureWait = 16;
+  private nextIdleGestureWait = 13;
   private idleGestureIndex = 0;
   private attentionWait = 7;
   private waveWait = 8;
@@ -136,8 +137,8 @@ export class EmmaMasterController {
       if (this.idleWait >= this.nextIdleGestureWait) {
         // Sprinkle in an authored listening gesture and a gentle stance shift,
         // with a little timing variation so her idle does not feel looped.
-        this.nextIdleGestureWait = 15 + Math.random() * 9;
-        const gesture: EmmaClip = this.idleGestureIndex++ % 2 === 0 ? 'Listening' : 'Stance-Change';
+        this.nextIdleGestureWait = 12 + Math.random() * 6;
+        const gesture = IDLE_GESTURES[this.idleGestureIndex++ % IDLE_GESTURES.length];
         this.request(gesture);
       }
     }
