@@ -42,6 +42,8 @@ export class EmmaMasterController {
   private waveElapsed = 0;
   private performedExpression = '';
   private waveFingers: THREE.Object3D[][];
+  private waveFingerOffsets = new Map<THREE.Object3D, THREE.Quaternion>();
+  private waveArmBasePose: Array<{bone: THREE.Object3D; position: THREE.Vector3; quaternion: THREE.Quaternion; scale: THREE.Vector3}> | undefined;
   private waveBlend = 0;
   private fingerClock = 0;
   private waveArm: { upper: THREE.Object3D; forearm: THREE.Object3D; hand: THREE.Object3D; fingerBase: THREE.Object3D; fingerTip: THREE.Object3D; foreLength: number } | undefined;
@@ -114,7 +116,7 @@ export class EmmaMasterController {
   }
   setReducedMotion(reduced: boolean) {
     if (this.disposed || this.reduced === reduced) return;
-    this.reduced = reduced; this.pending = undefined; this.retiring.clear(); this.mixer.stopAllAction();
+    this.reduced = reduced; this.pending = undefined; this.retiring.clear(); this.restoreWaveOverlays(); this.mixer.stopAllAction();
     this.play('Idle');
     const idle = this.actions.get('Idle')!; idle.paused = reduced; this.mixer.update(0);
   }
@@ -122,6 +124,7 @@ export class EmmaMasterController {
     if (this.disposed || this.reduced || !Number.isFinite(delta) || delta <= 0) return;
     const dt = Math.min(delta, .05); this.waveWait += dt;
     if (this.current === 'Wave') this.waveElapsed += dt;
+    this.restoreWaveOverlays();
     this.mixer.update(dt); if(this.current === 'Idle') this.idlePhase = this.actions.get('Idle')!.time;
     if (this.current === 'Wave' && this.waveElapsed >= WAVE_HOLD_END) this.endPerformance();
     this.applyWaveFingers(dt);
@@ -149,7 +152,9 @@ export class EmmaMasterController {
   }
   /** Additive finger curl layered after the mixer so the authored clip values are untouched. */
   private applyWaveFingers(dt: number) {
-    this.waveBlend += ((this.current === 'Wave' ? 1 : 0) - this.waveBlend) * Math.min(1, dt * (this.current === 'Wave' ? 4 : 1 / WAVE_EXIT_FADE));
+    const target = this.current === 'Wave' ? 1 : 0;
+    const rate = this.current === 'Wave' ? 4 : 3.2;
+    this.waveBlend += (target - this.waveBlend) * (1 - Math.exp(-dt * rate));
     this.fingerClock += dt;
     if (this.waveBlend < .002) return;
     this.applyWaveArm(this.waveBlend);
@@ -159,6 +164,7 @@ export class EmmaMasterController {
       joints.forEach((bone, joint) => {
         curl.setFromAxisAngle(axis, WAVE_FINGER_JOINT_CURL[joint] * this.waveBlend * pulse);
         bone.quaternion.multiply(curl);
+        this.waveFingerOffsets.set(bone, curl.clone());
       });
     });
     if (this.waveArm) {
@@ -172,6 +178,9 @@ export class EmmaMasterController {
   private applyWaveArm(weight: number) {
     if (!this.waveArm || weight < .001) return;
     const { upper, forearm, hand, fingerBase, fingerTip, foreLength } = this.waveArm;
+    this.waveArmBasePose = [upper, forearm, hand].map(bone => ({
+      bone, position: bone.position.clone(), quaternion: bone.quaternion.clone(), scale: bone.scale.clone(),
+    }));
     this.root.updateMatrixWorld(true);
     const shoulder = upper.getWorldPosition(new THREE.Vector3());
     const elbow = forearm.getWorldPosition(new THREE.Vector3());
@@ -191,7 +200,21 @@ export class EmmaMasterController {
     setWorldPose(forearm, elbowTurned, forearmTurn.clone().multiply(forearm.getWorldQuaternion(new THREE.Quaternion())));
     setWorldPose(hand, wristFinal, palmTurn.multiply(forearmTurn).multiply(handQuat));
   }
+  private restoreWaveOverlays() {
+    if (this.waveArmBasePose) {
+      for (const pose of this.waveArmBasePose) {
+        pose.bone.position.copy(pose.position);
+        pose.bone.quaternion.copy(pose.quaternion);
+        pose.bone.scale.copy(pose.scale);
+      }
+      this.waveArmBasePose = undefined;
+      this.root.updateMatrixWorld(true);
+    }
+    for (const [bone, offset] of this.waveFingerOffsets) bone.quaternion.multiply(offset.clone().invert());
+    this.waveFingerOffsets.clear();
+  }
   dispose() {
+    this.restoreWaveOverlays();
     this.disposed = true; this.mixer.removeEventListener('finished', this.finished);
     this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.root); this.retiring.clear();
   }
