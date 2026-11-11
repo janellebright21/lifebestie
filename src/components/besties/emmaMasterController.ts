@@ -9,7 +9,7 @@ export function emotionClip(expression: string): EmmaClip {
   if (['thinking','listening','focused'].includes(expression)) return 'Listening';
   return 'Idle';
 }
-const WAVE_FINGER_JOINT_CURL = [0.02, 0.02, 0.01];
+const WAVE_FINGER_JOINT_CURL = [0.06, 0.08, 0.06];
 const WAVE_FINGER_CHAINS = ['Index', 'Middle', 'Ring', 'Pinky'].map(finger => [1, 2, 3].map(joint => `DEF-${finger}${joint}L`));
 const WAVE_WRIST_BONE = 'DEF-HandL';
 const WAVE_WRIST_RAD = 30 * Math.PI / 180;
