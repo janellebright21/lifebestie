@@ -36,6 +36,7 @@ export class EmmaMasterController {
   private idleWait = 0;
   private attentionWait = 7;
   private waveWait = 8;
+  private waveElapsed = 0;
   private performedExpression = '';
   private waveFingers: THREE.Object3D[][];
   private waveBlend = 0;
@@ -60,6 +61,9 @@ export class EmmaMasterController {
   get idleTime(): number { return this.idlePhase; }
   private finished = (event: {action: THREE.AnimationAction}) => {
     if (this.disposed || event.action !== this.actions.get(this.current) || this.current === 'Idle') return;
+    // The authored Wave clip may finish before the full greeting should end.
+    // Leave its last raised pose clamped; update() owns the hold and exit timing.
+    if (this.current === 'Wave') return;
     this.endPerformance();
   };
   private endPerformance() {
@@ -70,7 +74,7 @@ export class EmmaMasterController {
     if (this.disposed) return;
     const next = this.actions.get(name)!;
     const old = this.actions.get(this.current);
-    if(name === 'Wave')this.waveWait = 0;
+    if(name === 'Wave'){this.waveWait = 0; this.waveElapsed = 0;}
     this.current = name; this.retiring.delete(next);
     const phase = name === 'Idle' ? this.idlePhase : 0;
     next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1);
@@ -113,11 +117,10 @@ export class EmmaMasterController {
   }
   update(delta: number) {
     if (this.disposed || this.reduced || !Number.isFinite(delta) || delta <= 0) return;
-    const dt = Math.min(delta, .05); this.waveWait += dt; this.mixer.update(dt); if(this.current === 'Idle') this.idlePhase = this.actions.get('Idle')!.time;
-    if (this.current === 'Wave' && this.actions.get('Wave')!.time >= WAVE_HOLD_END) {
-      this.actions.get('Wave')!.setEffectiveTimeScale(0);
-      this.endPerformance();
-    }
+    const dt = Math.min(delta, .05); this.waveWait += dt;
+    if (this.current === 'Wave') this.waveElapsed += dt;
+    this.mixer.update(dt); if(this.current === 'Idle') this.idlePhase = this.actions.get('Idle')!.time;
+    if (this.current === 'Wave' && this.waveElapsed >= WAVE_HOLD_END) this.endPerformance();
     this.applyWaveFingers(dt);
     for (const [action, time] of this.retiring) {
       if (time <= dt) { action.stop(); this.retiring.delete(action); }
