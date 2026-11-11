@@ -72,6 +72,12 @@ export class EmmaMasterController {
     this.endPerformance();
   };
   private endPerformance() {
+    // Freeze Wave at its raised pose during the exit fade. The authored clip
+    // starts lowering the arm before it ends, which makes the transition snap.
+    if (this.current === 'Wave') {
+      const wave = this.actions.get('Wave');
+      if (wave) wave.paused = true;
+    }
     const next = this.pending ?? 'Idle'; this.pending = undefined;
     this.play(next); this.speakingWait = 4; this.attentionWait = 7;
   }
@@ -82,7 +88,7 @@ export class EmmaMasterController {
     if(name === 'Wave'){this.waveWait = 0; this.waveElapsed = 0;}
     this.current = name; this.retiring.delete(next);
     const phase = name === 'Idle' ? this.idlePhase : 0;
-    next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1);
+    next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1); next.paused = false;
     next.time = phase; this.idleWait = 0;
     next.setLoop(name === 'Idle' ? THREE.LoopRepeat : THREE.LoopOnce, name === 'Idle' ? Infinity : 1);
     next.clampWhenFinished = name !== 'Idle'; next.play();
