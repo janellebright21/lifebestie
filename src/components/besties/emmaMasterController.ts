@@ -34,6 +34,8 @@ export class EmmaMasterController {
   private disposed = false;
   private idlePhase = 0;
   private idleWait = 0;
+  private nextIdleGestureWait = 16;
+  private idleGestureIndex = 0;
   private attentionWait = 7;
   private waveWait = 8;
   private waveElapsed = 0;
@@ -130,7 +132,14 @@ export class EmmaMasterController {
       this.attentionWait -= dt; if(this.attentionWait <= 0) this.request('Listening');
     }
     if (this.current === 'Idle' && this.activity === 'idle' && this.options.allowStance) {
-      this.idleWait += dt; if(this.idleWait >= 24) this.request('Stance-Change');
+      this.idleWait += dt;
+      if (this.idleWait >= this.nextIdleGestureWait) {
+        // Sprinkle in an authored listening gesture and a gentle stance shift,
+        // with a little timing variation so her idle does not feel looped.
+        this.nextIdleGestureWait = 15 + Math.random() * 9;
+        const gesture: EmmaClip = this.idleGestureIndex++ % 2 === 0 ? 'Listening' : 'Stance-Change';
+        this.request(gesture);
+      }
     }
     if (this.current === 'Idle' && this.activity === 'speaking') {
       this.speakingWait -= dt;
